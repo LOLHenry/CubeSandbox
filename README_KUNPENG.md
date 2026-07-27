@@ -399,23 +399,37 @@ WebUI（若已启动）默认：`http://<节点IP>:12088`
 
 ### 3.6 Windows 本机远程访问鲲鹏（示例 IP：`10.50.156.199`）
 
-不 SSH 进沙箱；在 Windows 上用 SDK 调控制面，执行发生在鲲鹏上的 MicroVM 里。
+不 SSH 进沙箱；在 Windows 上用 SDK / Jupyter 调控制面，执行发生在鲲鹏上的 MicroVM 里。
 
-**鲲鹏侧（一次）：** 按 §4 放行 `3000/80/443`（及可选 `12088`），模板 `READY`，并把 mkcert 根证拷到 Windows：
+完整逐步 Notebook 示例见：  
+[`examples/windows-notebook-demo/`](examples/windows-notebook-demo/README_zh.md)
 
-```text
-鲲鹏: /root/.local/share/mkcert/rootCA.pem
-→ Windows 例如: C:\certs\cube-rootCA.pem
+#### 鲲鹏根证书在哪里
+
+one-click 用 **mkcert** 签发 `*.cube.app`。客户端 HTTPS 需要**根证**（不是业务证书）：
+
+```bash
+# 在鲲鹏上执行
+mkcert -CAROOT
+# 常见：/root/.local/share/mkcert
+
+ls -l "$(mkcert -CAROOT)/rootCA.pem"
+# 默认完整路径：
+# /root/.local/share/mkcert/rootCA.pem
 ```
 
-**Windows PowerShell：**
+- 只需拷贝 **`rootCA.pem`** 到 Windows（例如 `C:\certs\cube-rootCA.pem`）
+- **不要**拷贝同目录的 `rootCA-key.pem`（私钥）
+- `/usr/local/services/cubetoolbox/cubeproxy/certs/` 下的 `cube.app+3.pem` 等是站点证书，**不是** `SSL_CERT_FILE` 要用的根证
+
+#### Windows PowerShell（脚本方式）
 
 ```powershell
 # 连通性
 curl http://10.50.156.199:3000/health
 # 可选 WebUI: http://10.50.156.199:12088/
 
-pip install e2b-code-interpreter
+pip install e2b-code-interpreter python-dotenv
 
 $env:E2B_API_URL = "http://10.50.156.199:3000"
 $env:E2B_API_KEY = "e2b_000000"
@@ -426,7 +440,20 @@ $env:REQUESTS_CA_BUNDLE = "C:\certs\cube-rootCA.pem"
 python check_pkgs.py   # 内容见 §3.3 探测脚本
 ```
 
-换机器时只需改 `E2B_API_URL` 里的 IP。浏览器访问 `*.cube.app` 还需 DNS/hosts + 信任根证；**演示主路径建议只用 SDK**。
+#### Windows Jupyter（逐格演示，推荐给领导看）
+
+```powershell
+cd examples\windows-notebook-demo
+python -m venv C:\venv\cube-demo
+C:\venv\cube-demo\Scripts\Activate.ps1
+pip install -r requirements.txt
+copy .env.example .env
+# 编辑 .env 后：
+jupyter lab
+# 打开 cube_sandbox_demo.ipynb，内核选 Cube Sandbox Demo，按 Cell 1→7 运行
+```
+
+换机器时改 `E2B_API_URL` 里的 IP。浏览器访问 `*.cube.app` 还需 DNS/hosts + 信任该根证；**演示主路径建议只用 SDK / Notebook**。
 
 ---
 
@@ -553,10 +580,9 @@ journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 - [ ] `docker tag ... sandbox-code:latest`，确认 `Architecture=arm64`  
 - [ ] `tpl create-from-image --image sandbox-code:latest` → `READY`，记下 `template_id`  
 - [ ] firewalld 放行 3000/80/443（及可选 12088）  
-- [ ] Windows / 远端：`E2B_API_URL=http://10.50.156.199:3000` + 拷贝 `rootCA.pem`（§3.6）  
-- [ ] SDK `run_code` 探测包 / 跑演示；需要 pandas 栈时先确认镜像是否自带（§3.2）  
+- [ ] Windows Jupyter：`examples/windows-notebook-demo`（拷贝 `rootCA.pem`，按 Cell 1→7）  
 
-**当前下一步：§2.0 → 模板 READY → Windows 用 §3.6 远程调用。**
+**当前下一步：§2.0 → 模板 READY → Windows 用 §3.6 / Notebook 远程调用。**
 
 ---
 
@@ -564,6 +590,7 @@ journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 
 | 说明 | 链接 |
 |------|------|
+| Windows Jupyter 远程演示 | [examples/windows-notebook-demo/README_zh.md](examples/windows-notebook-demo/README_zh.md) |
 | 官方裸金属部署 | [docs/zh/guide/bare-metal-deploy.md](docs/zh/guide/bare-metal-deploy.md) |
 | 官方 ARM 支持说明 | [docs/zh/blog/posts/2026-07-08-cubesandbox-arm-support.md](docs/zh/blog/posts/2026-07-08-cubesandbox-arm-support.md) |
 | one-click arm64 包 | GitHub / CNB Releases 中的 `cube-sandbox-one-click-*-arm64.tar.gz` |

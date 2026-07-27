@@ -1,0 +1,4 @@
+jupyterlab>=4.0
+ipykernel>=6.0
+e2b-code-interpreter>=2.4.1
+python-dotenv>=1.0
