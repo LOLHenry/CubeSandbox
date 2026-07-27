@@ -433,12 +433,13 @@ WebUI（若已启动）默认：`http://<节点IP>:12088`
 
 | 阶段 | 包 | 用途 | 架构注意 |
 |------|----|------|----------|
-| ① 先做 quickstart | `quickstart-pkgs/` | `e2b-code-interpreter` + `python-dotenv` + `rich` | **aarch64 / cp312** |
+| ① 先做 quickstart | `cube-python-wheels-py312-aarch64.tar.gz` | 预打包 Release 或自建的 `quickstart-pkgs/` | **aarch64 / cp312**；推荐 §3.6.1-A0 |
 | ② 再做 OpenClaw | `node-*-linux-arm64.tar.xz` | Node 运行时（OpenClaw 依赖） | **linux-arm64**，Node **22+** |
 | ② | `openclaw-bundle-linux-arm64.tar.gz` | 从未装过 OpenClaw 时用的完整离线包 | 必须在 **aarch64 Linux** 上打包 |
 
-**强烈建议：联网下载机也用 aarch64 Linux**（另一台鲲鹏临时开网、云 ARM VM 等）。  
-若只能在 **x86** 上下载 Python 包，见下方平台参数；**OpenClaw 的 npm bundle 不要在 x86 上打**（`sharp` 等原生模块与 CPU 绑定）。
+**Python wheels 推荐**：直接下载 [GitHub Release 预打包](https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64)（x86 PC 即可，含 `pyqwest` aarch64 wheel）。  
+若需自建：联网机建议 **aarch64 Linux**（另一台鲲鹏临时开网、云 ARM VM 等）；x86 见 §3.6.1-A1。  
+**OpenClaw 的 npm bundle 不要在 x86 上打**（`sharp` 等原生模块与 CPU 绑定）。
 
 在鲲鹏上确认 Python（建议 3.12）：
 
@@ -450,57 +451,96 @@ python3 --version
 ##### A. 阶段①：Python wheels（给 quickstart 用）
 
 > **若鲲鹏上 proxy / 国内镜像都拉不到包**：不要在服务器上 `pip install`。  
-> 在**另一台能访问 `https://pypi.org` 的机器**上下载完整 wheel 目录，再 `scp`/U 盘拷到鲲鹏。
+> 在**另一台能访问公网的机器**上下载完整 wheel 包，再 `scp` / U 盘拷到鲲鹏 `~/offline-pkgs/`。
 
-**A0. 标准离线流程（两步：下载机 → 鲲鹏）**
+`pip download` 会**自动拉传递依赖**（约 25～30 个 wheel）。其中 **`pyqwest`**、**`protobuf-py-ext`**
+是 **aarch64 原生包**，缺了或下成 x86_64 时，鲲鹏离线安装会报：
 
-| 步骤 | 在哪做 | 做什么 |
-|------|--------|--------|
-| 1 | 联网 **aarch64** + Python 3.12（云 ARM VM / 另一台鲲鹏临时开网 / 本机 WSL 不推荐交叉） | `pip download` 整包 |
-| 2 | 鲲鹏（无公网） | 解压 + `pip install --no-index --find-links=...` |
-
-**下载机**（能访问 PyPI 即可；可用你 PC 上的 Docker arm64）：
-
-```bash
-# 下载机自检
-uname -m          # 必须 aarch64
-python3.12 -V
-
-rm -rf quickstart-pkgs
-mkdir -p quickstart-pkgs
-
-# 只走官方 PyPI，避免国内镜像缺 e2b / pyqwest
-python3.12 -m pip download \
-  e2b-code-interpreter python-dotenv rich \
-  -i https://pypi.org/simple \
-  -d ./quickstart-pkgs/
-
-# 必检：原生依赖必须是 aarch64 + cp312
-ls quickstart-pkgs | grep pyqwest
-ls quickstart-pkgs | grep protobuf_py_ext
-ls quickstart-pkgs/*.whl | wc -l    # 通常 > 20
-
-# 不应出现 x86_64（若出现说明下载机架构不对）
-ls quickstart-pkgs | grep x86_64 && echo "ERROR: wrong arch" || echo "arch ok"
-
-tar czf cube-python-wheels-py312-aarch64.tar.gz quickstart-pkgs
+```text
+No matching distribution found for pyqwest
 ```
 
-拷到鲲鹏 `~/offline-pkgs/` 后，**鲲鹏上**：
+**A0. 推荐：直接下载预打包 Release（x86 PC 即可）**
+
+本仓库已在 GitHub Release 发布完整 wheel 包（x86 联网机交叉下载，含 **aarch64 cp312** 的 `pyqwest` / `protobuf-py-ext`）：
+
+| 文件 | sha256 |
+|------|--------|
+| [`cube-python-wheels-py312-aarch64.tar.gz`](https://github.com/LOLHenry/CubeSandbox/releases/download/cube-python-wheels-py312-aarch64/cube-python-wheels-py312-aarch64.tar.gz) | `80c9ccd582cec6ecdca3c10f4b61215ee162f7f8c7c35e6f44d6461a947293fb` |
+
+Release 页：https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64
+
+**在联网 PC 上下载并拷到鲲鹏：**
+
+```bash
+# 联网 PC（x86 或 aarch64 均可）
+wget https://github.com/LOLHenry/CubeSandbox/releases/download/cube-python-wheels-py312-aarch64/cube-python-wheels-py312-aarch64.tar.gz
+sha256sum cube-python-wheels-py312-aarch64.tar.gz
+# 期望：80c9ccd582cec6ecdca3c10f4b61215ee162f7f8c7c35e6f44d6461a947293fb
+
+scp cube-python-wheels-py312-aarch64.tar.gz root@<鲲鹏IP>:~/offline-pkgs/
+```
+
+**鲲鹏上安装**（需先按 §3.6.4 建好 Python 3.12 venv）：
 
 ```bash
 cd ~/offline-pkgs
 tar xzf cube-python-wheels-py312-aarch64.tar.gz
 
 export PATH="/usr/local/python3.12/bin:$PATH"   # 若 make altinstall
-rm -rf ~/cube-demo/.venv
 python3.12 -m venv ~/cube-demo/.venv
 source ~/cube-demo/.venv/bin/activate
 
-pip install --no-index --find-links=./quickstart-pkgs/ \
-  e2b-code-interpreter python-dotenv rich
+bash install-e2b-offline.sh
+# 或手动：
+# pip install --no-index --find-links=./quickstart-pkgs/ \
+#   e2b-code-interpreter python-dotenv rich
 
-python -c "import e2b_code_interpreter; print('ok')"
+python -c "import e2b_code_interpreter; print('ok', e2b_code_interpreter.__version__)"
+```
+
+也可从仓库 [`offline-pkgs/`](offline-pkgs/) 目录取同名 tar（内容与 Release 一致）。
+
+**A1. 自建：x86 联网机交叉下载**
+
+无 Release 或需更新版本时，在 **x86 + Python 3.12** 上执行（与预打包命令一致）：
+
+```bash
+rm -rf quickstart-pkgs && mkdir -p quickstart-pkgs
+
+python3.12 -m pip download e2b-code-interpreter python-dotenv rich \
+  --platform manylinux2014_aarch64 \
+  --platform linux_aarch64 \
+  --python-version 312 --implementation cp --abi cp312 \
+  --only-binary=:all: \
+  -i https://pypi.org/simple \
+  -d ./quickstart-pkgs/
+
+# 必检
+ls quickstart-pkgs | grep -E 'pyqwest|protobuf_py_ext'
+ls quickstart-pkgs | grep x86_64 && echo "ERROR: wrong arch" || echo "arch ok"
+ls quickstart-pkgs/*.whl | wc -l    # 通常 > 20
+
+tar czf cube-python-wheels-py312-aarch64.tar.gz quickstart-pkgs
+scp cube-python-wheels-py312-aarch64.tar.gz root@<鲲鹏IP>:~/offline-pkgs/
+```
+
+**A2. 自建：联网 aarch64 或 Docker arm64**
+
+有 **真 aarch64 + Python 3.12** 时可直接下载（不必加 `--platform`）：
+
+```bash
+uname -m          # 必须 aarch64
+python3.12 -V
+
+rm -rf quickstart-pkgs && mkdir -p quickstart-pkgs
+python3.12 -m pip download \
+  e2b-code-interpreter python-dotenv rich \
+  -i https://pypi.org/simple \
+  -d ./quickstart-pkgs/
+
+ls quickstart-pkgs | grep pyqwest
+tar czf cube-python-wheels-py312-aarch64.tar.gz quickstart-pkgs
 ```
 
 **下载机没有 aarch64 时**：用 Docker 在 x86 宿主机上模拟 arm64 下载：
@@ -515,73 +555,14 @@ docker run --rm --platform linux/arm64 \
   '
 ```
 
-在**联网 aarch64 + Python 3.12** 上（不要用 x86 默认下载后再拷）：
+若已有目录但只缺 `pyqwest`，可在联网机上补下后拷进同一 `quickstart-pkgs/`：
 
 ```bash
-mkdir -p quickstart-pkgs
-python3.12 -m pip download \
-  e2b-code-interpreter python-dotenv rich \
-  -d ./quickstart-pkgs/
-tar czf cube-python-wheels-aarch64.tar.gz quickstart-pkgs
-```
-
-`pip download` 会**自动拉传递依赖**（约 25～30 个 wheel）。其中 **`pyqwest`**、**`protobuf-py-ext`**
-是 **aarch64 原生包**，缺了或下成 x86_64 时，鲲鹏离线安装会报：
-
-```text
-No matching distribution found for pyqwest
-```
-
-下载后务必自检（应看到 **aarch64**，不是 x86_64）：
-
-```bash
-ls quickstart-pkgs | grep -E 'pyqwest|protobuf_py_ext'
-# 期望类似：
-# pyqwest-0.7.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
-# protobuf_py_ext-0.1.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
-
-ls quickstart-pkgs/*.whl | wc -l    # 通常应 > 20
-```
-
-若联网机是 **x86**，必须强制 aarch64 + cp312（`--only-binary=:all:` 缺 wheel 时改用真 aarch64 机）：
-
-```bash
-python3.12 -m pip download e2b-code-interpreter python-dotenv rich \
-  --platform manylinux2014_aarch64 \
-  --platform linux_aarch64 \
-  --python-version 312 \
-  --implementation cp \
-  --abi cp312 \
-  --only-binary=:all: \
+python3.12 -m pip download pyqwest protobuf-py-ext \
+  --platform manylinux2014_aarch64 --python-version 312 \
+  --implementation cp --abi cp312 --only-binary=:all: \
   -d ./quickstart-pkgs/
 ```
-
-若已有目录但只缺 `pyqwest`，可在联网 aarch64 上补下后拷进同一目录：
-
-```bash
-python3.12 -m pip download pyqwest protobuf-py-ext -d ./quickstart-pkgs/
-```
-
-**无 aarch64 下载机时**：可在 x86 联网环境用 `--platform manylinux2014_aarch64` 交叉下载（本仓库已预打包一份，见 [`offline-pkgs/`](offline-pkgs/)）：
-
-```bash
-# x86 联网机交叉下载（与预打包命令一致）
-python3.12 -m pip download e2b-code-interpreter python-dotenv rich \
-  --platform manylinux2014_aarch64 \
-  --platform linux_aarch64 \
-  --python-version 312 --implementation cp --abi cp312 \
-  --only-binary=:all: \
-  -i https://pypi.org/simple \
-  -d ./quickstart-pkgs/
-```
-
-预打包文件（可直接拷到鲲鹏）：
-
-| 文件 | sha256 |
-|------|--------|
-| [`offline-pkgs/cube-python-wheels-py312-aarch64.tar.gz`](offline-pkgs/cube-python-wheels-py312-aarch64.tar.gz) | `80c9ccd582cec6ecdca3c10f4b61215ee162f7f8c7c35e6f44d6461a947293fb` |
-
-鲲鹏解压后执行：`bash offline-pkgs/install-e2b-offline.sh`（需先 `python3.12 -m venv` 并 activate）。
 
 ##### B. 阶段②：OpenClaw 离线下载（从未安装过时按此做）
 
@@ -705,9 +686,10 @@ npm install "openclaw@${OPENCLAW_VER}" --omit=optional --foreground-scripts
 
 ```text
 ~/offline-pkgs/
-  cube-python-wheels-aarch64.tar.gz   # 或散开的 quickstart-pkgs/
-  node-v22.*-linux-arm64.tar.xz       # 与打包机相同文件
-  openclaw-bundle-linux-arm64.tar.gz  # 或带版本号的文件名
+  cube-python-wheels-py312-aarch64.tar.gz   # 或散开的 quickstart-pkgs/
+  install-e2b-offline.sh                    # 可选，与 tar 同目录
+  node-v22.*-linux-arm64.tar.xz             # 与打包机相同文件
+  openclaw-bundle-linux-arm64.tar.gz        # 或带版本号的文件名
 ```
 
 > OpenClaw **对话模型**还需能访问的 LLM API（内网 OpenAI 兼容端点 / 厂商内网网关均可）。  
@@ -741,9 +723,11 @@ export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE"
 
 #### 3.6.4 鲲鹏离线安装 Python 3.12 + e2b
 
+推荐先用 §3.6.1-A0 的 GitHub Release 包（或已拷到 `~/offline-pkgs/` 的同名 tar）。
+
 ```bash
 cd ~/offline-pkgs
-tar xzf cube-python-wheels-aarch64.tar.gz   # 若已是目录可跳过
+tar xzf cube-python-wheels-py312-aarch64.tar.gz   # 若已是 quickstart-pkgs/ 目录可跳过
 
 # 若你是源码 make altinstall 到 /usr/local/python3.12，先把新版本放进 PATH
 export PATH="/usr/local/python3.12/bin:$PATH"
@@ -755,9 +739,12 @@ python3.12 -m venv ~/cube-demo/.venv
 source ~/cube-demo/.venv/bin/activate
 python -V    # 期望 3.12.x
 
-# wheel 必须匹配 cp312 + aarch64
-pip install --no-index --find-links=./quickstart-pkgs/ \
-  e2b-code-interpreter python-dotenv rich
+# 一键安装（脚本会校验 pyqwest aarch64 wheel）
+bash install-e2b-offline.sh
+
+# 或手动：wheel 必须匹配 cp312 + aarch64
+# pip install --no-index --find-links=./quickstart-pkgs/ \
+#   e2b-code-interpreter python-dotenv rich
 
 python -c "import e2b_code_interpreter; print('ok', e2b_code_interpreter.__version__)"
 ```
@@ -938,7 +925,7 @@ openclaw gateway --bind loopback --port 18789
 | 现象 | 处理 |
 |------|------|
 | `pip` 报 `No matching distribution` / 只有 `x86_64` wheel | 下载机架构不对；用 aarch64 重下，或加 `--platform ..._aarch64` |
-| `No matching distribution found for pyqwest` | `e2b` 的传递依赖；离线包缺 **aarch64** 版 `pyqwest` / `protobuf-py-ext`。在联网 aarch64 上 `pip download e2b-code-interpreter ...` 整包重下（§3.6.1-A），不要只拷 top3 wheel |
+| `No matching distribution found for pyqwest` | `e2b` 的传递依赖；离线包缺 **aarch64** 版 `pyqwest` / `protobuf-py-ext`。直接用 §3.6.1-A0 [预打包 Release](https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64)，或按 A1/A2 整包重下，不要只拷 top3 wheel |
 | 想在鲲鹏直接 `npm install -g openclaw` | 无公网会失败；必须用 §3.6.1-B 的 bundle |
 | `openclaw: command not found` | `PATH` 未含 `~/openclaw-app/node_modules/.bin`；`source ~/.bashrc` |
 | 打包时提示 arm64 依赖没有 / `Unsupported platform` / sharp 404 | 见 §3.6.1-B3b：不要在 x86 交叉装；改用真 aarch64 或 Docker `linux/arm64`；registry 用 npmjs.org |
@@ -1023,7 +1010,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" "http://<鲲鹏IP>:12088/"
 | `failed to resolve image` / `tencentcloudcr.com:443: i/o timeout` | 远程仓库不可达；离线请走 §2.0～2.3 |
 | `native export failed to resolve ... index.docker.io ... i/o timeout` | **不是平台不匹配**。默认 native 导出把短名当成 Docker Hub。设 `CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` 并重启 cubemaster（§2.0） |
 | `requested image's platform (linux/amd64) does not match` | 才是平台问题；删掉 amd64 镜像，重新 load arm64 离线包 |
-| `mirrors.tools.huawei.com/pypi/simple` 找不到 `e2b-code-interpreter` | 该内网镜像未同步此包；按 §3.6.1 在联网机（建议 aarch64）`pip download`，再在鲲鹏 `pip install --no-index --find-links=...` |
+| `mirrors.tools.huawei.com/pypi/simple` 找不到 `e2b-code-interpreter` | 该内网镜像未同步此包；按 §3.6.1-A0 下载 [预打包 Release](https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64)，或在联网机 `pip download` 后在鲲鹏 `pip install --no-index --find-links=...` |
 | `getaddrinfo failed` / `49999-*.cube.app` 解析失败 | 客户端不在集群 DNS 域内；**在鲲鹏本机跑 SDK / OpenClaw**（§3.6），不要从 Windows 远程当执行端 |
 | `install.sh` 长时间无输出 | 多半在等 systemd；另开终端看 `systemctl list-jobs`。若已 `install complete`，不要反复全量安装，直接做模板 |
 
@@ -1066,7 +1053,7 @@ journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 - [ ] **`CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` + 重启 cubemaster**（§2.0；两边 env 都写）  
 - [ ] `docker tag ... sandbox-code:latest`，确认 `Architecture=arm64`  
 - [ ] `tpl create-from-image --image sandbox-code:latest` → `READY`，记下 `template_id`  
-- [ ] **离线 Python**：§3.6.1-A 下载 aarch64 wheels → §3.6.4 装到鲲鹏  
+- [ ] **离线 Python**：§3.6.1-A0 下载 [预打包 Release](https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64) → §3.6.4 装到鲲鹏  
 - [ ] **第一段演示**：§3.6.5 `code-sandbox-quickstart`（`exec_code.py` / `cmd.py`）通过  
 - [ ] **离线 OpenClaw**：§3.6.1-B 在 **真 aarch64**（或 Docker arm64）打 bundle → §3.6.6 装到鲲鹏  
 - [ ] **第二段演示**：§3.6.7 `openclaw-integration` skill（模型 API 用内网地址）  
@@ -1086,3 +1073,4 @@ journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 | 官方 ARM 支持说明 | [docs/zh/blog/posts/2026-07-08-cubesandbox-arm-support.md](docs/zh/blog/posts/2026-07-08-cubesandbox-arm-support.md) |
 | one-click arm64 包 | GitHub / CNB Releases 中的 `cube-sandbox-one-click-*-arm64.tar.gz` |
 | 离线 Docker arm64 包 | https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-docker-arm64-v0.6.0 |
+| e2b 离线 Python wheels（aarch64 / cp312） | https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64 |

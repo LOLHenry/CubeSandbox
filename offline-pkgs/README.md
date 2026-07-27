@@ -10,6 +10,24 @@
 | `cube-python-wheels-py312-aarch64.tar.gz` | 29 个 wheel，解压后为 `quickstart-pkgs/` |
 | `install-e2b-offline.sh` | 鲲鹏上一键安装脚本 |
 
+> 大文件不在 git 中；请从 GitHub Release 下载，或在本机按 `README_KUNPENG.md` §3.6.1-A1/A2 自建。
+
+## 下载（联网 PC → 拷到鲲鹏）
+
+鲲鹏通常**无法访问 GitHub**，请在联网 PC 上下载后 `scp` 到鲲鹏：
+
+```bash
+# 联网 PC
+wget https://github.com/LOLHenry/CubeSandbox/releases/download/cube-python-wheels-py312-aarch64/cube-python-wheels-py312-aarch64.tar.gz
+sha256sum cube-python-wheels-py312-aarch64.tar.gz
+# 期望：
+# 80c9ccd582cec6ecdca3c10f4b61215ee162f7f8c7c35e6f44d6461a947293fb
+
+scp cube-python-wheels-py312-aarch64.tar.gz install-e2b-offline.sh root@<鲲鹏IP>:~/offline-pkgs/
+```
+
+Release 页：https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64
+
 ## 校验
 
 ```bash
@@ -21,6 +39,7 @@ sha256sum cube-python-wheels-py312-aarch64.tar.gz
 ## 鲲鹏安装
 
 ```bash
+cd ~/offline-pkgs
 tar xzf cube-python-wheels-py312-aarch64.tar.gz
 
 export PATH="/usr/local/python3.12/bin:$PATH"   # 若 make altinstall
