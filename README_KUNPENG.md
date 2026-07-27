@@ -397,12 +397,21 @@ WebUI（若已启动）默认：`http://<节点IP>:12088`
   → CubeProxy / *.cube.app （访问沙箱内服务端口；Host 头路由到具体沙箱）
 ```
 
-**DNS 说明：** `*.cube.app` 是集群私有域名，one-click 已在鲲鹏本机配好 CoreDNS/dnsmasq。  
-**推荐在鲲鹏本机跑 SDK / Notebook**；客户端与 Cube 同机时无需 hosts、`CUBE_PROXY_NODE_IP` 等绕过手段。
+**DNS 说明：** `*.cube.app` 是集群私有域名，one-click 已在鲲鹏本机配好 CoreDNS/dnsmasq。
 
-### 3.6 鲲鹏本机跑官方 OpenClaw 集成示例（推荐）
+| 客户端位置 | 数据面 DNS | 说明 |
+|-----------|-----------|------|
+| 鲲鹏本机 | 已内置 | 无需 hosts / `CUBE_PROXY_NODE_IP` |
+| 个人 PC（WSL） | **WSL 内 dnsmasq 泛解析**（§3.7） | 推荐：鲲鹏只跑 Cube，OpenClaw 在 WSL |
+| Windows 原生 Python | 需 Acrylic / 逐条 hosts | 不推荐；`e2b-code-interpreter` 也不支持 `CUBE_PROXY_NODE_IP` |
 
-演示与日常验证应在 **鲲鹏主机上** 执行，而不是在 Windows 远程当执行端（远程会碰到 `*.cube.app` 解析问题）。  
+> `CUBE_PROXY_NODE_IP` 仅 **`cubesandbox`** Python SDK 支持；OpenClaw 官方 skill 用的是 **`e2b-code-interpreter`**，远程客户端必须能解析 `*.cube.app`。
+
+### 3.6 鲲鹏本机跑官方 OpenClaw 集成示例（同机验证）
+
+若 OpenClaw / SDK 与 Cube **在同一台鲲鹏上**，可直接在本机验证。  
+若要在 **个人 PC** 上跑 OpenClaw，见 **§3.7（WSL + dnsmasq）**——鲲鹏只负责 Cube，客户端走 WSL。
+
 这里**不再额外造例子**，直接复用仓库自带的官方示例：
 
 - [`examples/openclaw-integration/README_zh.md`](examples/openclaw-integration/README_zh.md)
@@ -519,12 +528,244 @@ python cmd.py
 
 WebUI（可选）：`http://127.0.0.1:12088`
 
+### 3.7 个人 PC（WSL + dnsmasq）远程连鲲鹏 OpenClaw（推荐日常用法）
+
+**架构：** 鲲鹏 **只跑 Cube**（控制面 + 数据面）；个人 PC 的 **WSL2** 跑 OpenClaw + `e2b-code-interpreter`。  
+WSL 内用 **dnsmasq 泛解析 `*.cube.app` → 鲲鹏 IP**，一次配置即可覆盖所有沙箱，无需 Windows hosts / Acrylic，也无需每个沙箱写 `/etc/hosts`。
+
+下文把鲲鹏业务 IP 记为 **`KUNPENG_IP`**（示例 `10.50.156.199`，请换成你的实际 IP）。
+
+#### 3.7.1 鲲鹏侧（服务端，一次性）
+
+1. Cube 已 `install complete`，模板 **READY**（§2）。
+2. 记下 **`template_id`**。
+3. 若 PC 要访问，在鲲鹏放行端口（§4）；来源 IP 填 **Windows 主机的局域网 IP**（WSL2 出网经 NAT，对鲲鹏表现为 Windows IP，不是 WSL 虚拟网卡 IP）：
+
+```bash
+# 在鲲鹏上；CLIENT_IP 换成 Windows PC 的局域网 IP
+CLIENT_IP=10.0.0.20
+sudo firewall-cmd --permanent --add-rich-rule="rule family=\"ipv4\" source address=\"${CLIENT_IP}\" port port=\"3000\" protocol=\"tcp\" accept"
+sudo firewall-cmd --permanent --add-rich-rule="rule family=\"ipv4\" source address=\"${CLIENT_IP}\" port port=\"80\" protocol=\"tcp\" accept"
+sudo firewall-cmd --permanent --add-rich-rule="rule family=\"ipv4\" source address=\"${CLIENT_IP}\" port port=\"443\" protocol=\"tcp\" accept"
+sudo firewall-cmd --reload
+```
+
+4. 把 mkcert 根证书拷到 PC（WSL 里用）：
+
+```bash
+# 在 Windows PowerShell 或 WSL 里执行；路径按实际调整
+scp root@KUNPENG_IP:/root/.local/share/mkcert/rootCA.pem ~/cube-mkcert-rootCA.pem
+```
+
+5. 连通性自检（在 WSL 里）：
+
+```bash
+KUNPENG_IP=10.50.156.199   # 换成你的
+curl -sS "http://${KUNPENG_IP}:3000/health"
+ping -c 2 "${KUNPENG_IP}"
+```
+
+#### 3.7.2 安装 WSL2 + Ubuntu
+
+Windows 11 / 10（已启 WSL）：
+
+```powershell
+wsl --install -d Ubuntu-24.04
+# 或已有 WSL：wsl -l -v  确认 VERSION 为 2
+```
+
+后续命令均在 **WSL Ubuntu** 终端执行。
+
+#### 3.7.3 WSL 内安装 dnsmasq（泛解析 `*.cube.app`）
+
+```bash
+sudo apt update
+sudo apt install -y dnsmasq
+
+KUNPENG_IP=10.50.156.199   # 换成你的鲲鹏 IP
+
+sudo tee /etc/dnsmasq.d/cube-app.conf >/dev/null <<EOF
+# CubeSandbox 沙箱数据面：*.cube.app -> 鲲鹏 CubeProxy
+listen-address=127.0.0.1
+bind-interfaces
+address=/.cube.app/${KUNPENG_IP}
+# 其它域名走公网 DNS
+server=8.8.8.8
+server=1.1.1.1
+no-resolv
+EOF
+
+sudo service dnsmasq restart
+# 或：sudo systemctl restart dnsmasq
+```
+
+验证 dnsmasq 本机解析：
+
+```bash
+dig +short 49999-test.cube.app @127.0.0.1
+# 期望：10.50.156.199（你的 KUNPENG_IP）
+```
+
+#### 3.7.4 固定 WSL 的 `/etc/resolv.conf`（指向本机 dnsmasq）
+
+WSL 默认会覆盖 `resolv.conf`，需关闭自动生成：
+
+```bash
+sudo tee /etc/wsl.conf >/dev/null <<'EOF'
+[network]
+generateResolvConf = false
+EOF
+```
+
+在 **Windows PowerShell** 执行一次（让 wsl.conf 生效）：
+
+```powershell
+wsl --shutdown
+```
+
+重新打开 WSL 后：
+
+```bash
+sudo rm -f /etc/resolv.conf
+echo "nameserver 127.0.0.1" | sudo tee /etc/resolv.conf
+sudo chmod 644 /etc/resolv.conf
+
+# 可选：防止被误改
+# sudo chattr +i /etc/resolv.conf
+
+getent hosts 49999-test.cube.app
+# 或：nslookup 49999-test.cube.app
+# 期望解析到 KUNPENG_IP
+```
+
+若 `dig` 通但 `getent` 仍失败，确认 dnsmasq 在跑：`sudo service dnsmasq status`。
+
+#### 3.7.5 Python 3.12 虚拟环境与 `e2b-code-interpreter`
+
+推荐 **Python 3.12**（不要用 3.9 / 3.14 踩兼容坑）：
+
+```bash
+sudo apt install -y python3.12 python3.12-venv python3-pip
+
+python3.12 -m venv ~/cube-demo/.venv
+source ~/cube-demo/.venv/bin/activate
+python -V   # 期望 3.12.x
+```
+
+**能访问 PyPI 时：**
+
+```bash
+pip install -U pip
+pip install e2b-code-interpreter
+```
+
+**内网 / 华为镜像缺包时**（与 §3.6.3 相同，在可联网机器下载 wheel 后拷进 WSL）：
+
+```bash
+# 联网机器
+mkdir -p e2b-pkgs
+pip download e2b-code-interpreter -d ./e2b-pkgs/
+
+# WSL 内
+pip install --no-index --find-links=./e2b-pkgs/ e2b-code-interpreter
+```
+
+#### 3.7.6 环境变量（写入 `~/.bashrc` 或当前 shell）
+
+```bash
+KUNPENG_IP=10.50.156.199          # 换成你的
+export E2B_API_URL="http://${KUNPENG_IP}:3000"
+export E2B_API_KEY="e2b_000000"
+export CUBE_TEMPLATE_ID="<READY 的 template_id>"
+export SSL_CERT_FILE="$HOME/cube-mkcert-rootCA.pem"
+export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE"
+```
+
+持久化示例：
+
+```bash
+cat >> ~/.bashrc <<'EOF'
+export KUNPENG_IP=10.50.156.199
+export E2B_API_URL="http://${KUNPENG_IP}:3000"
+export E2B_API_KEY="e2b_000000"
+export CUBE_TEMPLATE_ID="<template_id>"
+export SSL_CERT_FILE="$HOME/cube-mkcert-rootCA.pem"
+export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE"
+EOF
+source ~/.bashrc
+```
+
+WSL 客户端 **不要** 设置 `CUBE_PROXY_NODE_IP`（对 `e2b-code-interpreter` 无效）。
+
+#### 3.7.7 最小 SDK 验证（WSL）
+
+```bash
+source ~/cube-demo/.venv/bin/activate
+# 确保 §3.7.6 环境变量已 export
+
+python3 - <<'PY'
+import os
+from e2b_code_interpreter import Sandbox
+
+with Sandbox.create(template=os.environ["CUBE_TEMPLATE_ID"], timeout=600) as sbx:
+    print("sandbox_id =", sbx.sandbox_id)
+    print(sbx.run_code("import platform; print(platform.machine())"))
+    print(sbx.commands.run("uname -a").stdout)
+PY
+```
+
+期望：`platform.machine()` 在沙箱内为 **`aarch64`**（MicroVM 跑在鲲鹏上）。  
+若 `Sandbox.create` 成功但 `run_code` 报 `getaddrinfo` / SSL 错误，先查 §3.7.4 DNS 与 `SSL_CERT_FILE` 路径。
+
+#### 3.7.8 安装 OpenClaw + Cube skill
+
+OpenClaw Gateway 按 [OpenClaw 官方文档](https://github.com/openclaw/openclaw) 在 **WSL** 内安装（Node.js 环境同样在 WSL，不要混用 Windows 原生 Node 访问 WSL 里的 skill 路径）。
+
+克隆或进入本仓库后：
+
+```bash
+cd /path/to/CubeSandbox/examples/openclaw-integration
+source ~/cube-demo/.venv/bin/activate
+pip install e2b-code-interpreter   # 或离线 wheel
+
+cp -r skills/cube-sandbox/ ~/.openclaw/workspace/skills/
+openclaw gateway restart
+```
+
+确认 skill 目录存在：`~/.openclaw/workspace/skills/cube-sandbox/SKILL.md`。
+
+在 OpenClaw 所在 shell **同样 export §3.7.6 的环境变量**（或写入 OpenClaw 的 env 配置），然后按官方话术测试：
+
+- `在沙箱里跑一段 Python，计算 1 到 100 的和`
+- `用沙箱执行 uname -a 并返回结果`
+
+也可先跑轻量 quickstart（仍在 WSL、同一套 env）：
+
+```bash
+cd examples/code-sandbox-quickstart
+pip install -r requirements.txt
+cp .env.example .env
+# 编辑 .env：E2B_API_URL=http://KUNPENG_IP:3000，CUBE_TEMPLATE_ID=...
+python exec_code.py
+```
+
+#### 3.7.9 常见 WSL 排错
+
+| 现象 | 处理 |
+|------|------|
+| `curl KUNPENG_IP:3000` 超时 | 鲲鹏 firewalld / 安全组未放行；或 IP 写错 |
+| `dig @127.0.0.1` 正确，`getent` 仍失败 | `resolv.conf` 未指向 `127.0.0.1`；执行 `wsl --shutdown` 后重做 §3.7.4 |
+| `run_code` SSL 错误 | `SSL_CERT_FILE` 未指向鲲鹏拷来的 `rootCA.pem` |
+| `Template not found` | `CUBE_TEMPLATE_ID` 与鲲鹏 `cubemastercli tpl list` 不一致 |
+| Windows 改了 hosts 仍不行 | **必须在 WSL 内**跑 Python/OpenClaw；Windows 原生 DNS 不影响 WSL |
+| 每个沙箱都要改 hosts | 说明未走 dnsmasq 泛解析；回到 §3.7.3～3.7.4 |
+
 ---
 
 ## 4. 防火墙（仅当其他机器要访问 API 时）
 
 单机部署、**仅在本机跑 SDK** 时通常不必改 firewalld。  
-若另一台机器需要调用 CubeAPI / WebUI，再放行以下端口。
+若 **WSL 客户端**（§3.7）或其它机器需要调用 CubeAPI / CubeProxy，再放行以下端口；WSL2 场景下来源 IP 为 **Windows 主机的局域网地址**。
 
 ### 4.1 需要放行的端口
 
@@ -594,7 +835,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" "http://<鲲鹏IP>:12088/"
 | `native export failed to resolve ... index.docker.io ... i/o timeout` | **不是平台不匹配**。默认 native 导出把短名当成 Docker Hub。设 `CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` 并重启 cubemaster（§2.0） |
 | `requested image's platform (linux/amd64) does not match` | 才是平台问题；删掉 amd64 镜像，重新 load arm64 离线包 |
 | `mirrors.tools.huawei.com/pypi/simple` 找不到 `e2b-code-interpreter` | 该内网镜像未同步此包；按 §3.6 先在联网机器 `pip download` wheel，再传到鲲鹏 `pip install --no-index --find-links=...` |
-| `getaddrinfo failed` / `49999-*.cube.app` 解析失败 | 客户端不在集群 DNS 域内；**在鲲鹏本机跑 SDK**（§3.6），不要从 Windows 远程当执行端 |
+| `getaddrinfo failed` / `49999-*.cube.app` 解析失败 | 客户端不在集群 DNS 域内：**同机**用 §3.6；**个人 PC** 用 WSL + dnsmasq（§3.7）。勿在 Windows 原生 Python 逐条改 hosts |
 | `install.sh` 长时间无输出 | 多半在等 systemd；另开终端看 `systemctl list-jobs`。若已 `install complete`，不要反复全量安装，直接做模板 |
 
 ### 5.1 DNS / dnsmasq 修复（单机常见）
@@ -637,9 +878,10 @@ journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 - [ ] `docker tag ... sandbox-code:latest`，确认 `Architecture=arm64`  
 - [ ] `tpl create-from-image --image sandbox-code:latest` → `READY`，记下 `template_id`  
 - [ ] **鲲鹏本机**：§3.6 跑官方 `examples/openclaw-integration` 或 `examples/code-sandbox-quickstart`  
-- [ ] （可选）firewalld 放行 3000/80/443，供其他机器只访问 API/WebUI  
+- [ ] **或 个人 PC WSL**：§3.7 dnsmasq + OpenClaw + `e2b-code-interpreter`（鲲鹏只跑 Cube）  
+- [ ] firewalld 放行 3000/80/443（§4；WSL 客户端填 Windows 主机局域网 IP）  
 
-**当前下一步：§2.0 → 模板 READY → §3.6 本机演示。**
+**当前下一步：§2.0 → 模板 READY → §3.6 本机验证 **或** §3.7 WSL 客户端。**
 
 ---
 
