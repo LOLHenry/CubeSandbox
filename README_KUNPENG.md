@@ -849,9 +849,12 @@ openclaw doctor
 > 不要在鲲鹏 root + SSH 环境里使用 `openclaw onboard --install-daemon` 或
 > `openclaw gateway install`：常会因为 `systemctl --user` / D-Bus 不可用而失败。
 
-把 Cube 变量单独写成环境文件，方便每次启动前加载：
+把 Cube 变量单独写成环境文件（**OpenClaw 不会自动生成**，需手动创建一次）。  
+变量与 §3.6.5 quickstart 的 `.env` 相同；`CUBE_TEMPLATE_ID` 用 `cubemastercli tpl list` 里 **READY** 的 ID：
 
 ```bash
+mkdir -p ~/.openclaw
+
 cat > ~/.openclaw/cube.env <<'EOF'
 E2B_API_URL=http://127.0.0.1:3000
 E2B_API_KEY=e2b_000000
@@ -859,18 +862,59 @@ CUBE_TEMPLATE_ID=<READY 的 template_id>
 SSL_CERT_FILE=/root/.local/share/mkcert/rootCA.pem
 REQUESTS_CA_BUNDLE=/root/.local/share/mkcert/rootCA.pem
 EOF
+
+# 自检
+set -a && source ~/.openclaw/cube.env && set +a
+echo "$CUBE_TEMPLATE_ID"
 ```
 
-前台常驻启动 Gateway（开一个专用 SSH 窗口，不要关）：
+**每次开 OpenClaw Gateway 前先执行**（新开 SSH 窗口时环境变量不会自动带上，skill 读不到 `CUBE_TEMPLATE_ID`）：
 
 ```bash
 set -a
 source ~/.openclaw/cube.env
 set +a
-
-# 推荐 loopback + SSH 隧道访问 Dashboard
 openclaw gateway --bind loopback --port 18789
 ```
+
+`set -a` 会把 `cube.env` 里的变量 export 给 gateway 及其子进程（触发 skill 时用）。
+
+<details>
+<summary>不想每次手动 source 的替代做法</summary>
+
+**A. 写进 `~/.bashrc`（登录 SSH 后自动加载）**
+
+```bash
+grep -q 'cube.env' ~/.bashrc || cat >> ~/.bashrc <<'EOF'
+
+# CubeSandbox skill 环境变量
+if [ -f ~/.openclaw/cube.env ]; then
+  set -a && . ~/.openclaw/cube.env && set +a
+fi
+EOF
+source ~/.bashrc
+# 之后可直接：openclaw gateway --bind loopback --port 18789
+```
+
+**B. 启动脚本（一条命令）**
+
+```bash
+mkdir -p ~/bin
+cat > ~/bin/openclaw-gateway-cube <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+set -a && source ~/.openclaw/cube.env && set +a
+exec openclaw gateway --bind loopback --port 18789 "$@"
+EOF
+chmod +x ~/bin/openclaw-gateway-cube
+grep -q '$HOME/bin' ~/.bashrc || echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+# 之后：openclaw-gateway-cube
+```
+
+</details>
+
+前台常驻：上述命令占用的 SSH 窗口**不要关**；要停 Gateway 用 Ctrl+C。
 
 从你的电脑访问 Dashboard 的推荐方式：
 
@@ -903,7 +947,7 @@ cp -r /path/to/CubeSandbox/examples/openclaw-integration/skills/cube-sandbox/ \
 ls ~/.openclaw/workspace/skills/cube-sandbox/SKILL.md
 ```
 
-若 Gateway 正在前台运行，拷完 skill 后请 **Ctrl+C 停掉再重新启动**：
+若 Gateway 正在前台运行，拷完 skill 后请 **Ctrl+C 停掉再重新启动**（同样先加载 `cube.env`）：
 
 ```bash
 set -a
@@ -912,11 +956,18 @@ set +a
 openclaw gateway --bind loopback --port 18789
 ```
 
-按官方 README 话术触发 skill：
+在 Dashboard 对话里用自然语言触发 skill（话里带上「沙箱 / 隔离 / Cube 沙箱」更易命中）：
 
-- `在沙箱里跑一段 Python，计算 1 到 100 的和`
-- `用沙箱执行 uname -a 并返回结果`
-- `在完全断网的沙箱中运行这段代码`
+| 场景 | 示例话术 |
+|------|----------|
+| Python（验证 quickstart） | 请在 Cube 沙箱里跑一段 Python，计算 1 到 100 的和，把结果和 `platform.machine()` 一起返回 |
+| Shell | 用沙箱执行 `uname -a`，把完整输出返回给我 |
+| 架构确认 | 在隔离沙箱中运行 Python：`import platform; print(platform.machine())` |
+| 断网 | 在完全断网的沙箱里运行 Python，尝试访问外网并说明是否被阻断 |
+| 读文件 | 在沙箱里读取 `/etc/hosts` 的内容并展示 |
+
+期望：回复中出现 sandbox 创建与执行结果（如求和 **5050**、架构 **aarch64**）。  
+若只闲聊、未创建沙箱 → 检查 skill 目录是否存在，并确认 gateway 启动前已 `source ~/.openclaw/cube.env`。
 
 更细的 skill 说明见 [`examples/openclaw-integration/README_zh.md`](examples/openclaw-integration/README_zh.md)。
 
@@ -934,7 +985,9 @@ openclaw gateway --bind loopback --port 18789
 | quickstart `run_code` DNS 失败 | 本机 DNS：§5.1；确认未改坏 `/etc/resolv.conf` |
 | Skill 触发但 SSL 失败 | `SSL_CERT_FILE` 写入 OpenClaw 服务环境 |
 | OpenClaw 能起、对话超时 | 模型 API 外网不通；改配内网 endpoint |
+| Skill 未创建沙箱 / `Template not found` | gateway 启动前未加载 `cube.env`；见 §3.6.6「每次开 Gateway 前先 source」 |
 | 华为 PyPI 镜像缺 `e2b-code-interpreter` | 预期；走 §3.6.1-A 离线 wheel |
+| `Sandbox.create` / WebUI 创建报 `ttrpc ... Receive packet timeout` | 运行时 shim 卡死；§5.2 重启 cubelet + network-agent |
 
 ---
 
