@@ -159,11 +159,42 @@ docker ps
 
 ## 2. 下一步：制作模板（`install complete` 之后）
 
-平台起来后还没有可启动的沙箱模板。鲲鹏若访问不了 TCR，**不要**直接用完整仓库地址（会去 `https://cube-sandbox-cn.tencentcloudcr.com` 解析并超时）：
+平台起来后还没有可启动的沙箱模板。
+
+### 2.0 必做：关闭 native 远程导出（否则必走外网）
+
+v0.6 默认开启 **native rootfs export**，会**忽略本地 Docker 镜像**，始终访问远程 registry。  
+短名 `sandbox-code:latest` 会被当成 Docker Hub：
 
 ```text
-failed to resolve image ... dial tcp ...:443: i/o timeout
+native export failed to resolve image sandbox-code:latest
+get https://index.docker.io/v2/... dial tcp ... i/o timeout
 ```
+
+这是 **联网解析失败**，不是镜像平台（arm64/amd64）不匹配。平台不匹配一般写作  
+`requested image's platform (linux/amd64) does not match ...`。
+
+```bash
+ENV=/usr/local/services/cubetoolbox/.one-click.env
+grep -q '^CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=' "$ENV" \
+  && sudo sed -i 's/^CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=.*/CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false/' "$ENV" \
+  || echo 'CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false' | sudo tee -a "$ENV"
+
+grep NATIVE "$ENV"
+# 必须：CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false
+
+# 不重启不生效
+sudo systemctl restart cube-sandbox-cubemaster.service
+systemctl is-active cube-sandbox-cubemaster.service
+
+# 可选：确认进程已带上变量
+sudo tr '\0' '\n' < /proc/$(pidof cubemaster)/environ | grep NATIVE
+```
+
+one-click 解压目录的 `.env` 也建议写上同一行，避免以后升级/重装丢掉。
+
+> 若机器上同时有 `skopeo` **和** `umoci`，关掉 native 后仍可能走 dockerless 远程路径。  
+> 离线场景确认：`command -v umoci` 若存在，可临时 `sudo mv $(command -v umoci) $(command -v umoci).bak` 再重启 cubemaster。
 
 ### 2.1 确认离线包已导入 sandbox-code（arm64）
 
@@ -172,24 +203,24 @@ docker images | grep sandbox-code
 docker image inspect \
   cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest \
   --format '{{.Architecture}}'
-# 期望：arm64
+# 期望：arm64（鲲鹏主机 uname -m 为 aarch64）
 ```
 
 若没有，回到离线包目录再执行一次 `sudo bash ./load-images.sh`。
 
-### 2.2 打成本地短名字（关键）
-
-完整 registry 名会触发远程 resolve；本地短名走本机 Docker：
+### 2.2 打成本地短名字
 
 ```bash
 docker tag \
   cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest \
   sandbox-code:latest
 
-docker images | grep sandbox-code
+docker image inspect sandbox-code:latest --format '{{.Id}} {{.Architecture}}'
 ```
 
 ### 2.3 用本地名创建模板
+
+须在完成 **§2.0**（native=false + 重启 cubemaster）之后：
 
 ```bash
 cubemastercli tpl create-from-image \
@@ -200,16 +231,17 @@ cubemastercli tpl create-from-image \
   --probe 49999
 ```
 
-记下 `job_id`：
-
 ```bash
 cubemastercli tpl watch --job-id <job_id>
 ```
 
-等到状态 **`READY`**，记录 **`template_id`**（后面所有创建沙箱都要用）。这一步可能较久。
+等到 **`READY`**，记下 **`template_id`**。
 
-> 仅当本机能稳定访问 TCR 时，才可直接使用  
+成功时日志里**不应再出现** `index.docker.io` 或 `native export failed to resolve`。
+
+> 仅当本机能稳定访问镜像仓库时，才可保持 native 默认开启，并直接使用  
 > `--image cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest`。
+
 ---
 
 ## 3. 启动后：如何调用接口创建 / 使用沙箱
@@ -394,7 +426,9 @@ export SSL_CERT_FILE="/path/to/rootCA.pem"   # 从鲲鹏拷贝 mkcert 根证，�
 | 仍拉 `cube-sandbox-int...` | `.one-click.env` 设置 `MIRROR=cn`，并保证 cn 名本地已有 arm64 镜像（load 脚本会 tag） |
 | `/data/cubelet` not XFS | 挂 XFS 盘或做 loopback XFS 再装 |
 | `cube-sandbox-dns.service not ready` / `dnsmasq did not bind 169.254.254.53:53` | NetworkManager 的 dnsmasq 插件未监听；改用独立 dnsmasq（见下） |
-| `failed to resolve image` / `dial tcp ...tencentcloudcr.com:443: i/o timeout` | 做模板时仍在访问远程仓库；先 `docker tag ... sandbox-code:latest`，再用 `--image sandbox-code:latest`（见 §2） |
+| `failed to resolve image` / `tencentcloudcr.com:443: i/o timeout` | 远程仓库不可达；离线请走 §2.0～2.3 |
+| `native export failed to resolve ... index.docker.io ... i/o timeout` | **不是平台不匹配**。默认 native 导出把短名当成 Docker Hub。设 `CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` 并重启 cubemaster（§2.0） |
+| `requested image's platform (linux/amd64) does not match` | 才是平台问题；删掉 amd64 镜像，重新 load arm64 离线包 |
 | `install.sh` 长时间无输出 | 多半在等 systemd；另开终端看 `systemctl list-jobs`。若已 `install complete`，不要反复全量安装，直接做模板 |
 
 ### 5.1 DNS / dnsmasq 修复（单机常见）
@@ -430,15 +464,16 @@ journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 ## 6. 建议操作清单（当前进度）
 
 - [x] 下载 one-click arm64 包并解压  
-- [x] 下载并解压离线 Docker arm64 镜像包  
-- [x] `load-images.sh`，组件镜像为 arm64  
-- [x] `.env` / `.one-click.env`：`MIRROR=cn`；DNS 必要时 `CUBE_PROXY_DNSMASQ_MODE=standalone`  
+- [x] 下载并解压离线 Docker arm64 镜像包 / `load-images.sh`  
+- [x] `.env`：`MIRROR=cn`；DNS 必要时 `CUBE_PROXY_DNSMASQ_MODE=standalone`  
 - [x] `install.sh` → **`install complete`**  
-- [ ] firewalld 放行 3000/80/443（及可选 12088），若另一台机器要访问  
-- [ ] **本地短名做模板**：`docker tag ... sandbox-code:latest` → `tpl create-from-image --image sandbox-code:latest` → `READY`  
-- [ ] 用 SDK 或 `POST /sandboxes` 创建沙箱并 `run_code`  
+- [ ] **`CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` + 重启 cubemaster**（§2.0，必做）  
+- [ ] `docker tag ... sandbox-code:latest`，确认 `Architecture=arm64`  
+- [ ] `tpl create-from-image --image sandbox-code:latest` → `READY`，记下 `template_id`  
+- [ ] firewalld 放行 3000/80/443（内网其它机器访问时）  
+- [ ] SDK / `POST /sandboxes` 创建沙箱；远端设 `E2B_API_URL=http://<鲲鹏IP>:3000`  
 
-**当前下一步：§2 制作模板（务必用 `sandbox-code:latest` 本地名）。**
+**当前下一步：先做 §2.0，再 §2.1～2.3 做模板。**
 
 ---
 
