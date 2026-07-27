@@ -286,7 +286,74 @@ WebUI（若已启动）默认：`http://<节点IP>:12088`
 
 ---
 
-## 4. 常见问题速查
+## 4. 防火墙放行（另一台机器访问本机）
+
+单机部署、另一台机器通过网络访问时，用 **firewalld**（OpenCloudOS / CentOS / RHEL / 多数鲲鹏机常见）放行以下端口。
+
+### 4.1 需要放行的端口
+
+| 端口 | 协议 | 是否建议对外开放 | 用途 |
+|------|------|------------------|------|
+| 3000 | TCP | **是**（远端 API） | CubeAPI / `E2B_API_URL` |
+| 80 | TCP | **是** | CubeProxy HTTP |
+| 443 | TCP | **是** | CubeProxy HTTPS（`*.cube.app`） |
+| 12088 | TCP | 可选 | WebUI 控制台 |
+| ICMP | — | 可选 | ping 排查连通性 |
+| 3306 / 6379 | TCP | **否** | MySQL / Redis，仅本机 |
+| 8089 / 9999 | TCP | **否**（单机） | CubeMaster / Cubelet，多机集群才需要 |
+
+### 4.2 firewalld 一键放行（对所有来源）
+
+```bash
+sudo firewall-cmd --permanent --add-port=3000/tcp
+sudo firewall-cmd --permanent --add-port=80/tcp
+sudo firewall-cmd --permanent --add-port=443/tcp
+sudo firewall-cmd --permanent --add-port=12088/tcp
+sudo firewall-cmd --permanent --add-protocol=icmp
+sudo firewall-cmd --reload
+
+sudo firewall-cmd --list-ports
+sudo firewall-cmd --list-protocols
+```
+
+### 4.3 仅允许指定客户端 IP（更安全）
+
+把 `10.0.0.20` 换成另一台机器的 IP：
+
+```bash
+CLIENT_IP=10.0.0.20
+
+sudo firewall-cmd --permanent --add-rich-rule="rule family=\"ipv4\" source address=\"${CLIENT_IP}\" port port=\"3000\" protocol=\"tcp\" accept"
+sudo firewall-cmd --permanent --add-rich-rule="rule family=\"ipv4\" source address=\"${CLIENT_IP}\" port port=\"80\" protocol=\"tcp\" accept"
+sudo firewall-cmd --permanent --add-rich-rule="rule family=\"ipv4\" source address=\"${CLIENT_IP}\" port port=\"443\" protocol=\"tcp\" accept"
+sudo firewall-cmd --permanent --add-rich-rule="rule family=\"ipv4\" source address=\"${CLIENT_IP}\" port port=\"12088\" protocol=\"tcp\" accept"
+sudo firewall-cmd --reload
+sudo firewall-cmd --list-rich-rules
+```
+
+### 4.4 远端自检
+
+```bash
+curl -sS "http://<鲲鹏IP>:3000/health"
+curl -kI "https://<鲲鹏IP>/"
+# WebUI（若启用）
+curl -sS -o /dev/null -w "%{http_code}\n" "http://<鲲鹏IP>:12088/"
+```
+
+客户端环境变量示例：
+
+```bash
+export E2B_API_URL="http://<鲲鹏IP>:3000"
+export E2B_API_KEY="e2b_000000"
+export CUBE_TEMPLATE_ID="<你的 template_id>"
+export SSL_CERT_FILE="/path/to/rootCA.pem"   # 从鲲鹏拷贝 mkcert 根证，若走 HTTPS
+```
+
+> 若系统没有 firewalld，可用 `iptables` / `ufw` 放行同样端口；云厂商安全组也需同步放行 3000/80/443（及可选 12088）。
+
+---
+
+## 5. 常见问题速查
 
 | 现象 | 处理 |
 |------|------|
@@ -296,32 +363,55 @@ WebUI（若已启动）默认：`http://<节点IP>:12088`
 | `systemctl restart` 一直卡住 | 多半在 `docker pull`；先 stop，确保本地有镜像，再 start |
 | 仍拉 `cube-sandbox-int...` | `.one-click.env` 设置 `MIRROR=cn`，并保证 cn 名本地已有 arm64 镜像（load 脚本会 tag） |
 | `/data/cubelet` not XFS | 挂 XFS 盘或做 loopback XFS 再装 |
+| `cube-sandbox-dns.service not ready` / `dnsmasq did not bind 169.254.254.53:53` | NetworkManager 的 dnsmasq 插件未监听；改用独立 dnsmasq（见下） |
+
+### 5.1 DNS / dnsmasq 修复（单机常见）
+
+```bash
+command -v dnsmasq || sudo yum install -y dnsmasq || sudo dnf install -y dnsmasq
+
+ENV=/usr/local/services/cubetoolbox/.one-click.env
+grep -q '^CUBE_PROXY_DNSMASQ_MODE=' "$ENV" \
+  && sudo sed -i 's/^CUBE_PROXY_DNSMASQ_MODE=.*/CUBE_PROXY_DNSMASQ_MODE=standalone/' "$ENV" \
+  || echo 'CUBE_PROXY_DNSMASQ_MODE=standalone' | sudo tee -a "$ENV"
+
+# 避免系统自带 dnsmasq 抢 53 端口
+sudo systemctl disable --now dnsmasq.service 2>/dev/null || true
+
+sudo systemctl restart cube-sandbox-coredns.service
+sudo systemctl restart cube-sandbox-dns.service
+ss -ulnp | grep 169.254.254.53
+sudo /usr/local/services/cubetoolbox/scripts/one-click/quickcheck.sh
+```
 
 查看进展：
 
 ```bash
 systemctl list-jobs
 systemctl status cube-sandbox-control.target --no-pager -l
+journalctl -u cube-sandbox-dns.service -n 80 --no-pager
 journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 ```
 
 ---
 
-## 5. 建议操作清单（你现在的进度）
+## 6. 建议操作清单（你现在的进度）
 
 - [x] 下载 one-click arm64 包并解压  
 - [x] 下载并解压离线 Docker arm64 镜像包  
 - [ ] `sudo bash ./load-images.sh`，确认 `Architecture=arm64`  
 - [ ] `.env` / `.one-click.env` 中 `MIRROR=cn`  
+- [ ] DNS：必要时 `CUBE_PROXY_DNSMASQ_MODE=standalone`  
+- [ ] firewalld 放行 3000/80/443（及可选 12088）  
 - [ ] `sudo bash ./install.sh` 或 `systemctl restart` + `quickcheck` 通过  
 - [ ] `cubemastercli tpl create-from-image` → 模板 `READY`  
 - [ ] 用 SDK 或 `POST /sandboxes` 创建沙箱并 `run_code`  
 
-完成「导入镜像」后，从第 **1.4 / 2 / 3** 节继续即可。
+完成「导入镜像」后，从第 **1.4 / 2 / 3 / 4** 节继续即可。
 
 ---
 
-## 6. 相关链接
+## 7. 相关链接
 
 | 说明 | 链接 |
 |------|------|
