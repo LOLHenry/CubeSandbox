@@ -1013,6 +1013,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" "http://<鲲鹏IP>:12088/"
 | `mirrors.tools.huawei.com/pypi/simple` 找不到 `e2b-code-interpreter` | 该内网镜像未同步此包；按 §3.6.1-A0 下载 [预打包 Release](https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64)，或在联网机 `pip download` 后在鲲鹏 `pip install --no-index --find-links=...` |
 | `getaddrinfo failed` / `49999-*.cube.app` 解析失败 | 客户端不在集群 DNS 域内；**在鲲鹏本机跑 SDK / OpenClaw**（§3.6），不要从 Windows 远程当执行端 |
 | `install.sh` 长时间无输出 | 多半在等 systemd；另开终端看 `systemctl list-jobs`。若已 `install complete`，不要反复全量安装，直接做模板 |
+| 创建沙箱报 `ttrpc ... Receive packet timeout` / WebUI（12088）与 Python 同错 | 多为卡死 shim 或 network-agent 状态异常；见 §5.2 快速修复 |
 
 ### 5.1 DNS / dnsmasq 修复（单机常见）
 
@@ -1041,6 +1042,60 @@ systemctl status cube-sandbox-control.target --no-pager -l
 journalctl -u cube-sandbox-dns.service -n 80 --no-pager
 journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 ```
+
+### 5.2 创建沙箱 ttrpc 超时 / 卡死 shim（运行时常见）
+
+**现象（WebUI `http://<节点IP>:12088/sandboxes` 与 Python `Sandbox.create()` 相同）：**
+
+```text
+Create sandbox failed: ... ttrpc err: Receive packet timeout
+failed to run container ... failed to create shim task ...
+```
+
+CubeShim 日志里可能还有 `not found container`、`Broken pipe` 等清理失败——这些是连带报错，可忽略。
+
+**含义：** Cubelet → CubeShim → MicroVM 里的 cube-agent 在 `CreateSandbox` 阶段超时（默认约 25s）。  
+**不是** Python SDK / e2b 包问题；12088 页面与脚本走同一条 API 链路。
+
+**若之前能创建、突然全部失败：** 优先怀疑 **残留 shim / network-agent 状态异常**，不必先改沙箱网段。  
+**若从未成功过：** 再查 §2.0 模板、XFS、内存，以及 [沙箱网段与内网冲突](docs/zh/guide/troubleshooting/local-network-cidr-conflict.md)。
+
+#### 快速修复（多数情况有效）
+
+```bash
+# 1. 看有没有卡死的 shim
+ps aux | grep containerd-shim-cube-rs | grep -v grep
+
+# 2. 重启计算面 + 网络（会清掉残留 shim）
+sudo systemctl restart cube-sandbox-cubelet.service
+sudo systemctl restart cube-sandbox-network-agent.service
+sleep 5
+
+# 3. 确认 shim 已清空
+ps aux | grep containerd-shim-cube-rs | grep -v grep   # 应为空
+
+# 4. 再在 WebUI 或 quickstart 里创建一次
+curl -sS http://127.0.0.1:3000/health
+curl -sS http://127.0.0.1:19090/health 2>/dev/null || echo "network-agent health fail"
+```
+
+#### 仍失败时再查
+
+```bash
+df -hT /data/cubelet /data/log
+free -h
+cubemastercli tpl list    # 至少一个 READY
+
+# 复现一次 create 的同时看 Shim 日志
+grep -a -E 'start vm|vm ready|agent is ready|Create sandbox|timeout' \
+  /data/log/CubeShim/cube-shim-req.log | tail -30
+```
+
+| 日志特征 | 可能原因 |
+|----------|----------|
+| 无 `vm ready` | hypervisor / guest 内核未起来 → 查 `/data/log/CubeVmm/vmm.log` |
+| 有 `agent is ready` 后 timeout | guest 内网络或存储挂载卡住 → 查 network-agent、磁盘 |
+| 重启 cubelet 后恢复 | 确认为 shim 泄漏；若频繁复发，查内存与 `/data/cubelet` 空间 |
 
 ---
 
