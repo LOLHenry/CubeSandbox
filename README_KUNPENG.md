@@ -718,8 +718,8 @@ curl -sS -o /dev/null -w "%{http_code}\n" "http://<鲲鹏IP>:12088/"
 | `failed to resolve image` / `tencentcloudcr.com:443: i/o timeout` | 远程仓库不可达；离线请走 §2.0～2.3 |
 | `native export failed to resolve ... index.docker.io ... i/o timeout` | **不是平台不匹配**。默认 native 导出把短名当成 Docker Hub。设 `CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` 并重启 cubemaster（§2.0） |
 | `requested image's platform (linux/amd64) does not match` | 才是平台问题；删掉 amd64 镜像，重新 load arm64 离线包 |
-| `mirrors.tools.huawei.com/pypi/simple` 找不到 `e2b-code-interpreter` | 该内网镜像未同步此包；按 §3.6 先在联网机器 `pip download` wheel，再传到鲲鹏 `pip install --no-index --find-links=...` |
-| `getaddrinfo failed` / `49999-*.cube.app` 解析失败 | 客户端不在集群 DNS 域内；**在鲲鹏本机跑 SDK**（§3.6），不要从 Windows 远程当执行端 |
+| `mirrors.tools.huawei.com/pypi/simple` 找不到 `e2b-code-interpreter` | 该内网镜像未同步此包；按 §3.6.1 在联网机（建议 aarch64）`pip download`，再在鲲鹏 `pip install --no-index --find-links=...` |
+| `getaddrinfo failed` / `49999-*.cube.app` 解析失败 | 客户端不在集群 DNS 域内；**在鲲鹏本机跑 SDK / OpenClaw**（§3.6），不要从 Windows 远程当执行端 |
 | `install.sh` 长时间无输出 | 多半在等 systemd；另开终端看 `systemctl list-jobs`。若已 `install complete`，不要反复全量安装，直接做模板 |
 
 ### 5.1 DNS / dnsmasq 修复（单机常见）
@@ -761,10 +761,12 @@ journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 - [ ] **`CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` + 重启 cubemaster**（§2.0；两边 env 都写）  
 - [ ] `docker tag ... sandbox-code:latest`，确认 `Architecture=arm64`  
 - [ ] `tpl create-from-image --image sandbox-code:latest` → `READY`，记下 `template_id`  
-- [ ] **鲲鹏本机**：§3.6 跑官方 `examples/openclaw-integration` 或 `examples/code-sandbox-quickstart`  
+- [ ] **离线装包**：§3.6.1 下载 aarch64 Python wheels + Node arm64 + OpenClaw bundle → 拷到鲲鹏  
+- [ ] §3.6.4～3.6.5：离线装 e2b → 最小 `Sandbox.create` / `run_code` 通过  
+- [ ] §3.6.6：离线装 OpenClaw + cube-sandbox skill（模型 API 用内网地址）  
 - [ ] （可选）firewalld 放行 3000/80/443，供其他机器只访问 API/WebUI  
 
-**当前下一步：§2.0 → 模板 READY → §3.6 本机演示。**
+**当前下一步：§2.0 → 模板 READY → §3.6 离线装 e2b/OpenClaw → 本机演示。**
 
 ---
 

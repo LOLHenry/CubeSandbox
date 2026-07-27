@@ -151,7 +151,7 @@ Skill 文件位于 `examples/openclaw-integration/skills/cube-sandbox/SKILL.md`�
 | Skill 未触发 | Skill 未安装 | 确认 `~/.openclaw/workspace/skills/cube-sandbox/` 存在 |
 | `SSL: CERTIFICATE_VERIFY_FAILED` | HTTPS 但未配置 CA 证书 | 设置 `SSL_CERT_FILE=/root/.local/share/mkcert/rootCA.pem` |
 | `Template not found` | `CUBE_TEMPLATE_ID` 错误 | 重新运行 `cubemastercli tpl list` |
-| 域名解析失败 | DNS 未配置 | 参考 skill 中的 `/etc/hosts` 临时解决方案 |
+| 域名解析失败 | DNS 未配置 | **优先在 Cube 同机（鲲鹏）跑 OpenClaw**，用内置 DNS；见 [README_KUNPENG.md §3.6](../../README_KUNPENG.md) 离线装包。临时可写 `/etc/hosts`（skill 内有示例） |
 
 ## 8. 目录结构
 
