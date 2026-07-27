@@ -562,6 +562,27 @@ python3.12 -m pip download e2b-code-interpreter python-dotenv rich \
 python3.12 -m pip download pyqwest protobuf-py-ext -d ./quickstart-pkgs/
 ```
 
+**无 aarch64 下载机时**：可在 x86 联网环境用 `--platform manylinux2014_aarch64` 交叉下载（本仓库已预打包一份，见 [`offline-pkgs/`](offline-pkgs/)）：
+
+```bash
+# x86 联网机交叉下载（与预打包命令一致）
+python3.12 -m pip download e2b-code-interpreter python-dotenv rich \
+  --platform manylinux2014_aarch64 \
+  --platform linux_aarch64 \
+  --python-version 312 --implementation cp --abi cp312 \
+  --only-binary=:all: \
+  -i https://pypi.org/simple \
+  -d ./quickstart-pkgs/
+```
+
+预打包文件（可直接拷到鲲鹏）：
+
+| 文件 | sha256 |
+|------|--------|
+| [`offline-pkgs/cube-python-wheels-py312-aarch64.tar.gz`](offline-pkgs/cube-python-wheels-py312-aarch64.tar.gz) | `80c9ccd582cec6ecdca3c10f4b61215ee162f7f8c7c35e6f44d6461a947293fb` |
+
+鲲鹏解压后执行：`bash offline-pkgs/install-e2b-offline.sh`（需先 `python3.12 -m venv` 并 activate）。
+
 ##### B. 阶段②：OpenClaw 离线下载（从未安装过时按此做）
 
 OpenClaw 是 **Node.js 全局 CLI / Gateway**（npm 包名 `openclaw`），**不是** Python 包，不能 `pip install`。  
