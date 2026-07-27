@@ -394,72 +394,107 @@ WebUI（若已启动）默认：`http://<节点IP>:12088`
   → CubeAPI :3000          （创建沙箱等控制面 API）
     → CubeMaster           （调度）
       → Cubelet            （本机拉起 MicroVM）
-  → CubeProxy / *.cube.app （访问沙箱内服务端口）
+  → CubeProxy / *.cube.app （访问沙箱内服务端口；Host 头路由到具体沙箱）
 ```
 
-### 3.6 Windows 本机远程访问鲲鹏（示例 IP：`10.50.156.199`）
+**DNS 说明：** `*.cube.app` 是集群私有域名，one-click 已在鲲鹏本机配好 CoreDNS/dnsmasq。  
+**推荐在鲲鹏本机跑 SDK / Notebook**；客户端与 Cube 同机时无需 hosts、`CUBE_PROXY_NODE_IP` 等绕过手段。
 
-不 SSH 进沙箱；在 Windows 上用 SDK / Jupyter 调控制面，执行发生在鲲鹏上的 MicroVM 里。
+### 3.6 鲲鹏本机跑演示用例（推荐）
 
-完整逐步 Notebook 示例见：  
-[`examples/windows-notebook-demo/`](examples/windows-notebook-demo/README_zh.md)
+演示与日常验证应在 **鲲鹏主机上** 执行 Python / Jupyter，而不是在 Windows 远程当执行端（远程会碰到 `*.cube.app` 解析问题）。
 
-#### 鲲鹏根证书在哪里
+完整 Notebook 示例：[`examples/kunpeng-notebook-demo/`](examples/kunpeng-notebook-demo/README_zh.md)
 
-one-click 用 **mkcert** 签发 `*.cube.app`。客户端 HTTPS 需要**根证**（不是业务证书）：
+#### 3.6.1 前置确认
 
 ```bash
-# 在鲲鹏上执行
-mkcert -CAROOT
-# 常见：/root/.local/share/mkcert
+systemctl is-active cube-sandbox-control.target
+curl -sS http://127.0.0.1:3000/health
+cubemastercli tpl list    # 至少一个 READY 模板
 
-ls -l "$(mkcert -CAROOT)/rootCA.pem"
-# 默认完整路径：
-# /root/.local/share/mkcert/rootCA.pem
+# 本机 DNS（可选自检）
+getent hosts 49999-test.cube.app || nslookup 49999-test.cube.app
 ```
 
-- 只需拷贝 **`rootCA.pem`** 到 Windows（例如 `C:\certs\cube-rootCA.pem`）
-- **不要**拷贝同目录的 `rootCA-key.pem`（私钥）
-- `/usr/local/services/cubetoolbox/cubeproxy/certs/` 下的 `cube.app+3.pem` 等是站点证书，**不是** `SSL_CERT_FILE` 要用的根证
+若 DNS 异常，见 §5.1（`CUBE_PROXY_DNSMASQ_MODE=standalone`）。
 
-#### Windows PowerShell（脚本方式）
+#### 3.6.2 环境变量（本机）
 
-```powershell
-# 连通性
-curl http://10.50.156.199:3000/health
-# 可选 WebUI: http://10.50.156.199:12088/
-
-pip install e2b-code-interpreter python-dotenv
-
-$env:E2B_API_URL = "http://10.50.156.199:3000"
-$env:E2B_API_KEY = "e2b_000000"
-$env:CUBE_TEMPLATE_ID = "<你的 template_id>"
-$env:SSL_CERT_FILE = "C:\certs\cube-rootCA.pem"
-$env:REQUESTS_CA_BUNDLE = "C:\certs\cube-rootCA.pem"
-
-python check_pkgs.py   # 内容见 §3.3 探测脚本
+```bash
+export E2B_API_URL="http://127.0.0.1:3000"
+export E2B_API_KEY="e2b_000000"
+export CUBE_TEMPLATE_ID="<READY 的 template_id>"
+export SSL_CERT_FILE="$(mkcert -CAROOT)/rootCA.pem"
+export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE"
+# 常见路径：/root/.local/share/mkcert/rootCA.pem
 ```
 
-#### Windows Jupyter（逐格演示，推荐给领导看）
+本机 **不需要** `CUBE_PROXY_NODE_IP`。
 
-```powershell
-cd examples\windows-notebook-demo
-python -m venv C:\venv\cube-demo
-C:\venv\cube-demo\Scripts\Activate.ps1
+#### 3.6.3 命令行快速验证
+
+```bash
+python3 -m venv ~/cube-demo/.venv
+source ~/cube-demo/.venv/bin/activate
+pip install e2b-code-interpreter
+
+export E2B_API_URL=http://127.0.0.1:3000
+export E2B_API_KEY=e2b_000000
+export CUBE_TEMPLATE_ID=<template_id>
+export SSL_CERT_FILE=$(mkcert -CAROOT)/rootCA.pem
+
+python3 - <<'PY'
+import os
+from e2b_code_interpreter import Sandbox
+
+with Sandbox.create(template=os.environ["CUBE_TEMPLATE_ID"], timeout=600) as sbx:
+    print("sandbox_id =", sbx.sandbox_id)
+    print(sbx.run_code("import platform; print(platform.machine())"))
+    print(sbx.commands.run("uname -a").stdout)
+PY
+```
+
+也可直接跑仓库示例：
+
+```bash
+cd examples/code-sandbox-quickstart
 pip install -r requirements.txt
-copy .env.example .env
-# 编辑 .env 后：
-jupyter lab
-# 打开 cube_sandbox_demo.ipynb，内核选 Cube Sandbox Demo，按 Cell 1→7 运行
+cp .env.example .env   # E2B_API_URL=127.0.0.1:3000
+python exec_code.py
+python cmd.py
 ```
 
-换机器时改 `E2B_API_URL` 里的 IP。浏览器访问 `*.cube.app` 还需 DNS/hosts + 信任该根证；**演示主路径建议只用 SDK / Notebook**。
+#### 3.6.4 Jupyter 逐格演示
+
+```bash
+cd examples/kunpeng-notebook-demo
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env     # 填 CUBE_TEMPLATE_ID
+
+jupyter lab --ip=127.0.0.1 --port=8888 --no-browser
+```
+
+从办公机浏览器观看时，SSH 端口转发即可（代码仍在鲲鹏执行）：
+
+```bash
+ssh -L 8888:127.0.0.1:8888 root@<鲲鹏IP>
+# 浏览器：http://127.0.0.1:8888
+```
+
+打开 `cube_sandbox_demo.ipynb`，内核选 **Kunpeng Cube Demo**，Cell 1→7 依次运行。  
+**同一 Notebook 内只 `create` 一次**，后续 cell 复用 `sbx`，最后 `kill()`。
+
+WebUI（可选）：`http://127.0.0.1:12088`
 
 ---
 
-## 4. 防火墙放行（另一台机器访问本机）
+## 4. 防火墙（仅当其他机器要访问 API 时）
 
-单机部署、另一台机器通过网络访问时，用 **firewalld**（OpenCloudOS / CentOS / RHEL / 多数鲲鹏机常见）放行以下端口。
+单机部署、**仅在本机跑 SDK** 时通常不必改 firewalld。  
+若另一台机器需要调用 CubeAPI / WebUI，再放行以下端口。
 
 ### 4.1 需要放行的端口
 
@@ -502,25 +537,15 @@ sudo firewall-cmd --reload
 sudo firewall-cmd --list-rich-rules
 ```
 
-### 4.4 远端自检
+### 4.4 远端自检（可选）
 
 ```bash
 curl -sS "http://<鲲鹏IP>:3000/health"
 curl -kI "https://<鲲鹏IP>/"
-# WebUI（若启用）
 curl -sS -o /dev/null -w "%{http_code}\n" "http://<鲲鹏IP>:12088/"
 ```
 
-客户端环境变量示例（Linux / macOS；Windows 见 §3.6）：
-
-```bash
-export E2B_API_URL="http://10.50.156.199:3000"   # 换成你的鲲鹏 IP
-export E2B_API_KEY="e2b_000000"
-export CUBE_TEMPLATE_ID="<你的 template_id>"
-export SSL_CERT_FILE="/path/to/rootCA.pem"       # 从鲲鹏拷贝 mkcert 根证
-```
-
-> 若系统没有 firewalld，可用 `iptables` / `ufw` 放行同样端口；云厂商安全组也需同步放行 3000/80/443（及可选 12088）。
+> 若系统没有 firewalld，可用 `iptables` / `ufw` 放行同样端口；云厂商安全组也需同步放行。
 
 ---
 
@@ -538,6 +563,7 @@ export SSL_CERT_FILE="/path/to/rootCA.pem"       # 从鲲鹏拷贝 mkcert 根证
 | `failed to resolve image` / `tencentcloudcr.com:443: i/o timeout` | 远程仓库不可达；离线请走 §2.0～2.3 |
 | `native export failed to resolve ... index.docker.io ... i/o timeout` | **不是平台不匹配**。默认 native 导出把短名当成 Docker Hub。设 `CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` 并重启 cubemaster（§2.0） |
 | `requested image's platform (linux/amd64) does not match` | 才是平台问题；删掉 amd64 镜像，重新 load arm64 离线包 |
+| `getaddrinfo failed` / `49999-*.cube.app` 解析失败 | 客户端不在集群 DNS 域内；**在鲲鹏本机跑 SDK**（§3.6），不要从 Windows 远程当执行端 |
 | `install.sh` 长时间无输出 | 多半在等 systemd；另开终端看 `systemctl list-jobs`。若已 `install complete`，不要反复全量安装，直接做模板 |
 
 ### 5.1 DNS / dnsmasq 修复（单机常见）
@@ -579,10 +605,10 @@ journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 - [ ] **`CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` + 重启 cubemaster**（§2.0；两边 env 都写）  
 - [ ] `docker tag ... sandbox-code:latest`，确认 `Architecture=arm64`  
 - [ ] `tpl create-from-image --image sandbox-code:latest` → `READY`，记下 `template_id`  
-- [ ] firewalld 放行 3000/80/443（及可选 12088）  
-- [ ] Windows Jupyter：`examples/windows-notebook-demo`（拷贝 `rootCA.pem`，按 Cell 1→7）  
+- [ ] **鲲鹏本机**：§3.6 跑 `exec_code.py` 或 `examples/kunpeng-notebook-demo`  
+- [ ] （可选）firewalld 放行 3000/80/443，供其他机器只访问 API/WebUI  
 
-**当前下一步：§2.0 → 模板 READY → Windows 用 §3.6 / Notebook 远程调用。**
+**当前下一步：§2.0 → 模板 READY → §3.6 本机演示。**
 
 ---
 
@@ -590,7 +616,8 @@ journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 
 | 说明 | 链接 |
 |------|------|
-| Windows Jupyter 远程演示 | [examples/windows-notebook-demo/README_zh.md](examples/windows-notebook-demo/README_zh.md) |
+| 鲲鹏本机 Jupyter 演示 | [examples/kunpeng-notebook-demo/README_zh.md](examples/kunpeng-notebook-demo/README_zh.md) |
+| 代码沙箱快速入门 | [examples/code-sandbox-quickstart/README_zh.md](examples/code-sandbox-quickstart/README_zh.md) |
 | 官方裸金属部署 | [docs/zh/guide/bare-metal-deploy.md](docs/zh/guide/bare-metal-deploy.md) |
 | 官方 ARM 支持说明 | [docs/zh/blog/posts/2026-07-08-cubesandbox-arm-support.md](docs/zh/blog/posts/2026-07-08-cubesandbox-arm-support.md) |
 | one-click arm64 包 | GitHub / CNB Releases 中的 `cube-sandbox-one-click-*-arm64.tar.gz` |
