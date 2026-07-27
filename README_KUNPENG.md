@@ -449,6 +449,72 @@ python3 --version
 
 ##### A. 阶段①：Python wheels（给 quickstart 用）
 
+> **若鲲鹏上 proxy / 国内镜像都拉不到包**：不要在服务器上 `pip install`。  
+> 在**另一台能访问 `https://pypi.org` 的机器**上下载完整 wheel 目录，再 `scp`/U 盘拷到鲲鹏。
+
+**A0. 标准离线流程（两步：下载机 → 鲲鹏）**
+
+| 步骤 | 在哪做 | 做什么 |
+|------|--------|--------|
+| 1 | 联网 **aarch64** + Python 3.12（云 ARM VM / 另一台鲲鹏临时开网 / 本机 WSL 不推荐交叉） | `pip download` 整包 |
+| 2 | 鲲鹏（无公网） | 解压 + `pip install --no-index --find-links=...` |
+
+**下载机**（能访问 PyPI 即可；可用你 PC 上的 Docker arm64）：
+
+```bash
+# 下载机自检
+uname -m          # 必须 aarch64
+python3.12 -V
+
+rm -rf quickstart-pkgs
+mkdir -p quickstart-pkgs
+
+# 只走官方 PyPI，避免国内镜像缺 e2b / pyqwest
+python3.12 -m pip download \
+  e2b-code-interpreter python-dotenv rich \
+  -i https://pypi.org/simple \
+  -d ./quickstart-pkgs/
+
+# 必检：原生依赖必须是 aarch64 + cp312
+ls quickstart-pkgs | grep pyqwest
+ls quickstart-pkgs | grep protobuf_py_ext
+ls quickstart-pkgs/*.whl | wc -l    # 通常 > 20
+
+# 不应出现 x86_64（若出现说明下载机架构不对）
+ls quickstart-pkgs | grep x86_64 && echo "ERROR: wrong arch" || echo "arch ok"
+
+tar czf cube-python-wheels-py312-aarch64.tar.gz quickstart-pkgs
+```
+
+拷到鲲鹏 `~/offline-pkgs/` 后，**鲲鹏上**：
+
+```bash
+cd ~/offline-pkgs
+tar xzf cube-python-wheels-py312-aarch64.tar.gz
+
+export PATH="/usr/local/python3.12/bin:$PATH"   # 若 make altinstall
+rm -rf ~/cube-demo/.venv
+python3.12 -m venv ~/cube-demo/.venv
+source ~/cube-demo/.venv/bin/activate
+
+pip install --no-index --find-links=./quickstart-pkgs/ \
+  e2b-code-interpreter python-dotenv rich
+
+python -c "import e2b_code_interpreter; print('ok')"
+```
+
+**下载机没有 aarch64 时**：用 Docker 在 x86 宿主机上模拟 arm64 下载：
+
+```bash
+docker run --rm --platform linux/arm64 \
+  -v "$PWD:/work" -w /work python:3.12-bookworm bash -lc '
+    pip download e2b-code-interpreter python-dotenv rich \
+      -i https://pypi.org/simple -d ./quickstart-pkgs
+    ls quickstart-pkgs | grep pyqwest
+    tar czf cube-python-wheels-py312-aarch64.tar.gz quickstart-pkgs
+  '
+```
+
 在**联网 aarch64 + Python 3.12** 上（不要用 x86 默认下载后再拷）：
 
 ```bash
