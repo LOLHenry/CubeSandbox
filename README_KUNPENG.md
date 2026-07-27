@@ -398,30 +398,317 @@ WebUI（若已启动）默认：`http://<节点IP>:12088`
 ```
 
 **DNS 说明：** `*.cube.app` 是集群私有域名，one-click 已在鲲鹏本机配好 CoreDNS/dnsmasq。  
-**推荐在鲲鹏本机跑 SDK / Notebook**；客户端与 Cube 同机时无需 hosts、`CUBE_PROXY_NODE_IP` 等绕过手段。
+**推荐路线：在鲲鹏本机跑客户端**（同机 DNS 已通，无需 hosts / WSL / `CUBE_PROXY_NODE_IP`）。  
+鲲鹏通常**无公网**，依赖包需在联网机下载后**离线安装**（§3.6）。
 
-### 3.6 鲲鹏本机跑官方 OpenClaw 集成示例（推荐）
+建议顺序：
 
-演示与日常验证应在 **鲲鹏主机上** 执行，而不是在 Windows 远程当执行端（远程会碰到 `*.cube.app` 解析问题）。  
-这里**不再额外造例子**，直接复用仓库自带的官方示例：
+1. 离线装 Python + `e2b-code-interpreter`
+2. 先跑官方 **`code-sandbox-quickstart`**（验证控制面 / 数据面）
+3. 再离线装 **OpenClaw**，跑 **`openclaw-integration`**
 
-- [`examples/openclaw-integration/README_zh.md`](examples/openclaw-integration/README_zh.md)
-- [`examples/code-sandbox-quickstart/README_zh.md`](examples/code-sandbox-quickstart/README_zh.md)
+> `CUBE_PROXY_NODE_IP` 仅 **`cubesandbox`** SDK 支持；官方示例用的是 **`e2b-code-interpreter`**，同机跑即可直接解析 `*.cube.app`。
 
-#### 3.6.1 前置确认
+### 3.6 鲲鹏本机演示（离线装包 → quickstart → OpenClaw）
+
+架构：
+
+```text
+鲲鹏本机
+  ├─ CubeSandbox（已装）── DNS 已解析 *.cube.app
+  ├─ Python venv + e2b-code-interpreter   ← 离线 wheel（先做）
+  │     └─ examples/code-sandbox-quickstart   ← 第一段演示
+  └─ Node.js + OpenClaw + cube-sandbox skill ← 离线 tar（后做）
+        └─ examples/openclaw-integration      ← 第二段演示
+```
+
+官方示例（不另造 demo）：
+
+1. [`examples/code-sandbox-quickstart/README_zh.md`](examples/code-sandbox-quickstart/README_zh.md) — **先做**
+2. [`examples/openclaw-integration/README_zh.md`](examples/openclaw-integration/README_zh.md) — **后做**
+
+#### 3.6.1 离线包清单（联网机下载 → 拷到鲲鹏）
+
+在一台**能访问公网**的机器上准备下列文件，再 `scp` / U 盘拷到鲲鹏（例如 `~/offline-pkgs/`）。
+
+| 阶段 | 包 | 用途 | 架构注意 |
+|------|----|------|----------|
+| ① 先做 quickstart | `cube-python-wheels-py312-aarch64.tar.gz` | 预打包 Release 或自建的 `quickstart-pkgs/` | **aarch64 / cp312**；推荐 §3.6.1-A0 |
+| ② 再做 OpenClaw | `node-*-linux-arm64.tar.xz` | Node 运行时（OpenClaw 依赖） | **linux-arm64**，Node **22+** |
+| ② | `openclaw-bundle-linux-arm64.tar.gz` | 从未装过 OpenClaw 时用的完整离线包 | 必须在 **aarch64 Linux** 上打包 |
+
+**Python wheels 推荐**：直接下载 [GitHub Release 预打包](https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64)（x86 PC 即可，含 `pyqwest` aarch64 wheel）。  
+若需自建：联网机建议 **aarch64 Linux**（另一台鲲鹏临时开网、云 ARM VM 等）；x86 见 §3.6.1-A1。  
+**OpenClaw 的 npm bundle 不要在 x86 上打**（`sharp` 等原生模块与 CPU 绑定）。
+
+在鲲鹏上确认 Python（建议 3.12）：
+
+```bash
+python3 --version
+# 若无 3.12：用系统包管理器安装 python3.12 / python3.12-venv（离线 rpm/deb 另备）
+```
+
+##### A. 阶段①：Python wheels（给 quickstart 用）
+
+> **若鲲鹏上 proxy / 国内镜像都拉不到包**：不要在服务器上 `pip install`。  
+> 在**另一台能访问公网的机器**上下载完整 wheel 包，再 `scp` / U 盘拷到鲲鹏 `~/offline-pkgs/`。
+
+`pip download` 会**自动拉传递依赖**（约 25～30 个 wheel）。其中 **`pyqwest`**、**`protobuf-py-ext`**
+是 **aarch64 原生包**，缺了或下成 x86_64 时，鲲鹏离线安装会报：
+
+```text
+No matching distribution found for pyqwest
+```
+
+**A0. 推荐：直接下载预打包 Release（x86 PC 即可）**
+
+本仓库已在 GitHub Release 发布完整 wheel 包（x86 联网机交叉下载，含 **aarch64 cp312** 的 `pyqwest` / `protobuf-py-ext`）：
+
+| 文件 | sha256 |
+|------|--------|
+| [`cube-python-wheels-py312-aarch64.tar.gz`](https://github.com/LOLHenry/CubeSandbox/releases/download/cube-python-wheels-py312-aarch64/cube-python-wheels-py312-aarch64.tar.gz) | `80c9ccd582cec6ecdca3c10f4b61215ee162f7f8c7c35e6f44d6461a947293fb` |
+
+Release 页：https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64
+
+**在联网 PC 上下载并拷到鲲鹏：**
+
+```bash
+# 联网 PC（x86 或 aarch64 均可）
+wget https://github.com/LOLHenry/CubeSandbox/releases/download/cube-python-wheels-py312-aarch64/cube-python-wheels-py312-aarch64.tar.gz
+sha256sum cube-python-wheels-py312-aarch64.tar.gz
+# 期望：80c9ccd582cec6ecdca3c10f4b61215ee162f7f8c7c35e6f44d6461a947293fb
+
+scp cube-python-wheels-py312-aarch64.tar.gz root@<鲲鹏IP>:~/offline-pkgs/
+```
+
+**鲲鹏上安装**（需先按 §3.6.4 建好 Python 3.12 venv）：
+
+```bash
+cd ~/offline-pkgs
+tar xzf cube-python-wheels-py312-aarch64.tar.gz
+
+export PATH="/usr/local/python3.12/bin:$PATH"   # 若 make altinstall
+python3.12 -m venv ~/cube-demo/.venv
+source ~/cube-demo/.venv/bin/activate
+
+bash install-e2b-offline.sh
+# 或手动：
+# pip install --no-index --find-links=./quickstart-pkgs/ \
+#   e2b-code-interpreter python-dotenv rich
+
+python -c "import e2b_code_interpreter; print('ok', e2b_code_interpreter.__version__)"
+```
+
+也可从仓库 [`offline-pkgs/`](offline-pkgs/) 目录取同名 tar（内容与 Release 一致）。
+
+**A1. 自建：x86 联网机交叉下载**
+
+无 Release 或需更新版本时，在 **x86 + Python 3.12** 上执行（与预打包命令一致）：
+
+```bash
+rm -rf quickstart-pkgs && mkdir -p quickstart-pkgs
+
+python3.12 -m pip download e2b-code-interpreter python-dotenv rich \
+  --platform manylinux2014_aarch64 \
+  --platform linux_aarch64 \
+  --python-version 312 --implementation cp --abi cp312 \
+  --only-binary=:all: \
+  -i https://pypi.org/simple \
+  -d ./quickstart-pkgs/
+
+# 必检
+ls quickstart-pkgs | grep -E 'pyqwest|protobuf_py_ext'
+ls quickstart-pkgs | grep x86_64 && echo "ERROR: wrong arch" || echo "arch ok"
+ls quickstart-pkgs/*.whl | wc -l    # 通常 > 20
+
+tar czf cube-python-wheels-py312-aarch64.tar.gz quickstart-pkgs
+scp cube-python-wheels-py312-aarch64.tar.gz root@<鲲鹏IP>:~/offline-pkgs/
+```
+
+**A2. 自建：联网 aarch64 或 Docker arm64**
+
+有 **真 aarch64 + Python 3.12** 时可直接下载（不必加 `--platform`）：
+
+```bash
+uname -m          # 必须 aarch64
+python3.12 -V
+
+rm -rf quickstart-pkgs && mkdir -p quickstart-pkgs
+python3.12 -m pip download \
+  e2b-code-interpreter python-dotenv rich \
+  -i https://pypi.org/simple \
+  -d ./quickstart-pkgs/
+
+ls quickstart-pkgs | grep pyqwest
+tar czf cube-python-wheels-py312-aarch64.tar.gz quickstart-pkgs
+```
+
+**下载机没有 aarch64 时**：用 Docker 在 x86 宿主机上模拟 arm64 下载：
+
+```bash
+docker run --rm --platform linux/arm64 \
+  -v "$PWD:/work" -w /work python:3.12-bookworm bash -lc '
+    pip download e2b-code-interpreter python-dotenv rich \
+      -i https://pypi.org/simple -d ./quickstart-pkgs
+    ls quickstart-pkgs | grep pyqwest
+    tar czf cube-python-wheels-py312-aarch64.tar.gz quickstart-pkgs
+  '
+```
+
+若已有目录但只缺 `pyqwest`，可在联网机上补下后拷进同一 `quickstart-pkgs/`：
+
+```bash
+python3.12 -m pip download pyqwest protobuf-py-ext \
+  --platform manylinux2014_aarch64 --python-version 312 \
+  --implementation cp --abi cp312 --only-binary=:all: \
+  -d ./quickstart-pkgs/
+```
+
+##### B. 阶段②：OpenClaw 离线下载（从未安装过时按此做）
+
+OpenClaw 是 **Node.js 全局 CLI / Gateway**（npm 包名 `openclaw`），**不是** Python 包，不能 `pip install`。  
+鲲鹏无公网时，不能在鲲鹏上执行 `npm install -g openclaw` 或官方 `curl | bash` 安装脚本。
+
+做法：在一台 **联网的 aarch64 Linux** 上装好 Node，再把 OpenClaw **连同全部依赖**打成一个 tar，拷到鲲鹏解压即用。
+
+**B1. 下载 Node.js（linux-arm64）**
+
+任意能上网的机器即可（浏览器或 curl）：
+
+```bash
+# 版本可换；需满足 OpenClaw 要求（官方建议 Node 22+ / 24+）
+NODE_VER=v22.22.3
+curl -fLO "https://nodejs.org/dist/${NODE_VER}/node-${NODE_VER}-linux-arm64.tar.xz"
+curl -fLO "https://nodejs.org/dist/${NODE_VER}/SHASUMS256.txt"
+grep "node-${NODE_VER}-linux-arm64.tar.xz" SHASUMS256.txt | sha256sum -c -
+```
+
+把同一个 `node-*-linux-arm64.tar.xz` 拷到联网 aarch64 打包机 **和** 鲲鹏各一份。
+
+**B2. 在联网 aarch64 上临时解压 Node，用于打包 OpenClaw**
+
+```bash
+mkdir -p "$HOME/node-pack"
+tar -xJf node-${NODE_VER}-linux-arm64.tar.xz -C "$HOME/node-pack" --strip-components=1
+export PATH="$HOME/node-pack/bin:$PATH"
+node -v    # 期望 v22.x
+npm -v
+```
+
+**B3. 下载并打包 OpenClaw（完整 `node_modules`）**
+
+必须在 **真实 aarch64 Linux** 上执行（`uname -m` → `aarch64`）。  
+**不要**在 x86/Windows 上用 `--cpu arm64` 交叉装——很多 optional 原生包（`@img/sharp-linux-arm64`、`sqlite-vec` 等）会报「arm64 依赖没有 / 404 / Unsupported platform」。
+
+```bash
+uname -m   # 必须是 aarch64；否则换机器或用下方 Docker 方式
+
+WORKDIR="$HOME/openclaw-offline-build"
+rm -rf "$WORKDIR"
+mkdir -p "$WORKDIR" && cd "$WORKDIR"
+
+OPENCLAW_VER=latest
+npm init -y
+
+# 走官方 registry，避免国内镜像缺 arm64 optional 包
+npm config set registry https://registry.npmjs.org/
+
+# 强制用预编译二进制，避免本机编译 libvips（鲲鹏交叉场景易挂）
+export npm_config_platform=linux
+export npm_config_arch=arm64
+export SHARP_IGNORE_GLOBAL_LIBVIPS=1
+
+npm install "openclaw@${OPENCLAW_VER}" --foreground-scripts
+
+# 确认 CLI
+./node_modules/.bin/openclaw --version
+
+# 可选：若日志里 sharp 失败，但对 Cube skill 不需要图片处理，可忽略；
+# 若需要图片能力，再显式补装：
+# npm install sharp --foreground-scripts
+
+cd ..
+tar czf openclaw-bundle-linux-arm64.tar.gz -C "$WORKDIR" .
+ls -lh openclaw-bundle-linux-arm64.tar.gz
+```
+
+**没有 aarch64 联网机时：用 Docker 模拟 arm64 打包**（宿主机可以是 x86，需 Docker + qemu）：
+
+```bash
+NODE_VER=v22.22.3
+# 先准备好 node-*-linux-arm64.tar.xz 在当前目录
+
+docker run --rm --platform linux/arm64 \
+  -v "$PWD:/work" -w /work \
+  ubuntu:24.04 bash -lc '
+    set -e
+    apt-get update && apt-get install -y xz-utils ca-certificates
+    tar -xJf node-'"${NODE_VER}"'-linux-arm64.tar.xz -C /usr/local --strip-components=1
+    node -v
+    rm -rf openclaw-offline-build && mkdir openclaw-offline-build && cd openclaw-offline-build
+    npm init -y
+    npm config set registry https://registry.npmjs.org/
+    export SHARP_IGNORE_GLOBAL_LIBVIPS=1
+    npm install openclaw@latest --foreground-scripts
+    ./node_modules/.bin/openclaw --version
+    cd ..
+    tar czf openclaw-bundle-linux-arm64.tar.gz -C openclaw-offline-build .
+  '
+```
+
+可选：把确切版本写进文件名：
+
+```bash
+VER=$(./node_modules/.bin/openclaw --version 2>/dev/null | tr -d '[:space:]' || echo unknown)
+mv openclaw-bundle-linux-arm64.tar.gz "openclaw-bundle-linux-arm64-${VER}.tar.gz"
+```
+
+**不要**只做 `npm pack openclaw`：那个 tarball **不含依赖**，到鲲鹏后仍要联网 `npm install`。
+
+**B3b. 「arm64 很多依赖没有」时怎么处理**
+
+| 原因 | 表现 | 处理 |
+|------|------|------|
+| 在 **x86** 上交叉 `npm install` | `Unsupported platform` / optional 跳过 / `@img/sharp-linux-arm64` 404 | 换 **真 aarch64** 或上面的 **Docker `--platform linux/arm64`** |
+| 用了淘宝/华为 **npm 镜像** | arm64 optional 包未同步 | `npm config set registry https://registry.npmjs.org/` 后重装 |
+| 在 **鲲鹏本机** 直接 `npm install` | 无公网，大量 404 / ETIMEDOUT | 必须离线 bundle，不要在鲲鹏装依赖 |
+| 只解压了 Node，又去跑官方 install 脚本 | 脚本继续联网拉包 | Node tar 装好后，只解压已打好的 `openclaw-bundle` |
+| `sharp` / `node-gyp` 编译失败 | 缺 gcc、想源码编译 | 设 `SHARP_IGNORE_GLOBAL_LIBVIPS=1`，用预编译；Cube skill **不依赖** sharp，可 `--omit=optional` 先打通 CLI |
+
+仅验证 Cube skill、可暂时跳过可选原生依赖：
+
+```bash
+npm install "openclaw@${OPENCLAW_VER}" --omit=optional --foreground-scripts
+./node_modules/.bin/openclaw --version
+```
+
+**B4. 拷到鲲鹏的文件清单**
+
+```text
+~/offline-pkgs/
+  cube-python-wheels-py312-aarch64.tar.gz   # 或散开的 quickstart-pkgs/
+  install-e2b-offline.sh                    # 可选，与 tar 同目录
+  node-v22.*-linux-arm64.tar.xz             # 与打包机相同文件
+  openclaw-bundle-linux-arm64.tar.gz        # 或带版本号的文件名
+```
+
+> OpenClaw **对话模型**还需能访问的 LLM API（内网 OpenAI 兼容端点 / 厂商内网网关均可）。  
+> 装包可完全离线；模型地址填你环境可达的内网 URL。
+
+#### 3.6.2 前置确认（鲲鹏）
 
 ```bash
 systemctl is-active cube-sandbox-control.target
 curl -sS http://127.0.0.1:3000/health
 cubemastercli tpl list    # 至少一个 READY 模板
 
-# 本机 DNS（可选自检）
+# 本机 DNS（同机必通）
 getent hosts 49999-test.cube.app || nslookup 49999-test.cube.app
 ```
 
 若 DNS 异常，见 §5.1（`CUBE_PROXY_DNSMASQ_MODE=standalone`）。
 
-#### 3.6.2 OpenClaw 示例所需环境变量（本机）
+#### 3.6.3 环境变量（本机）
 
 ```bash
 export E2B_API_URL="http://127.0.0.1:3000"
@@ -432,20 +719,86 @@ export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE"
 # 常见路径：/root/.local/share/mkcert/rootCA.pem
 ```
 
-本机 **不需要** `CUBE_PROXY_NODE_IP`。
+本机 **不需要** `CUBE_PROXY_NODE_IP`。可写入 `~/.bashrc` 持久化。
 
-#### 3.6.3 最小命令行验证
+#### 3.6.4 鲲鹏离线安装 Python 3.12 + e2b
+
+推荐先用 §3.6.1-A0 的 GitHub Release 包（或已拷到 `~/offline-pkgs/` 的同名 tar）。
 
 ```bash
-python3 -m venv ~/cube-demo/.venv
+cd ~/offline-pkgs
+tar xzf cube-python-wheels-py312-aarch64.tar.gz   # 若已是 quickstart-pkgs/ 目录可跳过
+
+# 若你是源码 make altinstall 到 /usr/local/python3.12，先把新版本放进 PATH
+export PATH="/usr/local/python3.12/bin:$PATH"
+python3.12 -V
+
+# 旧的 3.9 venv 不要复用，直接删掉重建
+rm -rf ~/cube-demo/.venv
+python3.12 -m venv ~/cube-demo/.venv
 source ~/cube-demo/.venv/bin/activate
-pip install e2b-code-interpreter
+python -V    # 期望 3.12.x
 
-export E2B_API_URL=http://127.0.0.1:3000
-export E2B_API_KEY=e2b_000000
-export CUBE_TEMPLATE_ID=<template_id>
-export SSL_CERT_FILE=$(mkcert -CAROOT)/rootCA.pem
+# 一键安装（脚本会校验 pyqwest aarch64 wheel）
+bash install-e2b-offline.sh
 
+# 或手动：wheel 必须匹配 cp312 + aarch64
+# pip install --no-index --find-links=./quickstart-pkgs/ \
+#   e2b-code-interpreter python-dotenv rich
+
+python -c "import e2b_code_interpreter; print('ok', e2b_code_interpreter.__version__)"
+```
+
+若 `python3.12` 找不到，先定位实际安装路径：
+
+```bash
+find /usr/local -name 'python3.12' 2>/dev/null
+```
+
+然后把对应目录写入 `~/.bashrc`：
+
+```bash
+echo 'export PATH="/usr/local/python3.12/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+#### 3.6.5 第一段演示：`code-sandbox-quickstart`（先做）
+
+先验证 Cube 控制面 / 数据面，再装 OpenClaw。
+
+```bash
+source ~/cube-demo/.venv/bin/activate
+# 已 export §3.6.3 变量，或写入示例目录 .env
+
+cd /path/to/CubeSandbox/examples/code-sandbox-quickstart
+cp .env.example .env
+```
+
+编辑 `.env`（本机示例；这里是写文件，不是 export）：
+
+```bash
+cat > .env <<'EOF'
+E2B_API_URL=http://127.0.0.1:3000
+E2B_API_KEY=e2b_000000
+CUBE_TEMPLATE_ID=<READY 的 template_id>
+SSL_CERT_FILE=/root/.local/share/mkcert/rootCA.pem
+REQUESTS_CA_BUNDLE=/root/.local/share/mkcert/rootCA.pem
+EOF
+```
+
+运行：
+
+```bash
+python exec_code.py    # run_code
+python cmd.py          # commands.run
+```
+
+期望：能创建沙箱并打印执行结果；沙箱架构为 **aarch64**。  
+此步失败时先不要装 OpenClaw——问题在 Cube / 模板 / DNS / 证书。
+
+也可先用一行最小脚本自检：
+
+```bash
 python3 - <<'PY'
 import os
 from e2b_code_interpreter import Sandbox
@@ -457,67 +810,261 @@ with Sandbox.create(template=os.environ["CUBE_TEMPLATE_ID"], timeout=600) as sbx
 PY
 ```
 
-若鲲鹏访问不了 `pypi.org`，而内网镜像（如 `mirrors.tools.huawei.com/pypi/simple`）又没有 `e2b-code-interpreter`，可先在一台**能访问公网 PyPI** 的机器下载 wheel，再传到鲲鹏离线安装：
-
-```bash
-# 在可联网机器上
-mkdir -p e2b-pkgs
-pip download e2b-code-interpreter -d ./e2b-pkgs/
-
-# 把 e2b-pkgs/ 整个目录拷到鲲鹏后，在鲲鹏执行
-python3 -m venv ~/cube-demo/.venv
-source ~/cube-demo/.venv/bin/activate
-pip install --no-index --find-links=./e2b-pkgs/ e2b-code-interpreter
-```
-
-若还需要一并离线安装 `python-dotenv`、`jupyterlab` 等，也可在联网机器上一起下载：
-
-```bash
-pip download e2b-code-interpreter python-dotenv jupyterlab ipykernel -d ./e2b-pkgs/
-```
-
-#### 3.6.4 直接跑官方 `openclaw-integration`
-
-```bash
-cd examples/openclaw-integration
-pip install e2b-code-interpreter
-
-export CUBE_TEMPLATE_ID=<template_id>
-export E2B_API_URL=http://127.0.0.1:3000
-export E2B_API_KEY=e2b_000000
-export SSL_CERT_FILE=$(mkcert -CAROOT)/rootCA.pem
-```
-
-若此处 `pip install e2b-code-interpreter` 因内网源缺包失败，直接复用上一步准备好的离线目录：
-
-```bash
-pip install --no-index --find-links=./e2b-pkgs/ e2b-code-interpreter
-```
-
-按官方文档安装 skill：
-
-```bash
-cp -r skills/cube-sandbox/ ~/.openclaw/workspace/skills/
-openclaw gateway restart
-```
-
-之后直接按 README 里的示例话术触发：
-
-- `在沙箱里跑一段 Python，计算 1 到 100 的和`
-- `用沙箱执行 uname -a 并返回结果`
-- `在完全断网的沙箱中运行这段代码`
-
-若只是先验证数据面，也可先跑 `code-sandbox-quickstart`：
-
-```bash
-cd examples/code-sandbox-quickstart
-pip install -r requirements.txt
-cp .env.example .env   # E2B_API_URL=127.0.0.1:3000
-python exec_code.py
-python cmd.py
-```
-
 WebUI（可选）：`http://127.0.0.1:12088`
+
+#### 3.6.6 鲲鹏离线安装 Node.js + OpenClaw（前台常驻）
+
+`code-sandbox-quickstart` 通过后再装 OpenClaw（使用 §3.6.1-B 打好的包）。
+
+```bash
+cd ~/offline-pkgs
+
+# 1) 安装 Node（系统级；也可用 ~/node 用户目录）
+sudo tar -xJf node-v22.*-linux-arm64.tar.xz -C /usr/local --strip-components=1
+hash -r
+node -v    # v22.x
+npm -v
+
+# 2) 解压 OpenClaw 离线 bundle（从未在鲲鹏上 npm install）
+mkdir -p ~/openclaw-app
+tar xzf openclaw-bundle-linux-arm64*.tar.gz -C ~/openclaw-app
+
+# 3) 把 CLI 放进 PATH（路径按实际解压目录改；示例为 ~/openclaw-app）
+OPENCLAW_BIN="$HOME/openclaw-app/node_modules/.bin"
+# 若 bundle 解在其它目录，例如：
+# OPENCLAW_BIN="/home/<用户>/02-cubesandbox/node/node_modules/.bin"
+
+grep -q 'openclaw-app/node_modules/.bin' ~/.bashrc || \
+  echo "export PATH=\"${OPENCLAW_BIN}:\$PATH\"" >> ~/.bashrc
+source ~/.bashrc
+
+which openclaw
+openclaw --version
+```
+
+> **不要用 `npx openclaw`**（离线 bundle 场景）：`npx` 可能走到别的版本，且 exec 子进程环境更不可控。  
+> 若 `openclaw: command not found`，用 **`${OPENCLAW_BIN}/openclaw`** 全路径，或按上一步写入 `~/.bashrc`。
+
+首次配置（模型 API 填**内网可达**地址；只跑初始化，不装 daemon）：
+
+```bash
+openclaw onboard
+# 排障：openclaw doctor
+openclaw doctor
+```
+
+> 不要在鲲鹏 root + SSH 环境里使用 `openclaw onboard --install-daemon` 或
+> `openclaw gateway install`：常会因为 `systemctl --user` / D-Bus 不可用而失败。
+
+##### 必做：`openclaw.json`（让 Agent 的 exec 找到 e2b SDK）
+
+**现象**：你在 shell 里 `python3 -c "import e2b_code_interpreter"` 能成功，但 Dashboard 里 Agent 报 `ModuleNotFoundError`。  
+**原因**：OpenClaw 的 **exec 工具**在宿主机上默认只用精简 `PATH`（`/usr/local/bin:/usr/bin:/bin`），**不会**继承你启动 Gateway 时的 venv；裸写 `python3` 会落到系统 3.9。
+
+在 `~/.openclaw/openclaw.json` 写入（路径按本机改；e2b 装在 **`/root/cube-demo/.venv`** 时示例如下）：
+
+```bash
+mkdir -p ~/.openclaw
+
+cat > ~/.openclaw/openclaw.json <<'EOF'
+{
+  "tools": {
+    "exec": {
+      "pathPrepend": [
+        "/root/cube-demo/.venv/bin",
+        "/usr/local/python3.12/bin"
+      ]
+    }
+  },
+  "env": {
+    "CUBE_TEMPLATE_ID": "<READY 的 template_id>",
+    "E2B_API_URL": "http://127.0.0.1:3000",
+    "E2B_API_KEY": "e2b_000000",
+    "SSL_CERT_FILE": "/root/.local/share/mkcert/rootCA.pem",
+    "REQUESTS_CA_BUNDLE": "/root/.local/share/mkcert/rootCA.pem"
+  }
+}
+EOF
+```
+
+若 OpenClaw 解在自定义目录，可在 `pathPrepend` 末尾再加一项，例如  
+`/home/<用户>/02-cubesandbox/node/node_modules/.bin`（仅影响 `openclaw` CLI，**e2b 仍须 venv 路径在前**）。
+
+改完 **必须重启 Gateway**。验证：Dashboard 里让 Agent 只跑一行：
+
+```text
+/root/cube-demo/.venv/bin/python3 -c "import sys,e2b_code_interpreter; print(sys.executable); print('ok')"
+```
+
+期望输出含 `/root/cube-demo/.venv/bin/python3` 和 `ok`。
+
+> Gateway 以非 root 用户运行时，须能读 `/root/cube-demo/.venv`；否则把 venv 拷到该用户目录并改 `pathPrepend`。
+
+##### 可选：`~/.openclaw/cube.env`（给人看 / 启动脚本用）
+
+`cube.env` **不在** skill 目录；Agent **不应**去 `skills/cube-sandbox/cube.env` 找配置（应在 `openclaw.json`）。
+
+```bash
+cat > ~/.openclaw/cube.env <<'EOF'
+export PATH="/root/cube-demo/.venv/bin:/usr/local/python3.12/bin:$PATH"
+E2B_API_URL=http://127.0.0.1:3000
+E2B_API_KEY=e2b_000000
+CUBE_TEMPLATE_ID=<READY 的 template_id>
+SSL_CERT_FILE=/root/.local/share/mkcert/rootCA.pem
+REQUESTS_CA_BUNDLE=/root/.local/share/mkcert/rootCA.pem
+EOF
+```
+
+**启动 Gateway**（`openclaw.json` 已配置后，exec 环境以 json 为准；下面 `source cube.env` 主要方便本机自检）：
+
+```bash
+export PATH="${OPENCLAW_BIN:-$HOME/openclaw-app/node_modules/.bin}:$PATH"
+set -a && source ~/.openclaw/cube.env && set +a
+
+/root/cube-demo/.venv/bin/python3 -c "import e2b_code_interpreter; print('ok')"
+openclaw gateway --bind loopback --port 18789
+```
+
+<details>
+<summary>不想每次手动 source 的替代做法</summary>
+
+**A. 写进 `~/.bashrc`（登录 SSH 后自动加载）**
+
+```bash
+grep -q 'cube.env' ~/.bashrc || cat >> ~/.bashrc <<'EOF'
+
+# CubeSandbox skill 环境变量
+if [ -f ~/.openclaw/cube.env ]; then
+  set -a && . ~/.openclaw/cube.env && set +a
+fi
+EOF
+source ~/.bashrc
+# 之后可直接：openclaw gateway --bind loopback --port 18789
+```
+
+**B. 启动脚本（一条命令）**
+
+```bash
+mkdir -p ~/bin
+cat > ~/bin/openclaw-gateway-cube <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+set -a && source ~/.openclaw/cube.env && set +a
+exec openclaw gateway --bind loopback --port 18789 "$@"
+EOF
+chmod +x ~/bin/openclaw-gateway-cube
+grep -q '$HOME/bin' ~/.bashrc || echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+# 之后：openclaw-gateway-cube
+```
+
+</details>
+
+前台常驻：上述命令占用的 SSH 窗口**不要关**；要停 Gateway 用 Ctrl+C。
+
+从你的电脑访问 Dashboard 的推荐方式：
+
+```bash
+# 在你的电脑上执行
+ssh -N -L 18789:127.0.0.1:18789 root@<鲲鹏IP>
+```
+
+然后浏览器打开：
+
+```text
+http://127.0.0.1:18789/
+```
+
+若提示 `device signature expired`，通常是**客户端与鲲鹏时间差超过 10 分钟**
+或浏览器残留了旧设备签名。先同步时间，再清浏览器站点数据，并执行：
+
+```bash
+openclaw devices list
+openclaw devices clear --yes --pending
+```
+
+#### 3.6.7 第二段演示：`openclaw-integration`
+
+##### 安装 skill（UTF-8，勿乱码）
+
+从仓库 **整目录复制**（避免 Windows/错误编码导致 SKILL 乱码，模型无法识别 skill）：
+
+```bash
+rm -rf ~/.openclaw/workspace/skills/cube-sandbox
+cp -r /path/to/CubeSandbox/examples/openclaw-integration/skills/cube-sandbox \
+  ~/.openclaw/workspace/skills/
+
+file ~/.openclaw/workspace/skills/cube-sandbox/SKILL.md
+head -3 ~/.openclaw/workspace/skills/cube-sandbox/SKILL.md
+# 应看到正常中文「Cube Sandbox 安全沙箱执行技能」，而不是「瀹夊叏娌欑…」
+```
+
+若已乱码：在 PC 上用 UTF-8 重新 scp `SKILL.md`，或从 git 仓库重新 `cp`。
+
+拷完 skill 后 **Ctrl+C 停 Gateway 再启动**（见 §3.6.6 启动命令）。
+
+##### 联调要点（已验证）
+
+| 项 | 做法 |
+|----|------|
+| e2b SDK | 装在 **`/root/cube-demo/.venv`**（§3.6.4），与 quickstart 同一 venv |
+| Agent 用 Python | **`openclaw.json` → `tools.exec.pathPrepend`** 含 venv/bin（§3.6.6 必做） |
+| Cube 变量 | **`openclaw.json` → `env`**，不要只在 skill 目录放 `cube.env` |
+| OpenClaw CLI | 离线 bundle 的 `node_modules/.bin/openclaw` 写入 PATH；**不用 npx** |
+| 创建沙箱超时 | §5.2：重启 cubelet + network-agent，清卡死 shim |
+| Agent 乱探路 | 约束话术 + skill 内「禁止 pip/curl/hosts/nginx」；见下表 |
+
+##### Dashboard 话术（可直接复制）
+
+| 场景 | 示例话术 |
+|------|----------|
+| Python（验证 quickstart） | 请在 Cube 沙箱里跑一段 Python，计算 1 到 100 的和，把结果和 `platform.machine()` 一起返回。**不要 pip install** |
+| Shell | 用沙箱执行 `uname -a`，把完整输出返回给我 |
+| 架构确认 | 在隔离沙箱中运行 Python：`import platform; print(platform.machine())` |
+| 断网 | 在完全断网的沙箱里运行 Python，尝试访问外网并说明是否被阻断 |
+| 读文件 | 在沙箱里读取 `/etc/hosts` 的内容并展示 |
+
+期望：一次或少量 exec 即可完成；输出含 **5050**、**aarch64**。若出现 20+ 次 curl/docker/nginx 探路 → 检查 `openclaw.json` 的 `pathPrepend` 与 SKILL 编码。
+
+更细的 skill 说明见 [`examples/openclaw-integration/README_zh.md`](examples/openclaw-integration/README_zh.md)。
+
+#### 3.6.8 OpenClaw + 沙箱适用场景（鲲鹏本机）
+
+以下场景均适合在 **鲲鹏同机** OpenClaw + Cube 上跑（DNS / API 已通、模型走内网 LLM）：
+
+| 场景 | 你可以让 Agent 做什么 | 价值 |
+|------|----------------------|------|
+| **不可信代码试跑** | 「在沙箱里运行用户提交的 Python，只返回 stdout，不要改宿主机」 | 隔离恶意或误操作代码 |
+| **数据分析片段** | 「在沙箱用 pandas 读我描述的 CSV 逻辑并汇总统计」（需模板内或有 pip 离线包） | 分析逻辑在 VM 内执行 |
+| **Shell 探针** | 「在沙箱执行 `uname -a`、`free -h`、检查 aarch64」 | 验证环境与架构 |
+| **断网合规** | 「在完全断网沙箱运行这段访问内网的脚本，确认无法出网」 | 演示网络策略 |
+| **一次性构建/脚本** | 「在沙箱里编译并运行 hello world，完成后销毁」 | 不污染宿主机 |
+| **Skill 编排入口** | 自然语言 → OpenClaw 调 cube-sandbox skill → `Sandbox.create` → 返回结果 | 给非开发人员用的对话式沙箱 |
+| **与 quickstart 对齐的回归** | 固定话术跑 `exec_code` / `cmd.py` 同等逻辑 | 发版后冒烟 |
+
+**不太适合仅靠对话完成的**：大规模并发压测（用 `cube-bench` / 脚本）、改 Cube 集群配置、离线装 npm/pip 包（须事先在 venv/bundle 准备好）。
+
+#### 3.6.9 离线装包与 OpenClaw 排错
+
+| 现象 | 处理 |
+|------|------|
+| `pip` 报 `No matching distribution` / 只有 `x86_64` wheel | 下载机架构不对；用 aarch64 重下，或加 `--platform ..._aarch64` |
+| `No matching distribution found for pyqwest` | `e2b` 的传递依赖；离线包缺 **aarch64** 版 `pyqwest` / `protobuf-py-ext`。直接用 §3.6.1-A0 [预打包 Release](https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64)，或按 A1/A2 整包重下，不要只拷 top3 wheel |
+| 想在鲲鹏直接 `npm install -g openclaw` | 无公网会失败；必须用 §3.6.1-B 的 bundle |
+| `openclaw: command not found` | `PATH` 未含 OpenClaw 的 `node_modules/.bin`；见 §3.6.6，或用全路径启动 |
+| Dashboard 报 `No module named 'e2b_code_interpreter'` | shell 里 import 成功但 Agent 失败 → **未配置** `openclaw.json` 的 `tools.exec.pathPrepend`（§3.6.6） |
+| Agent 要去 `skills/.../cube.env` 或 `pip install` | 环境应在 `openclaw.json`；鲲鹏无公网禁止在线 pip |
+| SKILL.md 乱码（`瀹夊叏…`） | 重新 UTF-8 复制 skill；§3.6.7 |
+| Agent 大量 curl/docker/nginx 探路 | 约束话术 + 确认 `pathPrepend`；正常应 1～2 次 Python exec |
+| Skill 未创建沙箱 / `Template not found` | 检查 `openclaw.json` 的 `env.CUBE_TEMPLATE_ID` |
+| 打包时提示 arm64 依赖没有 / `Unsupported platform` / sharp 404 | 见 §3.6.1-B3b：不要在 x86 交叉装；改用真 aarch64 或 Docker `linux/arm64`；registry 用 npmjs.org |
+| `npm` / `openclaw` 报 `sharp` / ELF 错误 | bundle 架构不对或缺预编译包；aarch64 重打，或 `--omit=optional` 先跑通 Cube skill |
+| `npm pack openclaw` 拷过来仍缺模块 | 预期：`npm pack` 不含依赖；改用完整 `node_modules` tar |
+| quickstart `run_code` DNS 失败 | 本机 DNS：§5.1；确认未改坏 `/etc/resolv.conf` |
+| Skill 触发但 SSL 失败 | `SSL_CERT_FILE` 写入 `openclaw.json` 的 `env` |
+| OpenClaw 能起、对话超时 | 模型 API 外网不通；改配内网 endpoint |
+| 华为 PyPI 镜像缺 `e2b-code-interpreter` | 预期；走 §3.6.1-A 离线 wheel |
+| `Sandbox.create` / WebUI 创建报 `ttrpc ... Receive packet timeout` | 运行时 shim 卡死；§5.2 重启 cubelet + network-agent |
 
 ---
 
@@ -593,9 +1140,10 @@ curl -sS -o /dev/null -w "%{http_code}\n" "http://<鲲鹏IP>:12088/"
 | `failed to resolve image` / `tencentcloudcr.com:443: i/o timeout` | 远程仓库不可达；离线请走 §2.0～2.3 |
 | `native export failed to resolve ... index.docker.io ... i/o timeout` | **不是平台不匹配**。默认 native 导出把短名当成 Docker Hub。设 `CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` 并重启 cubemaster（§2.0） |
 | `requested image's platform (linux/amd64) does not match` | 才是平台问题；删掉 amd64 镜像，重新 load arm64 离线包 |
-| `mirrors.tools.huawei.com/pypi/simple` 找不到 `e2b-code-interpreter` | 该内网镜像未同步此包；按 §3.6 先在联网机器 `pip download` wheel，再传到鲲鹏 `pip install --no-index --find-links=...` |
-| `getaddrinfo failed` / `49999-*.cube.app` 解析失败 | 客户端不在集群 DNS 域内；**在鲲鹏本机跑 SDK**（§3.6），不要从 Windows 远程当执行端 |
+| `mirrors.tools.huawei.com/pypi/simple` 找不到 `e2b-code-interpreter` | 该内网镜像未同步此包；按 §3.6.1-A0 下载 [预打包 Release](https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64)，或在联网机 `pip download` 后在鲲鹏 `pip install --no-index --find-links=...` |
+| `getaddrinfo failed` / `49999-*.cube.app` 解析失败 | 客户端不在集群 DNS 域内；**在鲲鹏本机跑 SDK / OpenClaw**（§3.6），不要从 Windows 远程当执行端 |
 | `install.sh` 长时间无输出 | 多半在等 systemd；另开终端看 `systemctl list-jobs`。若已 `install complete`，不要反复全量安装，直接做模板 |
+| 创建沙箱报 `ttrpc ... Receive packet timeout` / WebUI（12088）与 Python 同错 | 多为卡死 shim 或 network-agent 状态异常；见 §5.2 快速修复 |
 
 ### 5.1 DNS / dnsmasq 修复（单机常见）
 
@@ -625,6 +1173,60 @@ journalctl -u cube-sandbox-dns.service -n 80 --no-pager
 journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 ```
 
+### 5.2 创建沙箱 ttrpc 超时 / 卡死 shim（运行时常见）
+
+**现象（WebUI `http://<节点IP>:12088/sandboxes` 与 Python `Sandbox.create()` 相同）：**
+
+```text
+Create sandbox failed: ... ttrpc err: Receive packet timeout
+failed to run container ... failed to create shim task ...
+```
+
+CubeShim 日志里可能还有 `not found container`、`Broken pipe` 等清理失败——这些是连带报错，可忽略。
+
+**含义：** Cubelet → CubeShim → MicroVM 里的 cube-agent 在 `CreateSandbox` 阶段超时（默认约 25s）。  
+**不是** Python SDK / e2b 包问题；12088 页面与脚本走同一条 API 链路。
+
+**若之前能创建、突然全部失败：** 优先怀疑 **残留 shim / network-agent 状态异常**，不必先改沙箱网段。  
+**若从未成功过：** 再查 §2.0 模板、XFS、内存，以及 [沙箱网段与内网冲突](docs/zh/guide/troubleshooting/local-network-cidr-conflict.md)。
+
+#### 快速修复（多数情况有效）
+
+```bash
+# 1. 看有没有卡死的 shim
+ps aux | grep containerd-shim-cube-rs | grep -v grep
+
+# 2. 重启计算面 + 网络（会清掉残留 shim）
+sudo systemctl restart cube-sandbox-cubelet.service
+sudo systemctl restart cube-sandbox-network-agent.service
+sleep 5
+
+# 3. 确认 shim 已清空
+ps aux | grep containerd-shim-cube-rs | grep -v grep   # 应为空
+
+# 4. 再在 WebUI 或 quickstart 里创建一次
+curl -sS http://127.0.0.1:3000/health
+curl -sS http://127.0.0.1:19090/health 2>/dev/null || echo "network-agent health fail"
+```
+
+#### 仍失败时再查
+
+```bash
+df -hT /data/cubelet /data/log
+free -h
+cubemastercli tpl list    # 至少一个 READY
+
+# 复现一次 create 的同时看 Shim 日志
+grep -a -E 'start vm|vm ready|agent is ready|Create sandbox|timeout' \
+  /data/log/CubeShim/cube-shim-req.log | tail -30
+```
+
+| 日志特征 | 可能原因 |
+|----------|----------|
+| 无 `vm ready` | hypervisor / guest 内核未起来 → 查 `/data/log/CubeVmm/vmm.log` |
+| 有 `agent is ready` 后 timeout | guest 内网络或存储挂载卡住 → 查 network-agent、磁盘 |
+| 重启 cubelet 后恢复 | 确认为 shim 泄漏；若频繁复发，查内存与 `/data/cubelet` 空间 |
+
 ---
 
 ## 6. 建议操作清单（当前进度）
@@ -636,10 +1238,14 @@ journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 - [ ] **`CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` + 重启 cubemaster**（§2.0；两边 env 都写）  
 - [ ] `docker tag ... sandbox-code:latest`，确认 `Architecture=arm64`  
 - [ ] `tpl create-from-image --image sandbox-code:latest` → `READY`，记下 `template_id`  
-- [ ] **鲲鹏本机**：§3.6 跑官方 `examples/openclaw-integration` 或 `examples/code-sandbox-quickstart`  
+- [ ] **离线 Python**：§3.6.1-A0 下载 [预打包 Release](https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64) → §3.6.4 装到鲲鹏  
+- [ ] **第一段演示**：§3.6.5 `code-sandbox-quickstart`（`exec_code.py` / `cmd.py`）通过  
+- [ ] **OpenClaw 配置**：§3.6.6 `openclaw.json`（`pathPrepend` + `env`）+ skill UTF-8 安装  
+- [ ] **第二段演示**：§3.6.7 Dashboard 话术触发 cube-sandbox（5050 / aarch64）  
+- [ ] （可选）§3.6.8 场景扩展（断网 / 不可信代码试跑等）  
 - [ ] （可选）firewalld 放行 3000/80/443，供其他机器只访问 API/WebUI  
 
-**当前下一步：§2.0 → 模板 READY → §3.6 本机演示。**
+**当前下一步：§3.6.7 OpenClaw Dashboard 联调 → §3.6.8 按业务选场景试用。**
 
 ---
 
@@ -653,3 +1259,4 @@ journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 | 官方 ARM 支持说明 | [docs/zh/blog/posts/2026-07-08-cubesandbox-arm-support.md](docs/zh/blog/posts/2026-07-08-cubesandbox-arm-support.md) |
 | one-click arm64 包 | GitHub / CNB Releases 中的 `cube-sandbox-one-click-*-arm64.tar.gz` |
 | 离线 Docker arm64 包 | https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-docker-arm64-v0.6.0 |
+| e2b 离线 Python wheels（aarch64 / cp312） | https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64 |
