@@ -753,6 +753,7 @@ python exec_code.py
 
 | 现象 | 处理 |
 |------|------|
+| 想直接用鲲鹏上的 Cube DNS？ | **默认不行**。one-click 内置 DNS 绑在本机链路本地地址 `169.254.254.53`（dummy `cube-dns0`）/ `127.0.0.54`，只服务**鲲鹏宿主机**，不对业务网卡开放 53 端口。WSL 里 `dig @KUNPENG_IP` 查不到。远程客户端应在本机做泛解析（§3.7.3）或走企业 Private DNS |
 | `curl KUNPENG_IP:3000` 超时 | 鲲鹏 firewalld / 安全组未放行；或 IP 写错 |
 | `dig @127.0.0.1` 正确，`getent` 仍失败 | `resolv.conf` 未指向 `127.0.0.1`；执行 `wsl --shutdown` 后重做 §3.7.4 |
 | `run_code` SSL 错误 | `SSL_CERT_FILE` 未指向鲲鹏拷来的 `rootCA.pem` |
