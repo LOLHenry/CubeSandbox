@@ -66,8 +66,21 @@ MIRROR=cn
 # CUBE_SANDBOX_NODE_IP=<本机IP>
 ```
 
-说明：`.env` 给 `install.sh` 读；装完后运行时以  
-`/usr/local/services/cubetoolbox/.one-click.env` 为准。改后者后需 `systemctl restart`。
+说明：有两份配置，建议**两边写同样的关键项**：
+
+| 文件 | 路径 | 作用 |
+|------|------|------|
+| 安装包 `.env` | one-click 解压目录下的 `.env` | `install.sh` / 升级重装时读；写这里防重装丢失 |
+| 运行时 `.one-click.env` | `/usr/local/services/cubetoolbox/.one-click.env` | systemd 真正加载；改完需 `systemctl restart` 才生效 |
+
+鲲鹏离线场景建议两边都包含：
+
+```bash
+MIRROR=cn
+# CUBE_SANDBOX_NODE_IP=<本机业务网卡 IP>   # 主网卡不是 eth0 时必填
+CUBE_PROXY_DNSMASQ_MODE=standalone         # DNS 踩坑时；默认 networkmanager
+CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false  # 离线本地模板必填，见 §2.0
+```
 
 ### 1.3 离线导入 Docker 镜像（本机拉 TCR 超时时必做）
 
@@ -264,7 +277,21 @@ export SSL_CERT_FILE="/root/.local/share/mkcert/rootCA.pem"
 | `CUBE_TEMPLATE_ID` | 上一步模板 ID |
 | `SSL_CERT_FILE` | 访问沙箱 HTTPS（via cube-proxy / `*.cube.app`）时需要 |
 
-### 3.2 方式 A：Python SDK（推荐）
+### 3.2 模板能力说明（`sandbox-code`）
+
+用 `sandbox-code:latest` + 暴露 `49999/49983` 做成的模板是 **Code Interpreter** 能力（沙箱内 Jupyter / CI gateway），不是 CLI 里名叫 `code_interpreter` 的字段；`instance-type` 仍是默认 `cubebox`。
+
+客户端用 `e2b_code_interpreter` 的 `run_code`（或示例里的 `E2BSandboxType.CODE_INTERPRETER`）才是在用这条能力。
+
+**不要默认认为已带数据科学栈。** `sandbox-code` 主要是代码解释器运行时；官方数据分析示例常用另一张镜像  
+`cube-sandbox-image.tencentcloudcr.com/demo/e2b-code-interpreter:v1.1-data`  
+（pandas / numpy / matplotlib 等）。且目前文档明确 Multi-Arch 的是 `sandbox-code`；`v1.1-data` 在鲲鹏上可能是 amd64，需自行确认。
+
+用下面 §3.3 的探测脚本在沙箱内验证包是否存在。
+
+### 3.3 方式 A：Python SDK（推荐；这也是「进入沙箱」的方式）
+
+一般**不 SSH 进 MicroVM**，而是在客户端用 SDK 远程执行：`run_code` / `commands.run` 即在沙箱内运行。
 
 ```bash
 pip install e2b-code-interpreter
@@ -283,6 +310,30 @@ with Sandbox.create(template=os.environ["CUBE_TEMPLATE_ID"]) as sandbox:
     # 鲲鹏上预期输出包含：aarch64
 ```
 
+探测数据科学包（True=已装，False=没有）：
+
+```python
+import os
+from e2b_code_interpreter import Sandbox
+
+with Sandbox.create(template=os.environ["CUBE_TEMPLATE_ID"]) as sbx:
+    print("sandbox_id =", sbx.sandbox_id)
+    r = sbx.run_code(
+        "import importlib.util as u\n"
+        "for m in ['numpy','pandas','matplotlib','sklearn']:\n"
+        "    print(m, bool(u.find_spec(m)))\n"
+    )
+    print(r)
+```
+
+也可用 Shell（不经 Jupyter）：
+
+```python
+with Sandbox.create(template=os.environ["CUBE_TEMPLATE_ID"]) as sbx:
+    print(sbx.commands.run("uname -m").stdout)
+    print(sbx.commands.run("python3 -c 'import sys; print(sys.version)'").stdout)
+```
+
 创建沙箱（只要 ID、自行管理生命周期）：
 
 ```python
@@ -295,7 +346,7 @@ print("sandbox_id =", sbx.sandbox_id)
 sbx.kill()
 ```
 
-### 3.3 方式 B：HTTP REST（兼容 E2B）
+### 3.4 方式 B：HTTP REST（兼容 E2B）
 
 健康检查：
 
@@ -336,7 +387,7 @@ curl -sS -X DELETE "http://127.0.0.1:3000/sandboxes/<sandbox_id>" \
 
 WebUI（若已启动）默认：`http://<节点IP>:12088`
 
-### 3.4 调用链（便于理解）
+### 3.5 调用链（便于理解）
 
 ```text
 客户端 / SDK / curl
@@ -345,6 +396,37 @@ WebUI（若已启动）默认：`http://<节点IP>:12088`
       → Cubelet            （本机拉起 MicroVM）
   → CubeProxy / *.cube.app （访问沙箱内服务端口）
 ```
+
+### 3.6 Windows 本机远程访问鲲鹏（示例 IP：`10.50.156.199`）
+
+不 SSH 进沙箱；在 Windows 上用 SDK 调控制面，执行发生在鲲鹏上的 MicroVM 里。
+
+**鲲鹏侧（一次）：** 按 §4 放行 `3000/80/443`（及可选 `12088`），模板 `READY`，并把 mkcert 根证拷到 Windows：
+
+```text
+鲲鹏: /root/.local/share/mkcert/rootCA.pem
+→ Windows 例如: C:\certs\cube-rootCA.pem
+```
+
+**Windows PowerShell：**
+
+```powershell
+# 连通性
+curl http://10.50.156.199:3000/health
+# 可选 WebUI: http://10.50.156.199:12088/
+
+pip install e2b-code-interpreter
+
+$env:E2B_API_URL = "http://10.50.156.199:3000"
+$env:E2B_API_KEY = "e2b_000000"
+$env:CUBE_TEMPLATE_ID = "<你的 template_id>"
+$env:SSL_CERT_FILE = "C:\certs\cube-rootCA.pem"
+$env:REQUESTS_CA_BUNDLE = "C:\certs\cube-rootCA.pem"
+
+python check_pkgs.py   # 内容见 §3.3 探测脚本
+```
+
+换机器时只需改 `E2B_API_URL` 里的 IP。浏览器访问 `*.cube.app` 还需 DNS/hosts + 信任根证；**演示主路径建议只用 SDK**。
 
 ---
 
@@ -402,13 +484,13 @@ curl -kI "https://<鲲鹏IP>/"
 curl -sS -o /dev/null -w "%{http_code}\n" "http://<鲲鹏IP>:12088/"
 ```
 
-客户端环境变量示例：
+客户端环境变量示例（Linux / macOS；Windows 见 §3.6）：
 
 ```bash
-export E2B_API_URL="http://<鲲鹏IP>:3000"
+export E2B_API_URL="http://10.50.156.199:3000"   # 换成你的鲲鹏 IP
 export E2B_API_KEY="e2b_000000"
 export CUBE_TEMPLATE_ID="<你的 template_id>"
-export SSL_CERT_FILE="/path/to/rootCA.pem"   # 从鲲鹏拷贝 mkcert 根证，若走 HTTPS
+export SSL_CERT_FILE="/path/to/rootCA.pem"       # 从鲲鹏拷贝 mkcert 根证
 ```
 
 > 若系统没有 firewalld，可用 `iptables` / `ufw` 放行同样端口；云厂商安全组也需同步放行 3000/80/443（及可选 12088）。
@@ -465,15 +547,16 @@ journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 
 - [x] 下载 one-click arm64 包并解压  
 - [x] 下载并解压离线 Docker arm64 镜像包 / `load-images.sh`  
-- [x] `.env`：`MIRROR=cn`；DNS 必要时 `CUBE_PROXY_DNSMASQ_MODE=standalone`  
+- [x] `.env` / `.one-click.env`：`MIRROR=cn`；必要时 `CUBE_PROXY_DNSMASQ_MODE=standalone`  
 - [x] `install.sh` → **`install complete`**  
-- [ ] **`CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` + 重启 cubemaster**（§2.0，必做）  
+- [ ] **`CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` + 重启 cubemaster**（§2.0；两边 env 都写）  
 - [ ] `docker tag ... sandbox-code:latest`，确认 `Architecture=arm64`  
 - [ ] `tpl create-from-image --image sandbox-code:latest` → `READY`，记下 `template_id`  
-- [ ] firewalld 放行 3000/80/443（内网其它机器访问时）  
-- [ ] SDK / `POST /sandboxes` 创建沙箱；远端设 `E2B_API_URL=http://<鲲鹏IP>:3000`  
+- [ ] firewalld 放行 3000/80/443（及可选 12088）  
+- [ ] Windows / 远端：`E2B_API_URL=http://10.50.156.199:3000` + 拷贝 `rootCA.pem`（§3.6）  
+- [ ] SDK `run_code` 探测包 / 跑演示；需要 pandas 栈时先确认镜像是否自带（§3.2）  
 
-**当前下一步：先做 §2.0，再 §2.1～2.3 做模板。**
+**当前下一步：§2.0 → 模板 READY → Windows 用 §3.6 远程调用。**
 
 ---
 
