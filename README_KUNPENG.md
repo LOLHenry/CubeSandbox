@@ -628,20 +628,40 @@ export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE"
 
 本机 **不需要** `CUBE_PROXY_NODE_IP`。可写入 `~/.bashrc` 持久化。
 
-#### 3.6.4 鲲鹏离线安装 Python + e2b
+#### 3.6.4 鲲鹏离线安装 Python 3.12 + e2b
 
 ```bash
 cd ~/offline-pkgs
 tar xzf cube-python-wheels-aarch64.tar.gz   # 若已是目录可跳过
 
+# 若你是源码 make altinstall 到 /usr/local/python3.12，先把新版本放进 PATH
+export PATH="/usr/local/python3.12/bin:$PATH"
+python3.12 -V
+
+# 旧的 3.9 venv 不要复用，直接删掉重建
+rm -rf ~/cube-demo/.venv
 python3.12 -m venv ~/cube-demo/.venv
 source ~/cube-demo/.venv/bin/activate
 python -V    # 期望 3.12.x
 
+# wheel 必须匹配 cp312 + aarch64
 pip install --no-index --find-links=./quickstart-pkgs/ \
   e2b-code-interpreter python-dotenv rich
 
 python -c "import e2b_code_interpreter; print('ok', e2b_code_interpreter.__version__)"
+```
+
+若 `python3.12` 找不到，先定位实际安装路径：
+
+```bash
+find /usr/local -name 'python3.12' 2>/dev/null
+```
+
+然后把对应目录写入 `~/.bashrc`：
+
+```bash
+echo 'export PATH="/usr/local/python3.12/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
 ```
 
 #### 3.6.5 第一段演示：`code-sandbox-quickstart`（先做）
@@ -656,13 +676,16 @@ cd /path/to/CubeSandbox/examples/code-sandbox-quickstart
 cp .env.example .env
 ```
 
-编辑 `.env`（本机示例）：
+编辑 `.env`（本机示例；这里是写文件，不是 export）：
 
 ```bash
-export E2B_API_URL="http://127.0.0.1:3000"
-export E2B_API_KEY="e2b_000000"
-export CUBE_TEMPLATE_ID="<READY 的 template_id>"
-export SSL_CERT_FILE="/root/.local/share/mkcert/rootCA.pem"
+cat > .env <<'EOF'
+E2B_API_URL=http://127.0.0.1:3000
+E2B_API_KEY=e2b_000000
+CUBE_TEMPLATE_ID=<READY 的 template_id>
+SSL_CERT_FILE=/root/.local/share/mkcert/rootCA.pem
+REQUESTS_CA_BUNDLE=/root/.local/share/mkcert/rootCA.pem
+EOF
 ```
 
 运行：
@@ -691,7 +714,7 @@ PY
 
 WebUI（可选）：`http://127.0.0.1:12088`
 
-#### 3.6.6 鲲鹏离线安装 Node.js + OpenClaw
+#### 3.6.6 鲲鹏离线安装 Node.js + OpenClaw（前台常驻）
 
 `code-sandbox-quickstart` 通过后再装 OpenClaw（使用 §3.6.1-B 打好的包）。
 
@@ -717,16 +740,60 @@ which openclaw
 openclaw --version
 ```
 
-首次配置（模型 API 填**内网可达**地址；按向导提示操作）：
+首次配置（模型 API 填**内网可达**地址；只跑初始化，不装 daemon）：
 
 ```bash
-openclaw onboard --install-daemon
-openclaw gateway status
+openclaw onboard
 # 排障：openclaw doctor
+openclaw doctor
 ```
 
-若 `onboard` 需要写配置文件，常见位置在 `~/.openclaw/`（以你安装版本为准）。  
-确保 **OpenClaw 服务进程**也能读到 §3.6.3 的 `E2B_*` / `CUBE_TEMPLATE_ID` / `SSL_CERT_FILE`（systemd user 服务用 `Environment=` / `EnvironmentFile=`；只在当前 shell `export` 往往不够）。
+> 不要在鲲鹏 root + SSH 环境里使用 `openclaw onboard --install-daemon` 或
+> `openclaw gateway install`：常会因为 `systemctl --user` / D-Bus 不可用而失败。
+
+把 Cube 变量单独写成环境文件，方便每次启动前加载：
+
+```bash
+cat > ~/.openclaw/cube.env <<'EOF'
+E2B_API_URL=http://127.0.0.1:3000
+E2B_API_KEY=e2b_000000
+CUBE_TEMPLATE_ID=<READY 的 template_id>
+SSL_CERT_FILE=/root/.local/share/mkcert/rootCA.pem
+REQUESTS_CA_BUNDLE=/root/.local/share/mkcert/rootCA.pem
+EOF
+```
+
+前台常驻启动 Gateway（开一个专用 SSH 窗口，不要关）：
+
+```bash
+set -a
+source ~/.openclaw/cube.env
+set +a
+
+# 推荐 loopback + SSH 隧道访问 Dashboard
+openclaw gateway --bind loopback --port 18789
+```
+
+从你的电脑访问 Dashboard 的推荐方式：
+
+```bash
+# 在你的电脑上执行
+ssh -N -L 18789:127.0.0.1:18789 root@<鲲鹏IP>
+```
+
+然后浏览器打开：
+
+```text
+http://127.0.0.1:18789/
+```
+
+若提示 `device signature expired`，通常是**客户端与鲲鹏时间差超过 10 分钟**
+或浏览器残留了旧设备签名。先同步时间，再清浏览器站点数据，并执行：
+
+```bash
+openclaw devices list
+openclaw devices clear --yes --pending
+```
 
 #### 3.6.7 第二段演示：`openclaw-integration`
 
@@ -735,8 +802,16 @@ openclaw gateway status
 cp -r /path/to/CubeSandbox/examples/openclaw-integration/skills/cube-sandbox/ \
   ~/.openclaw/workspace/skills/
 
-openclaw gateway restart
 ls ~/.openclaw/workspace/skills/cube-sandbox/SKILL.md
+```
+
+若 Gateway 正在前台运行，拷完 skill 后请 **Ctrl+C 停掉再重新启动**：
+
+```bash
+set -a
+source ~/.openclaw/cube.env
+set +a
+openclaw gateway --bind loopback --port 18789
 ```
 
 按官方 README 话术触发 skill：
@@ -754,7 +829,8 @@ ls ~/.openclaw/workspace/skills/cube-sandbox/SKILL.md
 | `pip` 报 `No matching distribution` / 只有 `x86_64` wheel | 下载机架构不对；用 aarch64 重下，或加 `--platform ..._aarch64` |
 | 想在鲲鹏直接 `npm install -g openclaw` | 无公网会失败；必须用 §3.6.1-B 的 bundle |
 | `openclaw: command not found` | `PATH` 未含 `~/openclaw-app/node_modules/.bin`；`source ~/.bashrc` |
-| `npm` / `openclaw` 报 `sharp` / ELF 错误 | bundle 在 x86 上打的；必须在 aarch64 重打 |
+| 打包时提示 arm64 依赖没有 / `Unsupported platform` / sharp 404 | 见 §3.6.1-B3b：不要在 x86 交叉装；改用真 aarch64 或 Docker `linux/arm64`；registry 用 npmjs.org |
+| `npm` / `openclaw` 报 `sharp` / ELF 错误 | bundle 架构不对或缺预编译包；aarch64 重打，或 `--omit=optional` 先跑通 Cube skill |
 | `npm pack openclaw` 拷过来仍缺模块 | 预期：`npm pack` 不含依赖；改用完整 `node_modules` tar |
 | quickstart `run_code` DNS 失败 | 本机 DNS：§5.1；确认未改坏 `/etc/resolv.conf` |
 | Skill 触发但 SSL 失败 | `SSL_CERT_FILE` 写入 OpenClaw 服务环境 |
@@ -878,12 +954,13 @@ journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 - [ ] **`CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` + 重启 cubemaster**（§2.0；两边 env 都写）  
 - [ ] `docker tag ... sandbox-code:latest`，确认 `Architecture=arm64`  
 - [ ] `tpl create-from-image --image sandbox-code:latest` → `READY`，记下 `template_id`  
-- [ ] **离线装包**：§3.6.1 下载 aarch64 Python wheels + Node arm64 + OpenClaw bundle → 拷到鲲鹏  
-- [ ] §3.6.4～3.6.5：离线装 e2b → 最小 `Sandbox.create` / `run_code` 通过  
-- [ ] §3.6.6：离线装 OpenClaw + cube-sandbox skill（模型 API 用内网地址）  
+- [ ] **离线 Python**：§3.6.1-A 下载 aarch64 wheels → §3.6.4 装到鲲鹏  
+- [ ] **第一段演示**：§3.6.5 `code-sandbox-quickstart`（`exec_code.py` / `cmd.py`）通过  
+- [ ] **离线 OpenClaw**：§3.6.1-B 在 **真 aarch64**（或 Docker arm64）打 bundle → §3.6.6 装到鲲鹏  
+- [ ] **第二段演示**：§3.6.7 `openclaw-integration` skill（模型 API 用内网地址）  
 - [ ] （可选）firewalld 放行 3000/80/443，供其他机器只访问 API/WebUI  
 
-**当前下一步：§2.0 → 模板 READY → §3.6 离线装 e2b/OpenClaw → 本机演示。**
+**当前下一步：§2.0 → 模板 READY → §3.6.5 quickstart → §3.6.7 OpenClaw。**
 
 ---
 
