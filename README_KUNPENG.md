@@ -829,14 +829,21 @@ npm -v
 mkdir -p ~/openclaw-app
 tar xzf openclaw-bundle-linux-arm64*.tar.gz -C ~/openclaw-app
 
-# 3) 把 CLI 放进 PATH（不要再执行 npm install -g）
+# 3) 把 CLI 放进 PATH（路径按实际解压目录改；示例为 ~/openclaw-app）
+OPENCLAW_BIN="$HOME/openclaw-app/node_modules/.bin"
+# 若 bundle 解在其它目录，例如：
+# OPENCLAW_BIN="/home/<用户>/02-cubesandbox/node/node_modules/.bin"
+
 grep -q 'openclaw-app/node_modules/.bin' ~/.bashrc || \
-  echo 'export PATH="$HOME/openclaw-app/node_modules/.bin:$PATH"' >> ~/.bashrc
+  echo "export PATH=\"${OPENCLAW_BIN}:\$PATH\"" >> ~/.bashrc
 source ~/.bashrc
 
 which openclaw
 openclaw --version
 ```
+
+> **不要用 `npx openclaw`**（离线 bundle 场景）：`npx` 可能走到别的版本，且 exec 子进程环境更不可控。  
+> 若 `openclaw: command not found`，用 **`${OPENCLAW_BIN}/openclaw`** 全路径，或按上一步写入 `~/.bashrc`。
 
 首次配置（模型 API 填**内网可达**地址；只跑初始化，不装 daemon）：
 
@@ -849,35 +856,74 @@ openclaw doctor
 > 不要在鲲鹏 root + SSH 环境里使用 `openclaw onboard --install-daemon` 或
 > `openclaw gateway install`：常会因为 `systemctl --user` / D-Bus 不可用而失败。
 
-把 Cube 变量单独写成环境文件（**OpenClaw 不会自动生成**，需手动创建一次）。  
-变量与 §3.6.5 quickstart 的 `.env` 相同；`CUBE_TEMPLATE_ID` 用 `cubemastercli tpl list` 里 **READY** 的 ID：
+##### 必做：`openclaw.json`（让 Agent 的 exec 找到 e2b SDK）
+
+**现象**：你在 shell 里 `python3 -c "import e2b_code_interpreter"` 能成功，但 Dashboard 里 Agent 报 `ModuleNotFoundError`。  
+**原因**：OpenClaw 的 **exec 工具**在宿主机上默认只用精简 `PATH`（`/usr/local/bin:/usr/bin:/bin`），**不会**继承你启动 Gateway 时的 venv；裸写 `python3` 会落到系统 3.9。
+
+在 `~/.openclaw/openclaw.json` 写入（路径按本机改；e2b 装在 **`/root/cube-demo/.venv`** 时示例如下）：
 
 ```bash
 mkdir -p ~/.openclaw
 
+cat > ~/.openclaw/openclaw.json <<'EOF'
+{
+  "tools": {
+    "exec": {
+      "pathPrepend": [
+        "/root/cube-demo/.venv/bin",
+        "/usr/local/python3.12/bin"
+      ]
+    }
+  },
+  "env": {
+    "CUBE_TEMPLATE_ID": "<READY 的 template_id>",
+    "E2B_API_URL": "http://127.0.0.1:3000",
+    "E2B_API_KEY": "e2b_000000",
+    "SSL_CERT_FILE": "/root/.local/share/mkcert/rootCA.pem",
+    "REQUESTS_CA_BUNDLE": "/root/.local/share/mkcert/rootCA.pem"
+  }
+}
+EOF
+```
+
+若 OpenClaw 解在自定义目录，可在 `pathPrepend` 末尾再加一项，例如  
+`/home/<用户>/02-cubesandbox/node/node_modules/.bin`（仅影响 `openclaw` CLI，**e2b 仍须 venv 路径在前**）。
+
+改完 **必须重启 Gateway**。验证：Dashboard 里让 Agent 只跑一行：
+
+```text
+/root/cube-demo/.venv/bin/python3 -c "import sys,e2b_code_interpreter; print(sys.executable); print('ok')"
+```
+
+期望输出含 `/root/cube-demo/.venv/bin/python3` 和 `ok`。
+
+> Gateway 以非 root 用户运行时，须能读 `/root/cube-demo/.venv`；否则把 venv 拷到该用户目录并改 `pathPrepend`。
+
+##### 可选：`~/.openclaw/cube.env`（给人看 / 启动脚本用）
+
+`cube.env` **不在** skill 目录；Agent **不应**去 `skills/cube-sandbox/cube.env` 找配置（应在 `openclaw.json`）。
+
+```bash
 cat > ~/.openclaw/cube.env <<'EOF'
+export PATH="/root/cube-demo/.venv/bin:/usr/local/python3.12/bin:$PATH"
 E2B_API_URL=http://127.0.0.1:3000
 E2B_API_KEY=e2b_000000
 CUBE_TEMPLATE_ID=<READY 的 template_id>
 SSL_CERT_FILE=/root/.local/share/mkcert/rootCA.pem
 REQUESTS_CA_BUNDLE=/root/.local/share/mkcert/rootCA.pem
 EOF
-
-# 自检
-set -a && source ~/.openclaw/cube.env && set +a
-echo "$CUBE_TEMPLATE_ID"
 ```
 
-**每次开 OpenClaw Gateway 前先执行**（新开 SSH 窗口时环境变量不会自动带上，skill 读不到 `CUBE_TEMPLATE_ID`）：
+**启动 Gateway**（`openclaw.json` 已配置后，exec 环境以 json 为准；下面 `source cube.env` 主要方便本机自检）：
 
 ```bash
-set -a
-source ~/.openclaw/cube.env
-set +a
+export PATH="${OPENCLAW_BIN:-$HOME/openclaw-app/node_modules/.bin}:$PATH"
+set -a && source ~/.openclaw/cube.env && set +a
+
+/root/cube-demo/.venv/bin/python3 -c "import e2b_code_interpreter; print('ok')"
 openclaw gateway --bind loopback --port 18789
 ```
-
-`set -a` 会把 `cube.env` 里的变量 export 给 gateway 及其子进程（触发 skill 时用）。
 
 <details>
 <summary>不想每次手动 source 的替代做法</summary>
@@ -939,53 +985,84 @@ openclaw devices clear --yes --pending
 
 #### 3.6.7 第二段演示：`openclaw-integration`
 
+##### 安装 skill（UTF-8，勿乱码）
+
+从仓库 **整目录复制**（避免 Windows/错误编码导致 SKILL 乱码，模型无法识别 skill）：
+
 ```bash
-# 仓库已在鲲鹏上时：
-cp -r /path/to/CubeSandbox/examples/openclaw-integration/skills/cube-sandbox/ \
+rm -rf ~/.openclaw/workspace/skills/cube-sandbox
+cp -r /path/to/CubeSandbox/examples/openclaw-integration/skills/cube-sandbox \
   ~/.openclaw/workspace/skills/
 
-ls ~/.openclaw/workspace/skills/cube-sandbox/SKILL.md
+file ~/.openclaw/workspace/skills/cube-sandbox/SKILL.md
+head -3 ~/.openclaw/workspace/skills/cube-sandbox/SKILL.md
+# 应看到正常中文「Cube Sandbox 安全沙箱执行技能」，而不是「瀹夊叏娌欑…」
 ```
 
-若 Gateway 正在前台运行，拷完 skill 后请 **Ctrl+C 停掉再重新启动**（同样先加载 `cube.env`）：
+若已乱码：在 PC 上用 UTF-8 重新 scp `SKILL.md`，或从 git 仓库重新 `cp`。
 
-```bash
-set -a
-source ~/.openclaw/cube.env
-set +a
-openclaw gateway --bind loopback --port 18789
-```
+拷完 skill 后 **Ctrl+C 停 Gateway 再启动**（见 §3.6.6 启动命令）。
 
-在 Dashboard 对话里用自然语言触发 skill（话里带上「沙箱 / 隔离 / Cube 沙箱」更易命中）：
+##### 联调要点（已验证）
+
+| 项 | 做法 |
+|----|------|
+| e2b SDK | 装在 **`/root/cube-demo/.venv`**（§3.6.4），与 quickstart 同一 venv |
+| Agent 用 Python | **`openclaw.json` → `tools.exec.pathPrepend`** 含 venv/bin（§3.6.6 必做） |
+| Cube 变量 | **`openclaw.json` → `env`**，不要只在 skill 目录放 `cube.env` |
+| OpenClaw CLI | 离线 bundle 的 `node_modules/.bin/openclaw` 写入 PATH；**不用 npx** |
+| 创建沙箱超时 | §5.2：重启 cubelet + network-agent，清卡死 shim |
+| Agent 乱探路 | 约束话术 + skill 内「禁止 pip/curl/hosts/nginx」；见下表 |
+
+##### Dashboard 话术（可直接复制）
 
 | 场景 | 示例话术 |
 |------|----------|
-| Python（验证 quickstart） | 请在 Cube 沙箱里跑一段 Python，计算 1 到 100 的和，把结果和 `platform.machine()` 一起返回 |
+| Python（验证 quickstart） | 请在 Cube 沙箱里跑一段 Python，计算 1 到 100 的和，把结果和 `platform.machine()` 一起返回。**不要 pip install** |
 | Shell | 用沙箱执行 `uname -a`，把完整输出返回给我 |
 | 架构确认 | 在隔离沙箱中运行 Python：`import platform; print(platform.machine())` |
 | 断网 | 在完全断网的沙箱里运行 Python，尝试访问外网并说明是否被阻断 |
 | 读文件 | 在沙箱里读取 `/etc/hosts` 的内容并展示 |
 
-期望：回复中出现 sandbox 创建与执行结果（如求和 **5050**、架构 **aarch64**）。  
-若只闲聊、未创建沙箱 → 检查 skill 目录是否存在，并确认 gateway 启动前已 `source ~/.openclaw/cube.env`。
+期望：一次或少量 exec 即可完成；输出含 **5050**、**aarch64**。若出现 20+ 次 curl/docker/nginx 探路 → 检查 `openclaw.json` 的 `pathPrepend` 与 SKILL 编码。
 
 更细的 skill 说明见 [`examples/openclaw-integration/README_zh.md`](examples/openclaw-integration/README_zh.md)。
 
-#### 3.6.8 离线装包排错
+#### 3.6.8 OpenClaw + 沙箱适用场景（鲲鹏本机）
+
+以下场景均适合在 **鲲鹏同机** OpenClaw + Cube 上跑（DNS / API 已通、模型走内网 LLM）：
+
+| 场景 | 你可以让 Agent 做什么 | 价值 |
+|------|----------------------|------|
+| **不可信代码试跑** | 「在沙箱里运行用户提交的 Python，只返回 stdout，不要改宿主机」 | 隔离恶意或误操作代码 |
+| **数据分析片段** | 「在沙箱用 pandas 读我描述的 CSV 逻辑并汇总统计」（需模板内或有 pip 离线包） | 分析逻辑在 VM 内执行 |
+| **Shell 探针** | 「在沙箱执行 `uname -a`、`free -h`、检查 aarch64」 | 验证环境与架构 |
+| **断网合规** | 「在完全断网沙箱运行这段访问内网的脚本，确认无法出网」 | 演示网络策略 |
+| **一次性构建/脚本** | 「在沙箱里编译并运行 hello world，完成后销毁」 | 不污染宿主机 |
+| **Skill 编排入口** | 自然语言 → OpenClaw 调 cube-sandbox skill → `Sandbox.create` → 返回结果 | 给非开发人员用的对话式沙箱 |
+| **与 quickstart 对齐的回归** | 固定话术跑 `exec_code` / `cmd.py` 同等逻辑 | 发版后冒烟 |
+
+**不太适合仅靠对话完成的**：大规模并发压测（用 `cube-bench` / 脚本）、改 Cube 集群配置、离线装 npm/pip 包（须事先在 venv/bundle 准备好）。
+
+#### 3.6.9 离线装包与 OpenClaw 排错
 
 | 现象 | 处理 |
 |------|------|
 | `pip` 报 `No matching distribution` / 只有 `x86_64` wheel | 下载机架构不对；用 aarch64 重下，或加 `--platform ..._aarch64` |
 | `No matching distribution found for pyqwest` | `e2b` 的传递依赖；离线包缺 **aarch64** 版 `pyqwest` / `protobuf-py-ext`。直接用 §3.6.1-A0 [预打包 Release](https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64)，或按 A1/A2 整包重下，不要只拷 top3 wheel |
 | 想在鲲鹏直接 `npm install -g openclaw` | 无公网会失败；必须用 §3.6.1-B 的 bundle |
-| `openclaw: command not found` | `PATH` 未含 `~/openclaw-app/node_modules/.bin`；`source ~/.bashrc` |
+| `openclaw: command not found` | `PATH` 未含 OpenClaw 的 `node_modules/.bin`；见 §3.6.6，或用全路径启动 |
+| Dashboard 报 `No module named 'e2b_code_interpreter'` | shell 里 import 成功但 Agent 失败 → **未配置** `openclaw.json` 的 `tools.exec.pathPrepend`（§3.6.6） |
+| Agent 要去 `skills/.../cube.env` 或 `pip install` | 环境应在 `openclaw.json`；鲲鹏无公网禁止在线 pip |
+| SKILL.md 乱码（`瀹夊叏…`） | 重新 UTF-8 复制 skill；§3.6.7 |
+| Agent 大量 curl/docker/nginx 探路 | 约束话术 + 确认 `pathPrepend`；正常应 1～2 次 Python exec |
+| Skill 未创建沙箱 / `Template not found` | 检查 `openclaw.json` 的 `env.CUBE_TEMPLATE_ID` |
 | 打包时提示 arm64 依赖没有 / `Unsupported platform` / sharp 404 | 见 §3.6.1-B3b：不要在 x86 交叉装；改用真 aarch64 或 Docker `linux/arm64`；registry 用 npmjs.org |
 | `npm` / `openclaw` 报 `sharp` / ELF 错误 | bundle 架构不对或缺预编译包；aarch64 重打，或 `--omit=optional` 先跑通 Cube skill |
 | `npm pack openclaw` 拷过来仍缺模块 | 预期：`npm pack` 不含依赖；改用完整 `node_modules` tar |
 | quickstart `run_code` DNS 失败 | 本机 DNS：§5.1；确认未改坏 `/etc/resolv.conf` |
-| Skill 触发但 SSL 失败 | `SSL_CERT_FILE` 写入 OpenClaw 服务环境 |
+| Skill 触发但 SSL 失败 | `SSL_CERT_FILE` 写入 `openclaw.json` 的 `env` |
 | OpenClaw 能起、对话超时 | 模型 API 外网不通；改配内网 endpoint |
-| Skill 未创建沙箱 / `Template not found` | gateway 启动前未加载 `cube.env`；见 §3.6.6「每次开 Gateway 前先 source」 |
 | 华为 PyPI 镜像缺 `e2b-code-interpreter` | 预期；走 §3.6.1-A 离线 wheel |
 | `Sandbox.create` / WebUI 创建报 `ttrpc ... Receive packet timeout` | 运行时 shim 卡死；§5.2 重启 cubelet + network-agent |
 
@@ -1163,11 +1240,12 @@ grep -a -E 'start vm|vm ready|agent is ready|Create sandbox|timeout' \
 - [ ] `tpl create-from-image --image sandbox-code:latest` → `READY`，记下 `template_id`  
 - [ ] **离线 Python**：§3.6.1-A0 下载 [预打包 Release](https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64) → §3.6.4 装到鲲鹏  
 - [ ] **第一段演示**：§3.6.5 `code-sandbox-quickstart`（`exec_code.py` / `cmd.py`）通过  
-- [ ] **离线 OpenClaw**：§3.6.1-B 在 **真 aarch64**（或 Docker arm64）打 bundle → §3.6.6 装到鲲鹏  
-- [ ] **第二段演示**：§3.6.7 `openclaw-integration` skill（模型 API 用内网地址）  
+- [ ] **OpenClaw 配置**：§3.6.6 `openclaw.json`（`pathPrepend` + `env`）+ skill UTF-8 安装  
+- [ ] **第二段演示**：§3.6.7 Dashboard 话术触发 cube-sandbox（5050 / aarch64）  
+- [ ] （可选）§3.6.8 场景扩展（断网 / 不可信代码试跑等）  
 - [ ] （可选）firewalld 放行 3000/80/443，供其他机器只访问 API/WebUI  
 
-**当前下一步：§2.0 → 模板 READY → §3.6.5 quickstart → §3.6.7 OpenClaw。**
+**当前下一步：§3.6.7 OpenClaw Dashboard 联调 → §3.6.8 按业务选场景试用。**
 
 ---
 
