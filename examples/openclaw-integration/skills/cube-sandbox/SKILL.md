@@ -11,6 +11,14 @@ description: >
   Cube Sandbox 兼容 E2B SDK，通过环境变量 E2B_API_URL 指向 Cube 部署地址即可使用。
 ---
 
+## Agent 执行规则（鲲鹏同机 / 离线部署）
+
+- **Python 路径**：优先使用 `/root/cube-demo/.venv/bin/python3`（或运维在 `openclaw.json` 的 `tools.exec.pathPrepend` 中配置的路径）。
+- **环境变量**：已在 `~/.openclaw/openclaw.json` 的 `env` 中配置；**不要**读取 `skills/cube-sandbox/cube.env`（该路径不存在）。
+- **禁止**：`pip install` / 访问 pypi、`curl` 调 API 创建沙箱、修改 `/etc/hosts`、检查 docker/nginx（除非用户明确要求排障）。
+- **唯一推荐路径**：一次 Python 脚本，`from e2b_code_interpreter import Sandbox`，`Sandbox.create(template=os.environ['CUBE_TEMPLATE_ID'])`。
+- **同机 DNS 已通**：不要实现下文「手动写 hosts」备用方案，除非用户报告 DNS 失败。
+
 # Cube Sandbox Skill
 
 Cube Sandbox 是 Tencent 自研的安全沙箱基础设施，兼容 E2B SDK，为 AI Agent 提供隔离的代码执行环境。
