@@ -449,7 +449,7 @@ python3 --version
 
 ##### A. 阶段①：Python wheels（给 quickstart 用）
 
-在**联网 aarch64** 上：
+在**联网 aarch64 + Python 3.12** 上（不要用 x86 默认下载后再拷）：
 
 ```bash
 mkdir -p quickstart-pkgs
@@ -459,10 +459,28 @@ python3.12 -m pip download \
 tar czf cube-python-wheels-aarch64.tar.gz quickstart-pkgs
 ```
 
-若联网机是 **x86**，强制下 aarch64 wheel（缺二进制会失败，则改用 aarch64 机）：
+`pip download` 会**自动拉传递依赖**（约 25～30 个 wheel）。其中 **`pyqwest`**、**`protobuf-py-ext`**
+是 **aarch64 原生包**，缺了或下成 x86_64 时，鲲鹏离线安装会报：
+
+```text
+No matching distribution found for pyqwest
+```
+
+下载后务必自检（应看到 **aarch64**，不是 x86_64）：
 
 ```bash
-python3 -m pip download e2b-code-interpreter python-dotenv rich \
+ls quickstart-pkgs | grep -E 'pyqwest|protobuf_py_ext'
+# 期望类似：
+# pyqwest-0.7.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
+# protobuf_py_ext-0.1.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
+
+ls quickstart-pkgs/*.whl | wc -l    # 通常应 > 20
+```
+
+若联网机是 **x86**，必须强制 aarch64 + cp312（`--only-binary=:all:` 缺 wheel 时改用真 aarch64 机）：
+
+```bash
+python3.12 -m pip download e2b-code-interpreter python-dotenv rich \
   --platform manylinux2014_aarch64 \
   --platform linux_aarch64 \
   --python-version 312 \
@@ -470,6 +488,12 @@ python3 -m pip download e2b-code-interpreter python-dotenv rich \
   --abi cp312 \
   --only-binary=:all: \
   -d ./quickstart-pkgs/
+```
+
+若已有目录但只缺 `pyqwest`，可在联网 aarch64 上补下后拷进同一目录：
+
+```bash
+python3.12 -m pip download pyqwest protobuf-py-ext -d ./quickstart-pkgs/
 ```
 
 ##### B. 阶段②：OpenClaw 离线下载（从未安装过时按此做）
@@ -827,6 +851,7 @@ openclaw gateway --bind loopback --port 18789
 | 现象 | 处理 |
 |------|------|
 | `pip` 报 `No matching distribution` / 只有 `x86_64` wheel | 下载机架构不对；用 aarch64 重下，或加 `--platform ..._aarch64` |
+| `No matching distribution found for pyqwest` | `e2b` 的传递依赖；离线包缺 **aarch64** 版 `pyqwest` / `protobuf-py-ext`。在联网 aarch64 上 `pip download e2b-code-interpreter ...` 整包重下（§3.6.1-A），不要只拷 top3 wheel |
 | 想在鲲鹏直接 `npm install -g openclaw` | 无公网会失败；必须用 §3.6.1-B 的 bundle |
 | `openclaw: command not found` | `PATH` 未含 `~/openclaw-app/node_modules/.bin`；`source ~/.bashrc` |
 | 打包时提示 arm64 依赖没有 / `Unsupported platform` / sharp 404 | 见 §3.6.1-B3b：不要在 x86 交叉装；改用真 aarch64 或 Docker `linux/arm64`；registry 用 npmjs.org |
