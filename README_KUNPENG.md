@@ -157,13 +157,43 @@ docker ps
 
 ---
 
-## 2. 下一步：制作模板（安装成功后必做）
+## 2. 下一步：制作模板（`install complete` 之后）
 
-平台起来后还没有可启动的沙箱模板，需要先做模板：
+平台起来后还没有可启动的沙箱模板。鲲鹏若访问不了 TCR，**不要**直接用完整仓库地址（会去 `https://cube-sandbox-cn.tencentcloudcr.com` 解析并超时）：
+
+```text
+failed to resolve image ... dial tcp ...:443: i/o timeout
+```
+
+### 2.1 确认离线包已导入 sandbox-code（arm64）
+
+```bash
+docker images | grep sandbox-code
+docker image inspect \
+  cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest \
+  --format '{{.Architecture}}'
+# 期望：arm64
+```
+
+若没有，回到离线包目录再执行一次 `sudo bash ./load-images.sh`。
+
+### 2.2 打成本地短名字（关键）
+
+完整 registry 名会触发远程 resolve；本地短名走本机 Docker：
+
+```bash
+docker tag \
+  cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest \
+  sandbox-code:latest
+
+docker images | grep sandbox-code
+```
+
+### 2.3 用本地名创建模板
 
 ```bash
 cubemastercli tpl create-from-image \
-  --image cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest \
+  --image sandbox-code:latest \
   --writable-layer-size 1G \
   --expose-port 49999 \
   --expose-port 49983 \
@@ -176,10 +206,10 @@ cubemastercli tpl create-from-image \
 cubemastercli tpl watch --job-id <job_id>
 ```
 
-等到状态 **`READY`**，记录 **`template_id`**（后面所有创建沙箱都要用）。
+等到状态 **`READY`**，记录 **`template_id`**（后面所有创建沙箱都要用）。这一步可能较久。
 
-> 若本机已 `load` 了 `sandbox-code:latest`，创建模板时不必再从外网拉该镜像。
-
+> 仅当本机能稳定访问 TCR 时，才可直接使用  
+> `--image cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest`。
 ---
 
 ## 3. 启动后：如何调用接口创建 / 使用沙箱
@@ -364,6 +394,8 @@ export SSL_CERT_FILE="/path/to/rootCA.pem"   # 从鲲鹏拷贝 mkcert 根证，�
 | 仍拉 `cube-sandbox-int...` | `.one-click.env` 设置 `MIRROR=cn`，并保证 cn 名本地已有 arm64 镜像（load 脚本会 tag） |
 | `/data/cubelet` not XFS | 挂 XFS 盘或做 loopback XFS 再装 |
 | `cube-sandbox-dns.service not ready` / `dnsmasq did not bind 169.254.254.53:53` | NetworkManager 的 dnsmasq 插件未监听；改用独立 dnsmasq（见下） |
+| `failed to resolve image` / `dial tcp ...tencentcloudcr.com:443: i/o timeout` | 做模板时仍在访问远程仓库；先 `docker tag ... sandbox-code:latest`，再用 `--image sandbox-code:latest`（见 §2） |
+| `install.sh` 长时间无输出 | 多半在等 systemd；另开终端看 `systemctl list-jobs`。若已 `install complete`，不要反复全量安装，直接做模板 |
 
 ### 5.1 DNS / dnsmasq 修复（单机常见）
 
@@ -395,19 +427,18 @@ journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 
 ---
 
-## 6. 建议操作清单（你现在的进度）
+## 6. 建议操作清单（当前进度）
 
 - [x] 下载 one-click arm64 包并解压  
 - [x] 下载并解压离线 Docker arm64 镜像包  
-- [ ] `sudo bash ./load-images.sh`，确认 `Architecture=arm64`  
-- [ ] `.env` / `.one-click.env` 中 `MIRROR=cn`  
-- [ ] DNS：必要时 `CUBE_PROXY_DNSMASQ_MODE=standalone`  
-- [ ] firewalld 放行 3000/80/443（及可选 12088）  
-- [ ] `sudo bash ./install.sh` 或 `systemctl restart` + `quickcheck` 通过  
-- [ ] `cubemastercli tpl create-from-image` → 模板 `READY`  
+- [x] `load-images.sh`，组件镜像为 arm64  
+- [x] `.env` / `.one-click.env`：`MIRROR=cn`；DNS 必要时 `CUBE_PROXY_DNSMASQ_MODE=standalone`  
+- [x] `install.sh` → **`install complete`**  
+- [ ] firewalld 放行 3000/80/443（及可选 12088），若另一台机器要访问  
+- [ ] **本地短名做模板**：`docker tag ... sandbox-code:latest` → `tpl create-from-image --image sandbox-code:latest` → `READY`  
 - [ ] 用 SDK 或 `POST /sandboxes` 创建沙箱并 `run_code`  
 
-完成「导入镜像」后，从第 **1.4 / 2 / 3 / 4** 节继续即可。
+**当前下一步：§2 制作模板（务必用 `sandbox-code:latest` 本地名）。**
 
 ---
 
