@@ -400,11 +400,13 @@ WebUI（若已启动）默认：`http://<节点IP>:12088`
 **DNS 说明：** `*.cube.app` 是集群私有域名，one-click 已在鲲鹏本机配好 CoreDNS/dnsmasq。  
 **推荐在鲲鹏本机跑 SDK / Notebook**；客户端与 Cube 同机时无需 hosts、`CUBE_PROXY_NODE_IP` 等绕过手段。
 
-### 3.6 鲲鹏本机跑演示用例（推荐）
+### 3.6 鲲鹏本机跑官方 OpenClaw 集成示例（推荐）
 
-演示与日常验证应在 **鲲鹏主机上** 执行 Python / Jupyter，而不是在 Windows 远程当执行端（远程会碰到 `*.cube.app` 解析问题）。
+演示与日常验证应在 **鲲鹏主机上** 执行，而不是在 Windows 远程当执行端（远程会碰到 `*.cube.app` 解析问题）。  
+这里**不再额外造例子**，直接复用仓库自带的官方示例：
 
-完整 Notebook 示例：[`examples/kunpeng-notebook-demo/`](examples/kunpeng-notebook-demo/README_zh.md)
+- [`examples/openclaw-integration/README_zh.md`](examples/openclaw-integration/README_zh.md)
+- [`examples/code-sandbox-quickstart/README_zh.md`](examples/code-sandbox-quickstart/README_zh.md)
 
 #### 3.6.1 前置确认
 
@@ -419,7 +421,7 @@ getent hosts 49999-test.cube.app || nslookup 49999-test.cube.app
 
 若 DNS 异常，见 §5.1（`CUBE_PROXY_DNSMASQ_MODE=standalone`）。
 
-#### 3.6.2 环境变量（本机）
+#### 3.6.2 OpenClaw 示例所需环境变量（本机）
 
 ```bash
 export E2B_API_URL="http://127.0.0.1:3000"
@@ -432,7 +434,7 @@ export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE"
 
 本机 **不需要** `CUBE_PROXY_NODE_IP`。
 
-#### 3.6.3 命令行快速验证
+#### 3.6.3 最小命令行验证
 
 ```bash
 python3 -m venv ~/cube-demo/.venv
@@ -455,7 +457,32 @@ with Sandbox.create(template=os.environ["CUBE_TEMPLATE_ID"], timeout=600) as sbx
 PY
 ```
 
-也可直接跑仓库示例：
+#### 3.6.4 直接跑官方 `openclaw-integration`
+
+```bash
+cd examples/openclaw-integration
+pip install e2b-code-interpreter
+
+export CUBE_TEMPLATE_ID=<template_id>
+export E2B_API_URL=http://127.0.0.1:3000
+export E2B_API_KEY=e2b_000000
+export SSL_CERT_FILE=$(mkcert -CAROOT)/rootCA.pem
+```
+
+按官方文档安装 skill：
+
+```bash
+cp -r skills/cube-sandbox/ ~/.openclaw/workspace/skills/
+openclaw gateway restart
+```
+
+之后直接按 README 里的示例话术触发：
+
+- `在沙箱里跑一段 Python，计算 1 到 100 的和`
+- `用沙箱执行 uname -a 并返回结果`
+- `在完全断网的沙箱中运行这段代码`
+
+若只是先验证数据面，也可先跑 `code-sandbox-quickstart`：
 
 ```bash
 cd examples/code-sandbox-quickstart
@@ -464,28 +491,6 @@ cp .env.example .env   # E2B_API_URL=127.0.0.1:3000
 python exec_code.py
 python cmd.py
 ```
-
-#### 3.6.4 Jupyter 逐格演示
-
-```bash
-cd examples/kunpeng-notebook-demo
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env     # 填 CUBE_TEMPLATE_ID
-
-jupyter lab --ip=127.0.0.1 --port=8888 --no-browser
-```
-
-从办公机浏览器观看时，SSH 端口转发即可（代码仍在鲲鹏执行）：
-
-```bash
-ssh -L 8888:127.0.0.1:8888 root@<鲲鹏IP>
-# 浏览器：http://127.0.0.1:8888
-```
-
-打开 `cube_sandbox_demo.ipynb`，内核选 **Kunpeng Cube Demo**，Cell 1→7 依次运行。  
-**同一 Notebook 内只 `create` 一次**，后续 cell 复用 `sbx`，最后 `kill()`。
 
 WebUI（可选）：`http://127.0.0.1:12088`
 
@@ -605,7 +610,7 @@ journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 - [ ] **`CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` + 重启 cubemaster**（§2.0；两边 env 都写）  
 - [ ] `docker tag ... sandbox-code:latest`，确认 `Architecture=arm64`  
 - [ ] `tpl create-from-image --image sandbox-code:latest` → `READY`，记下 `template_id`  
-- [ ] **鲲鹏本机**：§3.6 跑 `exec_code.py` 或 `examples/kunpeng-notebook-demo`  
+- [ ] **鲲鹏本机**：§3.6 跑官方 `examples/openclaw-integration` 或 `examples/code-sandbox-quickstart`  
 - [ ] （可选）firewalld 放行 3000/80/443，供其他机器只访问 API/WebUI  
 
 **当前下一步：§2.0 → 模板 READY → §3.6 本机演示。**
@@ -616,7 +621,7 @@ journalctl -u 'cube-sandbox-*' -n 100 --no-pager
 
 | 说明 | 链接 |
 |------|------|
-| 鲲鹏本机 Jupyter 演示 | [examples/kunpeng-notebook-demo/README_zh.md](examples/kunpeng-notebook-demo/README_zh.md) |
+| 官方 OpenClaw 集成 | [examples/openclaw-integration/README_zh.md](examples/openclaw-integration/README_zh.md) |
 | 代码沙箱快速入门 | [examples/code-sandbox-quickstart/README_zh.md](examples/code-sandbox-quickstart/README_zh.md) |
 | 官方裸金属部署 | [docs/zh/guide/bare-metal-deploy.md](docs/zh/guide/bare-metal-deploy.md) |
 | 官方 ARM 支持说明 | [docs/zh/blog/posts/2026-07-08-cubesandbox-arm-support.md](docs/zh/blog/posts/2026-07-08-cubesandbox-arm-support.md) |
