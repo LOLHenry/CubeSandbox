@@ -457,6 +457,25 @@ with Sandbox.create(template=os.environ["CUBE_TEMPLATE_ID"], timeout=600) as sbx
 PY
 ```
 
+若鲲鹏访问不了 `pypi.org`，而内网镜像（如 `mirrors.tools.huawei.com/pypi/simple`）又没有 `e2b-code-interpreter`，可先在一台**能访问公网 PyPI** 的机器下载 wheel，再传到鲲鹏离线安装：
+
+```bash
+# 在可联网机器上
+mkdir -p e2b-pkgs
+pip download e2b-code-interpreter -d ./e2b-pkgs/
+
+# 把 e2b-pkgs/ 整个目录拷到鲲鹏后，在鲲鹏执行
+python3 -m venv ~/cube-demo/.venv
+source ~/cube-demo/.venv/bin/activate
+pip install --no-index --find-links=./e2b-pkgs/ e2b-code-interpreter
+```
+
+若还需要一并离线安装 `python-dotenv`、`jupyterlab` 等，也可在联网机器上一起下载：
+
+```bash
+pip download e2b-code-interpreter python-dotenv jupyterlab ipykernel -d ./e2b-pkgs/
+```
+
 #### 3.6.4 直接跑官方 `openclaw-integration`
 
 ```bash
@@ -467,6 +486,12 @@ export CUBE_TEMPLATE_ID=<template_id>
 export E2B_API_URL=http://127.0.0.1:3000
 export E2B_API_KEY=e2b_000000
 export SSL_CERT_FILE=$(mkcert -CAROOT)/rootCA.pem
+```
+
+若此处 `pip install e2b-code-interpreter` 因内网源缺包失败，直接复用上一步准备好的离线目录：
+
+```bash
+pip install --no-index --find-links=./e2b-pkgs/ e2b-code-interpreter
 ```
 
 按官方文档安装 skill：
@@ -568,6 +593,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" "http://<鲲鹏IP>:12088/"
 | `failed to resolve image` / `tencentcloudcr.com:443: i/o timeout` | 远程仓库不可达；离线请走 §2.0～2.3 |
 | `native export failed to resolve ... index.docker.io ... i/o timeout` | **不是平台不匹配**。默认 native 导出把短名当成 Docker Hub。设 `CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` 并重启 cubemaster（§2.0） |
 | `requested image's platform (linux/amd64) does not match` | 才是平台问题；删掉 amd64 镜像，重新 load arm64 离线包 |
+| `mirrors.tools.huawei.com/pypi/simple` 找不到 `e2b-code-interpreter` | 该内网镜像未同步此包；按 §3.6 先在联网机器 `pip download` wheel，再传到鲲鹏 `pip install --no-index --find-links=...` |
 | `getaddrinfo failed` / `49999-*.cube.app` 解析失败 | 客户端不在集群 DNS 域内；**在鲲鹏本机跑 SDK**（§3.6），不要从 Windows 远程当执行端 |
 | `install.sh` 长时间无输出 | 多半在等 systemd；另开终端看 `systemctl list-jobs`。若已 `install complete`，不要反复全量安装，直接做模板 |
 
