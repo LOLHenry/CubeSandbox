@@ -505,26 +505,66 @@ npm -v
 
 **B3. 下载并打包 OpenClaw（完整 `node_modules`）**
 
+必须在 **真实 aarch64 Linux** 上执行（`uname -m` → `aarch64`）。  
+**不要**在 x86/Windows 上用 `--cpu arm64` 交叉装——很多 optional 原生包（`@img/sharp-linux-arm64`、`sqlite-vec` 等）会报「arm64 依赖没有 / 404 / Unsupported platform」。
+
 ```bash
+uname -m   # 必须是 aarch64；否则换机器或用下方 Docker 方式
+
 WORKDIR="$HOME/openclaw-offline-build"
 rm -rf "$WORKDIR"
 mkdir -p "$WORKDIR" && cd "$WORKDIR"
 
-# 固定版本便于复现；也可改成 openclaw@latest
 OPENCLAW_VER=latest
 npm init -y
-npm install "openclaw@${OPENCLAW_VER}"
 
-# 确认 CLI 在 bundle 内可用（不依赖全局安装）
+# 走官方 registry，避免国内镜像缺 arm64 optional 包
+npm config set registry https://registry.npmjs.org/
+
+# 强制用预编译二进制，避免本机编译 libvips（鲲鹏交叉场景易挂）
+export npm_config_platform=linux
+export npm_config_arch=arm64
+export SHARP_IGNORE_GLOBAL_LIBVIPS=1
+
+npm install "openclaw@${OPENCLAW_VER}" --foreground-scripts
+
+# 确认 CLI
 ./node_modules/.bin/openclaw --version
 
-# 打成可搬运包（包含 package.json / package-lock.json / node_modules）
+# 可选：若日志里 sharp 失败，但对 Cube skill 不需要图片处理，可忽略；
+# 若需要图片能力，再显式补装：
+# npm install sharp --foreground-scripts
+
 cd ..
 tar czf openclaw-bundle-linux-arm64.tar.gz -C "$WORKDIR" .
 ls -lh openclaw-bundle-linux-arm64.tar.gz
 ```
 
-可选：把确切版本写进文件名，方便日后对照：
+**没有 aarch64 联网机时：用 Docker 模拟 arm64 打包**（宿主机可以是 x86，需 Docker + qemu）：
+
+```bash
+NODE_VER=v22.22.3
+# 先准备好 node-*-linux-arm64.tar.xz 在当前目录
+
+docker run --rm --platform linux/arm64 \
+  -v "$PWD:/work" -w /work \
+  ubuntu:24.04 bash -lc '
+    set -e
+    apt-get update && apt-get install -y xz-utils ca-certificates
+    tar -xJf node-'"${NODE_VER}"'-linux-arm64.tar.xz -C /usr/local --strip-components=1
+    node -v
+    rm -rf openclaw-offline-build && mkdir openclaw-offline-build && cd openclaw-offline-build
+    npm init -y
+    npm config set registry https://registry.npmjs.org/
+    export SHARP_IGNORE_GLOBAL_LIBVIPS=1
+    npm install openclaw@latest --foreground-scripts
+    ./node_modules/.bin/openclaw --version
+    cd ..
+    tar czf openclaw-bundle-linux-arm64.tar.gz -C openclaw-offline-build .
+  '
+```
+
+可选：把确切版本写进文件名：
 
 ```bash
 VER=$(./node_modules/.bin/openclaw --version 2>/dev/null | tr -d '[:space:]' || echo unknown)
@@ -532,6 +572,23 @@ mv openclaw-bundle-linux-arm64.tar.gz "openclaw-bundle-linux-arm64-${VER}.tar.gz
 ```
 
 **不要**只做 `npm pack openclaw`：那个 tarball **不含依赖**，到鲲鹏后仍要联网 `npm install`。
+
+**B3b. 「arm64 很多依赖没有」时怎么处理**
+
+| 原因 | 表现 | 处理 |
+|------|------|------|
+| 在 **x86** 上交叉 `npm install` | `Unsupported platform` / optional 跳过 / `@img/sharp-linux-arm64` 404 | 换 **真 aarch64** 或上面的 **Docker `--platform linux/arm64`** |
+| 用了淘宝/华为 **npm 镜像** | arm64 optional 包未同步 | `npm config set registry https://registry.npmjs.org/` 后重装 |
+| 在 **鲲鹏本机** 直接 `npm install` | 无公网，大量 404 / ETIMEDOUT | 必须离线 bundle，不要在鲲鹏装依赖 |
+| 只解压了 Node，又去跑官方 install 脚本 | 脚本继续联网拉包 | Node tar 装好后，只解压已打好的 `openclaw-bundle` |
+| `sharp` / `node-gyp` 编译失败 | 缺 gcc、想源码编译 | 设 `SHARP_IGNORE_GLOBAL_LIBVIPS=1`，用预编译；Cube skill **不依赖** sharp，可 `--omit=optional` 先打通 CLI |
+
+仅验证 Cube skill、可暂时跳过可选原生依赖：
+
+```bash
+npm install "openclaw@${OPENCLAW_VER}" --omit=optional --foreground-scripts
+./node_modules/.bin/openclaw --version
+```
 
 **B4. 拷到鲲鹏的文件清单**
 
