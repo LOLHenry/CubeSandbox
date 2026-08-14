@@ -89,5 +89,5 @@ EXPOSE 49983 5555
 # Default ReDroid boot props; override at `docker run` / template create time.
 CMD ["androidboot.redroid_width=1080", "androidboot.redroid_height=1920", "androidboot.redroid_dpi=480", "androidboot.redroid_gpu_mode=guest"]
 
-# PID1: envd-starter → exec /init. envd via cube-envd.rc (on init) with -isnotfc.
+# PID1: envd-starter daemonizes envd (-isnotfc) then exec /init; cube-envd.rc is backup.
 ENTRYPOINT ["/usr/bin/envd-starter"]

@@ -316,10 +316,10 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 
 | 资产 | 说明 |
 |------|------|
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview7.tar.gz` | **推荐**：preview2 同款入口 + 双通道 + init.rc 兜底 |
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz` | 首次模板成功版本（无双通道 EXPOSE，可继续用） |
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview5.tar.gz` | ❌ 误改 `ENTRYPOINT ["/system/bin/sh",...]`，勿用 |
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview3/4/6.tar.gz` | ❌ `envd-starter` 作入口，模板探活易 refused，勿用 |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview10.tar.gz` | **推荐**：`envd-starter` 预启 envd（`-isnotfc`）再 `exec /init` + init.rc 兜底 |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview9.tar.gz` | 仅 init.rc 启 envd，探活仍 refused |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview8.tar.gz` | `envd-starter`→`/init` + `cube-envd.rc` `on init`（无预启 envd） |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview7.tar.gz` | shell 入口，CubeVM 探活仍 refused（与 preview3 同类） |
 | `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview7.tar.gz.sha256` | 校验文件 |
 
 **各版 ENTRYPOINT 对照（鲲鹏实测 + 你反馈）：**
@@ -327,9 +327,11 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 | 包 | ENTRYPOINT | 模板创建 | 宿主机 `docker run` |
 |----|------------|----------|---------------------|
 | preview2 | `android-redroid-entrypoint.sh`（shebang） | ✅ 你说成功过 | 不适用（CubeVM） |
-| preview3/6 | `/usr/bin/envd-starter` | ❌ 49983 refused | 不适用 |
+| preview3/6 | `/usr/bin/envd-starter`（无 `-isnotfc`） | ❌ 49983 refused | 不适用 |
 | preview5 | `["/system/bin/sh", script]` | 未验证 | ❌ ExitCode 255 |
-| **preview7** | **同 preview2** + 双通道 + init.rc | **待你验证** | 勿测 |
+| preview8/9 | `envd-starter` 仅 exec `/init`，靠 init.rc | ❌ refused（preview9 实测） | 勿测 |
+| **preview10** | `envd-starter` 预启 envd `-isnotfc` + exec `/init` | **待验证** | 勿测 |
+| preview7 | shell 脚本 | ❌ refused | 勿测 |
 
 > **本地 `docker run` 不能验证 ReDroid**（需 CubeVM）；只以 `tpl create-from-image` 为准。
 
@@ -467,15 +469,15 @@ ReDroid 自带 Android `init` 入口，不能简单 `ENTRYPOINT cube-entrypoint.
 # 或加载离线包 §2.4.1
 ```
 
-生产入口（**preview7 = preview2 验证过的路径**）：
+生产入口（**preview10 = preview3 预启机制 + `-isnotfc`**）：
 
 ```dockerfile
-ENTRYPOINT ["/usr/local/bin/android-redroid-entrypoint.sh"]
-# 脚本首行：#!/system/bin/sh
-# 逻辑：envd -port 49983 &  →  exec /init
+ENTRYPOINT ["/usr/bin/envd-starter"]
+# envd-starter: envd -isnotfc -port 49983 &  →  exec /init
+# cube-envd.rc 作兜底（init 阶段再启一次）
 ```
 
-**不要**改成 `ENTRYPOINT ["/system/bin/sh", ...]`（preview5）或 `/usr/bin/envd-starter`（preview3/6）。`cube-envd.rc` 仅作兜底。
+**不要**改成 `ENTRYPOINT ["/system/bin/sh", ...]`（preview5）。preview8/9 仅依赖 init.rc 在探活窗口内往往来不及监听 49983。
 
 构建并验证 envd（在 **鲲鹏 aarch64** 上执行）：
 
@@ -513,7 +515,7 @@ dial tcp 192.168.0.x:49983: connect: connection refused
 |------|-------------|------|
 | 1 | `file /usr/bin/envd`（容器内） | 必须是 **Android** ELF（`interpreter /system/bin/linker64`）。若是 `statically linked` 且 `GOOS=linux`，说明用了错误离线包，需 **重新构建/加载 §2.4.1 envd 包** |
 | 2 | `cat /tmp/envd.log` 或 `cat /data/local/tmp/envd.log` | envd 启动失败原因（权限、端口占用等） |
-| 3 | `ps -A \| grep envd` | 无进程 → 查 `cube-envd.rc` 是否生效；勿用 preview5（sh 入口）；用 **preview6** |
+| 3 | `ps -A \| grep envd` | 无进程 → 查 `envd-starter` 日志（stderr）与 `/data/local/tmp/envd.log`；用 **preview10**（预启 + `-isnotfc`） |
 | 4 | `tpl create-from-image` 加 `--cpu 4000 --memory 6144` | 默认 2GiB 时 Android 可能起不来，但 **49983 refused 通常是 envd 二进制不对** |
 | 5 | 模板构建日志 | `ls /data/log/template/<template_id>/` 或 `cubemastercli tpl image-job <job_id>` |
 
