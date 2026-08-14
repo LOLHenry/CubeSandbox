@@ -1,0 +1,69 @@
+{
+  "id": "sandbox-android-kunpeng-arm64",
+  "display_name": "Android Sandbox (Kunpeng ARM64 · ReDroid AOSP 16)",
+  "display_name_zh": "Android 沙箱（鲲鹏 ARM64 · ReDroid AOSP 16）",
+  "description": "Hardware-isolated CubeVM sandbox running ReDroid Android 16 inside the guest. Targets Kunpeng 920 (aarch64) bare-metal with native KVM.",
+  "description_zh": "在 MicroVM 内运行 ReDroid Android 16 的硬件隔离 Android 沙箱，面向鲲鹏 920（aarch64）裸金属 KVM 环境。",
+  "category": "android",
+  "official": true,
+  "release_status": "preview",
+  "instance_type": "android",
+  "runtime_model": "cubevm-redroid",
+  "platform": {
+    "arch": "arm64",
+    "host_profile": "kunpeng920",
+    "kvm_required": true,
+    "pvm_supported": false
+  },
+  "workload": {
+    "engine": "redroid",
+    "android_version": "16",
+    "android_api_level": 36,
+    "upstream_image": "redroid/redroid:16.0.0_64only-latest",
+    "published_images": {
+      "cn": "cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64",
+      "intl": "cube-sandbox-int.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64",
+      "local_tag": "sandbox-android-redroid:16.0.0-arm64"
+    }
+  },
+  "guest_kernel": {
+    "flavor": "android-guest",
+    "localversion_suffix": "cube.bm.guest",
+    "config_ref": "configs/kernel-oc9.aarch64.config",
+    "binder_required": true
+  },
+  "template_defaults": {
+    "writable_layer_size": "10Gi",
+    "expose_ports": [5555],
+    "probe_port": 5555,
+    "resources": {
+      "cpu": "4",
+      "mem": "6Gi"
+    },
+    "security_context": {
+      "privileged": true,
+      "readonly_rootfs": false
+    },
+    "redroid_boot_args": [
+      "androidboot.redroid_width=1080",
+      "androidboot.redroid_height=1920",
+      "androidboot.redroid_dpi=480",
+      "androidboot.redroid_gpu_mode=guest"
+    ]
+  },
+  "offline_bundle": {
+    "artifact_name_template": "cube-sandbox-android-kunpeng-arm64-docker-{release_version}.tar.gz",
+    "sha256_artifact_name_template": "cube-sandbox-android-kunpeng-arm64-docker-{release_version}.tar.gz.sha256",
+    "build_script": "deploy/one-click/scripts/one-click/build-android-sandbox-offline-bundle.sh",
+    "images": [
+      "cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64",
+      "cube-sandbox-int.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64",
+      "sandbox-android-redroid:16.0.0-arm64"
+    ]
+  },
+  "implementation_notes": [
+    "Requires android guest kernel (CONFIG_ANDROID_BINDER_IPC) and androidcbri CBRI plugin.",
+    "Template build must wait for Android boot_completed before AppSnapshot.",
+    "Not supported on x86_64 PVM-only hosts; use aarch64 bare metal with /dev/kvm."
+  ]
+}

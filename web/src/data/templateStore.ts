@@ -13,7 +13,7 @@ export interface StoreTemplate {
   digest?: string;
   /** stable tag keys, resolved via store.tagLabels.<key> */
   tags: string[];
-  category: 'code' | 'browser' | 'ai' | 'base';
+  category: 'code' | 'browser' | 'ai' | 'base' | 'android';
   size_mb: number;
   expose_ports: number[];
   probe_port: number;
@@ -110,12 +110,32 @@ export const STORE_TEMPLATES: StoreTemplate[] = [
     writable_layer_size: '1G',
     official: true,
   },
+  {
+    id: 'sandbox-android-kunpeng-arm64',
+    nameKey: 'items.sandbox-android-kunpeng-arm64.name',
+    descriptionKey: 'items.sandbox-android-kunpeng-arm64.description',
+    image_cn:
+      'cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64',
+    image_intl:
+      'cube-sandbox-int.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64',
+    image:
+      'cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64',
+    tags: ['android', 'redroid', 'adb', 'kunpeng', 'official'],
+    category: 'android',
+    size_mb: 700,
+    expose_ports: [5555],
+    probe_port: 5555,
+    probe_path: '/',
+    writable_layer_size: '10Gi',
+    official: true,
+  },
 ];
 
 export const CATEGORIES = [
   { id: 'all', label: '全部' },
   { id: 'code', label: '代码执行' },
   { id: 'browser', label: '浏览器' },
+  { id: 'android', label: 'Android' },
   { id: 'ai', label: 'AI · LLM' },
   { id: 'base', label: '基础镜像' },
 ] as const;

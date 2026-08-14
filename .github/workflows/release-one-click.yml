@@ -755,6 +755,128 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --clobber
 
+  build_android_offline_bundle:
+    name: Build Android sandbox offline bundle (arm64)
+    runs-on: ubuntu-24.04-arm
+    needs:
+      - ensure_release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Build and export Android sandbox offline bundle
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          BUILD_IMAGE: "1"
+        run: ./deploy/one-click/scripts/one-click/build-android-sandbox-offline-bundle.sh
+
+      - name: Upload Android offline bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-offline-bundle-${{ github.ref_name }}-arm64
+          path: |
+            deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-docker-${{ github.ref_name }}.tar.gz
+            deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-docker-${{ github.ref_name }}.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  publish_android_offline_bundle:
+    name: Publish Android sandbox offline bundle
+    runs-on: ubuntu-latest
+    needs:
+      - build_android_offline_bundle
+    steps:
+      - name: Download Android offline bundle artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: android-offline-bundle-${{ github.ref_name }}-arm64
+          path: downloaded-android-offline
+
+      - name: Upload Android offline bundle to Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          bundle_path="downloaded-android-offline/cube-sandbox-android-kunpeng-arm64-docker-${GITHUB_REF_NAME}.tar.gz"
+          sha_path="${bundle_path}.sha256"
+          test -f "${bundle_path}"
+          test -f "${sha_path}"
+          gh release upload "${GITHUB_REF_NAME}" "${bundle_path}" "${sha_path}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber
+
+  build_android_envd_offline_bundle:
+    name: Build Android envd offline bundle (arm64)
+    runs-on: ubuntu-24.04-arm
+    needs:
+      - ensure_release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Build and export Android envd offline bundle
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          BUILD_IMAGE: "1"
+        run: ./deploy/one-click/scripts/one-click/build-android-sandbox-envd-offline-bundle.sh
+
+      - name: Upload Android envd offline bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-envd-offline-bundle-${{ github.ref_name }}-arm64
+          path: |
+            deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-envd-docker-${{ github.ref_name }}.tar.gz
+            deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-envd-docker-${{ github.ref_name }}.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  publish_android_envd_offline_bundle:
+    name: Publish Android envd offline bundle
+    runs-on: ubuntu-latest
+    needs:
+      - build_android_envd_offline_bundle
+    steps:
+      - name: Download Android envd offline bundle artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: android-envd-offline-bundle-${{ github.ref_name }}-arm64
+          path: downloaded-android-envd-offline
+
+      - name: Upload Android envd offline bundle to Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          bundle_path="downloaded-android-envd-offline/cube-sandbox-android-kunpeng-arm64-envd-docker-${GITHUB_REF_NAME}.tar.gz"
+          sha_path="${bundle_path}.sha256"
+          test -f "${bundle_path}"
+          test -f "${sha_path}"
+          gh release upload "${GITHUB_REF_NAME}" "${bundle_path}" "${sha_path}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber
+
   # Wait for parallel release-pvm-host-kernel.yml to upload host RPM/DEB onto
   # this tag's Release before cube-pvm-host-bootstrap is built.
   wait_pvm_host_release_assets:
