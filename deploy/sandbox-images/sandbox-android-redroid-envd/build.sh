@@ -13,6 +13,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERIFY_LIB="${SCRIPT_DIR}/lib/verify-android-envd-image.sh"
 REDROID_DIR="$(cd "${SCRIPT_DIR}/../sandbox-android-redroid" && pwd)"
 TAG="${TAG:-16.0.0-arm64}"
 REGISTRY="${REGISTRY:-cube-sandbox-cn.tencentcloudcr.com/cube-sandbox}"
@@ -21,6 +22,7 @@ REDROID_LOCAL="sandbox-android-redroid:${TAG}"
 PLATFORM="${PLATFORM:-linux/arm64}"
 PUSH="${PUSH:-0}"
 ENVD_REF="${ENVD_REF:-2026.16}"
+DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}"
 
 if ! docker image inspect "${REDROID_LOCAL}" >/dev/null 2>&1; then
   echo "Base image ${REDROID_LOCAL} not found; building via ${REDROID_DIR}/build.sh"
@@ -32,6 +34,8 @@ docker build --platform "${PLATFORM}" \
   --build-arg "REDROID_BASE_IMAGE=${REDROID_LOCAL}" \
   --build-arg "ENVD_REF=${ENVD_REF}" \
   -t "${IMAGE_NAME}" "${SCRIPT_DIR}"
+
+"${VERIFY_LIB}" "${IMAGE_NAME}"
 
 if [[ "${REGISTRY}" == *"-cn."* ]]; then
   INT_IMAGE="cube-sandbox-int.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid-envd:${TAG}"

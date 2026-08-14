@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (C) 2026 Tencent. All rights reserved.
 #

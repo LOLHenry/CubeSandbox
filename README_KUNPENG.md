@@ -316,28 +316,22 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 
 | 资产 | 说明 |
 |------|------|
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview.tar.gz` | ReDroid + envd（含 CN / INT / local 三个 tag） |
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview.tar.gz.sha256` | 校验文件 |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz` | ReDroid + **GOOS=android** envd（修复 :49983 探活） |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz.sha256` | 校验文件 |
 
 Release 页面：https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-envd-preview
 
-> **health 探活必读**：下方 `envd-preview` 包（sha256 `2dfe0057…`）内 envd 为 **GOOS=linux**，在 ReDroid 内无法执行，会导致 `GET :49983/health` → **connection refused**。请改用 **`envd-preview2`** 离线包（含 `GOOS=android` envd），或在鲲鹏上本地构建（§2.4.2 `BUILD_IMAGE=1`）。构建后先跑验证脚本再建模板：
+> **health 探活**：请使用 **`envd-preview2`** 包（envd 为 Android/bionic 构建）。旧 `envd-preview`（sha256 `2dfe0057…`）内为 GOOS=linux envd，探活会 **connection refused**。加载后先跑：
 >
 > ```bash
 > ./deploy/sandbox-images/sandbox-android-redroid-envd/verify-envd-health.sh
 > ```
 
-包 sha256（**旧包 envd-preview，已弃用 — 探活会失败**）：
-
-```text
-2dfe00579d39e89e1b59889abe0b14bed2f76f08c04be6da48d1c13164e50fdb
-```
-
-鲲鹏目标机加载（**请用 envd-preview2 文件名替换 envd-preview**）：
+鲲鹏目标机加载：
 
 ```bash
-sha256sum -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview.tar.gz.sha256
-gunzip -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview.tar.gz | docker load
+sha256sum -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz.sha256
+gunzip -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz | docker load
 
 docker image inspect sandbox-android-redroid-envd:16.0.0-arm64 --format '{{.Architecture}}'
 # 期望：arm64
