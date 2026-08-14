@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 Tencent. All rights reserved.
 //
-// Android/bionic PID1 wrapper: exec ReDroid /init only.
-// envd is started by /vendor/etc/init/cube-envd.rc (not here) because
-// /system/bin/sh is not usable as a Docker/CubeVM entrypoint on Kunpeng hosts.
+// PID1 for ReDroid+cubebox: exec /init. envd is started by cube-envd.rc (on init).
+// Shell entrypoints do not work reliably as CubeVM PID1 on Kunpeng.
 package main
 
 import (

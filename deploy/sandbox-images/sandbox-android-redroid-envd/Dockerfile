@@ -42,11 +42,19 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
            . \
     && chmod +x /out/envd
 
+COPY envd-starter /src/envd-starter
+WORKDIR /src/envd-starter
+
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=0 GOOS=android GOARCH=arm64 \
+    go build -a -ldflags "-s -w" -o /out/envd-starter .
+
 FROM ${REDROID_BASE_IMAGE}
 
 COPY --from=envd-builder --chmod=755 /out/envd /usr/bin/envd
+COPY --from=envd-builder --chmod=755 /out/envd-starter /usr/bin/envd-starter
 
-# Fallback if shell bootstrap loses envd after Android init.
 COPY android-init/cube-envd.rc /vendor/etc/init/cube-envd.rc
 COPY android-init/cube-envd.rc /system/etc/init/cube-envd.rc
 
@@ -80,6 +88,6 @@ EXPOSE 49983 5555
 # Default ReDroid boot props; override at `docker run` / template create time.
 CMD ["androidboot.redroid_width=1080", "androidboot.redroid_height=1920", "androidboot.redroid_dpi=480", "androidboot.redroid_gpu_mode=guest"]
 
-# Kunpeng template-verified entry (preview2): script path + shebang #!/system/bin/sh.
-# Do NOT use ENTRYPOINT ["/system/bin/sh", ...] (preview5) or envd-starter (preview3/6).
-ENTRYPOINT ["/usr/local/bin/android-redroid-entrypoint.sh"]
+# PID1: envd-starter execs /init. envd starts via cube-envd.rc on `on init`.
+# Shell script entrypoint does not reliably start envd in CubeVM (preview7 probe refused).
+ENTRYPOINT ["/usr/bin/envd-starter"]

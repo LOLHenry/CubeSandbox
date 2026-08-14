@@ -1,14 +1,15 @@
-# CubeSandbox envd fallback for ReDroid cubebox templates.
-# Primary path: android-redroid-entrypoint.sh backgrounds envd then exec /init (preview2).
-# This service restarts envd if the early bootstrap did not survive.
+# CubeSandbox envd for ReDroid cubebox templates.
+# envd-starter (PID1) only execs /init; Android init starts envd here.
+# Must start on `on init` — post-fs-data is often after the 30s template probe window.
 
 service cube_envd /usr/bin/envd -port 49983
     class main
     user root
     group root
-    seclabel u:r:su:s0
-    disabled
+
+on init
+    start cube_envd
 
 on post-fs-data
     mkdir /data/local/tmp 0771 system shell
-    start cube_envd
+    restart cube_envd

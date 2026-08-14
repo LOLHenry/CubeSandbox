@@ -316,27 +316,35 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 
 | 资产 | 说明 |
 |------|------|
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview6.tar.gz` | **推荐**：`envd-starter` + `init.rc` 启 envd（不依赖 `/system/bin/sh`） |
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview5.tar.gz` | 用 `/system/bin/sh` 作入口，宿主机 docker 会 `no such file`（ExitCode 255） |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview7.tar.gz` | **推荐**：preview2 同款入口 + 双通道 + init.rc 兜底 |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz` | 首次模板成功版本（无双通道 EXPOSE，可继续用） |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview5.tar.gz` | ❌ 误改 `ENTRYPOINT ["/system/bin/sh",...]`，勿用 |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview3/4/6.tar.gz` | ❌ `envd-starter` 作入口，模板探活易 refused，勿用 |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview7.tar.gz.sha256` | 校验文件 |
+
+**各版 ENTRYPOINT 对照（鲲鹏实测 + 你反馈）：**
+
+| 包 | ENTRYPOINT | 模板创建 | 宿主机 `docker run` |
+|----|------------|----------|---------------------|
+| preview2 | `android-redroid-entrypoint.sh`（shebang） | ✅ 你说成功过 | 不适用（CubeVM） |
+| preview3/6 | `/usr/bin/envd-starter` | ❌ 49983 refused | 不适用 |
+| preview5 | `["/system/bin/sh", script]` | 未验证 | ❌ ExitCode 255 |
+| **preview7** | **同 preview2** + 双通道 + init.rc | **待你验证** | 勿测 |
+
+> **本地 `docker run` 不能验证 ReDroid**（需 CubeVM）；只以 `tpl create-from-image` 为准。
 
 Release 页面：https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-envd-preview
 
 > **双通道**：对齐腾讯云 Agent Runtime Mobile 方案——**envd :49983**（Cube SDK / 探活 / `commands.run`）+ **adbd :5555**（`adb connect` 自动化）。模板必须 **同时** `--expose-port 5555` 与 `--expose-port 49983`；从集群外访问还需 `network-agent --host-proxy-bind-ip=0.0.0.0`（见 §2.4.6）。
 
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview6.tar.gz.sha256` | 校验文件 |
-
-> **health 探活 / 入口**：请用 **`envd-preview6`**。preview5 依赖 `/system/bin/sh`，在鲲鹏宿主机 docker 上会 `exec /system/bin/sh: no such file or directory`（ExitCode 255）。preview6 用 **`envd-starter` 只 exec `/init`**，由 **`cube-envd.rc`** 在 Android init 里启动 envd。
-
-包（**envd-preview6**）：
+包（**envd-preview7**）：
 
 ```bash
-sha256sum -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview6.tar.gz.sha256
-gunzip -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview6.tar.gz | docker load
+sha256sum -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview7.tar.gz.sha256
+gunzip -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview7.tar.gz | docker load
+docker image inspect sandbox-android-redroid-envd:16.0.0-arm64 --format '{{json .Config.Entrypoint}}'
+# 期望：["/usr/local/bin/android-redroid-entrypoint.sh"]  （不是 /system/bin/sh，不是 envd-starter）
 ```
-
-> **勿用本地 `docker run` 验证 ReDroid**：ReDroid 面向 CubeVM（`kvm` + Android guest 内核），宿主机 docker 常秒退且无日志；以 **`cubemastercli tpl create-from-image`** 为准。
-
-鲲鹏目标机加载后验证架构并建模板：
 
 ```bash
 docker image inspect sandbox-android-redroid-envd:16.0.0-arm64 --format '{{.Architecture}}'
@@ -459,12 +467,15 @@ ReDroid 自带 Android `init` 入口，不能简单 `ENTRYPOINT cube-entrypoint.
 # 或加载离线包 §2.4.1
 ```
 
-生产入口为 **`/usr/bin/envd-starter`**（只 `exec /init`）；**envd 由 `cube-envd.rc` 在 Android init 阶段启动**（`on init` / `post-fs-data`）。**不要**用 `/system/bin/sh` 作 Docker ENTRYPOINT——在鲲鹏宿主机上会报 `no such file or directory`。
+生产入口（**preview7 = preview2 验证过的路径**）：
 
-```bash
-# ENTRYPOINT ["/usr/bin/envd-starter"]  →  exec /init "$@"
-# /vendor/etc/init/cube-envd.rc       →  start /usr/bin/envd -port 49983
+```dockerfile
+ENTRYPOINT ["/usr/local/bin/android-redroid-entrypoint.sh"]
+# 脚本首行：#!/system/bin/sh
+# 逻辑：envd -port 49983 &  →  exec /init
 ```
+
+**不要**改成 `ENTRYPOINT ["/system/bin/sh", ...]`（preview5）或 `/usr/bin/envd-starter`（preview3/6）。`cube-envd.rc` 仅作兜底。
 
 构建并验证 envd（在 **鲲鹏 aarch64** 上执行）：
 
