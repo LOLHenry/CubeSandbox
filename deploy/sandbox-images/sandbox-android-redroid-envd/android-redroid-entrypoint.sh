@@ -17,13 +17,19 @@ if [ ! -x "${ENVD_BIN}" ]; then
 fi
 
 mkdir -p "$(dirname "${ENVD_LOG}")"
-"${ENVD_BIN}" -port "${ENVD_PORT}" >>"${ENVD_LOG}" 2>&1 &
-ENVD_PID=$!
+n=0
+while [ "${n}" -lt 3 ]; do
+  "${ENVD_BIN}" -port "${ENVD_PORT}" >>"${ENVD_LOG}" 2>&1 &
+  ENVD_PID=$!
+  sleep 1
+  if kill -0 "${ENVD_PID}" 2>/dev/null; then
+    break
+  fi
+  n=$((n + 1))
+done
 
-# Best-effort: fail fast if envd exits immediately (wrong GOOS binary, etc.).
-sleep 1
 if ! kill -0 "${ENVD_PID}" 2>/dev/null; then
-  echo "android-redroid-entrypoint: envd exited early; see ${ENVD_LOG}" >&2
+  echo "android-redroid-entrypoint: envd failed to start after ${n} attempt(s); see ${ENVD_LOG}" >&2
   tail -n 20 "${ENVD_LOG}" >&2 || true
 fi
 

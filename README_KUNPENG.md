@@ -321,13 +321,19 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 
 Release 页面：https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-envd-preview
 
-包 sha256（2026-08-14 构建）：
+> **health 探活必读**：下方 `envd-preview` 包（sha256 `2dfe0057…`）内 envd 为 **GOOS=linux**，在 ReDroid 内无法执行，会导致 `GET :49983/health` → **connection refused**。请改用 **`envd-preview2`** 离线包（含 `GOOS=android` envd），或在鲲鹏上本地构建（§2.4.2 `BUILD_IMAGE=1`）。构建后先跑验证脚本再建模板：
+>
+> ```bash
+> ./deploy/sandbox-images/sandbox-android-redroid-envd/verify-envd-health.sh
+> ```
+
+包 sha256（**旧包 envd-preview，已弃用 — 探活会失败**）：
 
 ```text
 2dfe00579d39e89e1b59889abe0b14bed2f76f08c04be6da48d1c13164e50fdb
 ```
 
-鲲鹏目标机加载：
+鲲鹏目标机加载（**请用 envd-preview2 文件名替换 envd-preview**）：
 
 ```bash
 sha256sum -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview.tar.gz.sha256
