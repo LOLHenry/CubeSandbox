@@ -52,9 +52,13 @@
     ]
   },
   "offline_bundle": {
-    "artifact_name": "cube-sandbox-android-kunpeng-arm64-docker.tar.gz",
+    "artifact_name_template": "cube-sandbox-android-kunpeng-arm64-docker-{release_version}.tar.gz",
+    "sha256_artifact_name_template": "cube-sandbox-android-kunpeng-arm64-docker-{release_version}.tar.gz.sha256",
+    "build_script": "deploy/one-click/scripts/one-click/build-android-sandbox-offline-bundle.sh",
     "images": [
-      "cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64"
+      "cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64",
+      "cube-sandbox-int.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64",
+      "sandbox-android-redroid:16.0.0-arm64"
     ]
   },
   "implementation_notes": [

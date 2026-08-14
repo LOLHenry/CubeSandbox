@@ -1,0 +1,72 @@
+name: Android Sandbox Offline Bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag suffix for bundle filename (e.g. v0.6.0)'
+        required: true
+        default: 'dev'
+      android_image_tag:
+        description: 'Android image tag (default 16.0.0-arm64)'
+        required: false
+        default: '16.0.0-arm64'
+      upload_to_release:
+        description: 'Upload bundle to an existing GitHub Release with the same tag'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build_android_offline_bundle:
+    name: Build Android sandbox offline bundle (arm64)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Build and export Android sandbox offline bundle
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          ANDROID_IMAGE_TAG: ${{ inputs.android_image_tag }}
+          BUILD_IMAGE: "1"
+        run: ./deploy/one-click/scripts/one-click/build-android-sandbox-offline-bundle.sh
+
+      - name: Upload Android offline bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-offline-bundle-${{ inputs.release_tag }}-arm64
+          path: |
+            deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-docker-${{ inputs.release_tag }}.tar.gz
+            deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-docker-${{ inputs.release_tag }}.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Android offline bundle to Release
+        if: inputs.upload_to_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          bundle_path="deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-docker-${RELEASE_TAG}.tar.gz"
+          sha_path="${bundle_path}.sha256"
+          test -f "${bundle_path}"
+          test -f "${sha_path}"
+          gh release upload "${RELEASE_TAG}" "${bundle_path}" "${sha_path}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber

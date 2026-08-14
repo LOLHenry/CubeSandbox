@@ -267,11 +267,20 @@ cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-a
 
 上游 workload：`redroid/redroid:16.0.0_64only-latest`（AOSP 16）。构建封装镜像见 `deploy/sandbox-images/sandbox-android-redroid/`。
 
-黄区离线导出：
+黄区离线导出（在 **arm64** 构建机执行，或 Release 资产直接下载）：
 
 ```bash
-./deploy/one-click/scripts/one-click/build-android-sandbox-offline-bundle.sh
-# 目标机：gunzip -c cube-sandbox-android-kunpeng-arm64-docker.tar.gz | docker load
+# 本地构建（含镜像 build）
+RELEASE_TAG=v0.6.0 BUILD_IMAGE=1 \
+  ./deploy/one-click/scripts/one-click/build-android-sandbox-offline-bundle.sh
+
+# Release 资产名（与 one-click 同 tag）：
+#   cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz
+#   cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
+
+# 目标机加载
+sha256sum -c cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
+gunzip -c cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz | docker load
 ```
 
 制作模板（需平台已启用 `instance_type=android` 与 Android guest Binder 内核，当前为**预览**）：

@@ -40,6 +40,16 @@ for reg in ("cn", "intl"):
         raise SystemExit(f"unexpected published image for {reg}")
 if 5555 not in data["template_defaults"].get("expose_ports", []):
     raise SystemExit("template_defaults.expose_ports must include 5555")
+
+offline = data.get("offline_bundle", {})
+for key in ("artifact_name_template", "sha256_artifact_name_template", "build_script"):
+    if key not in offline:
+        raise SystemExit(f"missing offline_bundle.{key}")
+if "{release_version}" not in offline["artifact_name_template"]:
+    raise SystemExit("offline_bundle.artifact_name_template must include {release_version}")
+images = offline.get("images", [])
+if len(images) < 1:
+    raise SystemExit("offline_bundle.images must not be empty")
 PY
 
 echo "sandbox android catalog contract tests OK"
