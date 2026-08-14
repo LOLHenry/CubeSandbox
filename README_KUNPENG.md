@@ -326,18 +326,19 @@ Release 页面：https://github.com/LOLHenry/CubeSandbox/releases/tag/android-ku
 
 > **health 探活**：请使用 **`envd-preview2` 或更新** 的包（envd 为 Android/bionic 构建）。旧 `envd-preview` 内为 GOOS=linux envd，探活会 **connection refused**。
 
-包 sha256（**envd-preview3**，2026-08-14 CI 构建）：
-
-```text
-0f00434926dc93da36630d6c4a0638fdc6bac1b9887406f0bb90d81788d8a283
-```
-
-鲲鹏目标机加载：
+包 sha256（**envd-preview4**，修复 `exec /init` 后 envd 丢失导致探活 refused）：
 
 ```bash
-sha256sum -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview3.tar.gz.sha256
-gunzip -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview3.tar.gz | docker load
+# 从 Release 下载 preview4 包后：
+sha256sum -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview4.tar.gz.sha256
+gunzip -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview4.tar.gz | docker load
+```
 
+旧 **envd-preview3** 若遇 `:49983 connection refused`，请升级 preview4 或本地 `./deploy/sandbox-images/sandbox-android-redroid-envd/build.sh` 重建。
+
+鲲鹏目标机加载后验证架构并建模板：
+
+```bash
 docker image inspect sandbox-android-redroid-envd:16.0.0-arm64 --format '{{.Architecture}}'
 # 期望：arm64
 
