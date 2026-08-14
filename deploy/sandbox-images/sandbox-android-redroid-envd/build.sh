@@ -19,16 +19,29 @@ REDROID_LOCAL="sandbox-android-redroid:${TAG}"
 PLATFORM="${PLATFORM:-linux/arm64}"
 PUSH="${PUSH:-0}"
 ENVD_BASE_IMAGE="${ENVD_BASE_IMAGE:-ghcr.io/tencentcloud/cubesandbox-base:2026.16}"
+ENVD_FALLBACK_IMAGE="${ENVD_FALLBACK_IMAGE:-cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest}"
 
 if ! docker image inspect "${REDROID_LOCAL}" >/dev/null 2>&1; then
   echo "Base image ${REDROID_LOCAL} not found; building via ${REDROID_DIR}/build.sh"
   TAG="${TAG}" "${REDROID_DIR}/build.sh"
 fi
 
-echo "Pulling envd source image ${ENVD_BASE_IMAGE}"
-docker pull --platform "${PLATFORM}" "${ENVD_BASE_IMAGE}"
+pull_envd_source() {
+  local image="$1"
+  echo "Pulling envd source image ${image}"
+  if docker pull --platform "${PLATFORM}" "${image}"; then
+    ENVD_BASE_IMAGE="${image}"
+    return 0
+  fi
+  return 1
+}
 
-echo "Building ${IMAGE_NAME} (${PLATFORM})"
+if ! pull_envd_source "${ENVD_BASE_IMAGE}"; then
+  echo "WARN: ${ENVD_BASE_IMAGE} unavailable for ${PLATFORM}; trying ${ENVD_FALLBACK_IMAGE}"
+  pull_envd_source "${ENVD_FALLBACK_IMAGE}"
+fi
+
+echo "Building ${IMAGE_NAME} (${PLATFORM}) with envd from ${ENVD_BASE_IMAGE}"
 docker build --platform "${PLATFORM}" \
   --build-arg "REDROID_BASE_IMAGE=${REDROID_LOCAL}" \
   --build-arg "ENVD_BASE_IMAGE=${ENVD_BASE_IMAGE}" \

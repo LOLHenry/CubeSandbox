@@ -9,16 +9,16 @@
 #     -t cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid-envd:16.0.0-arm64 .
 
 ARG REDROID_BASE_IMAGE=sandbox-android-redroid:16.0.0-arm64
+# ghcr cubesandbox-base may lack arm64 on some registries; build.sh falls back to sandbox-code.
 ARG ENVD_BASE_IMAGE=ghcr.io/tencentcloud/cubesandbox-base:2026.16
 
 FROM ${ENVD_BASE_IMAGE} AS envd-source
 
 FROM ${REDROID_BASE_IMAGE}
 
-COPY --from=envd-source /usr/bin/envd /usr/bin/envd
+COPY --from=envd-source --chmod=755 /usr/bin/envd /usr/bin/envd
 
-COPY android-redroid-entrypoint.sh /usr/local/bin/android-redroid-entrypoint.sh
-RUN chmod +x /usr/bin/envd /usr/local/bin/android-redroid-entrypoint.sh
+COPY --chmod=755 android-redroid-entrypoint.sh /usr/local/bin/android-redroid-entrypoint.sh
 
 LABEL org.opencontainers.image.title="CubeSandbox Android Sandbox (ReDroid AOSP 16 + envd)"
 LABEL org.opencontainers.image.description="ReDroid Android 16 with envd for cubebox templates on Kunpeng ARM64"
