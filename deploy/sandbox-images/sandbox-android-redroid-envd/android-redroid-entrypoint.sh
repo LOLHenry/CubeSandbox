@@ -2,27 +2,22 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (C) 2026 Tencent. All rights reserved.
 #
-# ReDroid ships with Android /init as its main entry. CubeSandbox cubebox templates
-# require envd on :49983 for health probes and SDK I/O; automation uses adbd on
-# :5555 (ReDroid default). Start envd in the background, then hand off to /init.
-#
-# ENTRYPOINT must be THIS SCRIPT PATH (preview2), not explicit /system/bin/sh (preview5).
+# ReDroid + CubeVM: background envd (-isnotfc), then exec /init.
+# Used when ENTRYPOINT points at this script (preview2/7 path).
 set -eu
 
-ENVD_PORT="${ENVD_PORT:-49983}"
 ADB_PORT="${CUBESANDBOX_ADB_PORT:-5555}"
-ENVD_BIN="${ENVD_BIN:-/usr/bin/envd}"
 ENVD_LOG="${ENVD_LOG:-/data/local/tmp/envd.log}"
 
-if [ ! -x "${ENVD_BIN}" ]; then
-  echo "android-redroid-entrypoint: envd not executable at ${ENVD_BIN}" >&2
+if [ ! -x /usr/bin/start-cube-envd.sh ]; then
+  echo "android-redroid-entrypoint: missing /usr/bin/start-cube-envd.sh" >&2
   exec /init "$@"
 fi
 
 mkdir -p "$(dirname "${ENVD_LOG}")"
 n=0
 while [ "${n}" -lt 3 ]; do
-  "${ENVD_BIN}" -port "${ENVD_PORT}" >>"${ENVD_LOG}" 2>&1 &
+  /usr/bin/start-cube-envd.sh &
   ENVD_PID=$!
   sleep 1
   if kill -0 "${ENVD_PID}" 2>/dev/null; then
@@ -32,10 +27,9 @@ while [ "${n}" -lt 3 ]; do
 done
 
 if ! kill -0 "${ENVD_PID}" 2>/dev/null; then
-  echo "android-redroid-entrypoint: envd failed to start after ${n} attempt(s); see ${ENVD_LOG}" >&2
-  tail -n 20 "${ENVD_LOG}" >&2 || true
+  echo "android-redroid-entrypoint: envd failed; see ${ENVD_LOG}" >&2
+  tail -n 20 "${ENVD_LOG}" 2>/dev/null || true
 fi
 
-echo "android-redroid-entrypoint: envd pid=${ENVD_PID} port=${ENVD_PORT}; adbd expected on ${ADB_PORT}" >&2
-
+echo "android-redroid-entrypoint: envd pid=${ENVD_PID}; adbd on ${ADB_PORT}" >&2
 exec /init "$@"

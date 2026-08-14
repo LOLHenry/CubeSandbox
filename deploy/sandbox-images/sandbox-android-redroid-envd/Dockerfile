@@ -59,6 +59,7 @@ COPY android-init/cube-envd.rc /vendor/etc/init/cube-envd.rc
 COPY android-init/cube-envd.rc /system/etc/init/cube-envd.rc
 
 COPY --chmod=755 android-redroid-entrypoint.sh /usr/local/bin/android-redroid-entrypoint.sh
+COPY --chmod=755 start-cube-envd.sh /usr/bin/start-cube-envd.sh
 
 LABEL org.opencontainers.image.title="CubeSandbox Android Sandbox (ReDroid AOSP 16 + envd)"
 LABEL org.opencontainers.image.description="ReDroid Android 16 with android/bionic envd for cubebox templates on Kunpeng ARM64"
@@ -88,6 +89,5 @@ EXPOSE 49983 5555
 # Default ReDroid boot props; override at `docker run` / template create time.
 CMD ["androidboot.redroid_width=1080", "androidboot.redroid_height=1920", "androidboot.redroid_dpi=480", "androidboot.redroid_gpu_mode=guest"]
 
-# PID1: envd-starter execs /init. envd starts via cube-envd.rc on `on init`.
-# Shell script entrypoint does not reliably start envd in CubeVM (preview7 probe refused).
+# PID1: envd-starter → exec /init. envd via cube-envd.rc (on init) with -isnotfc.
 ENTRYPOINT ["/usr/bin/envd-starter"]
