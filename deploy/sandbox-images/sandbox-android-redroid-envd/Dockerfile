@@ -42,15 +42,20 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
            . \
     && chmod +x /out/envd
 
-FROM ${REDROID_BASE_IMAGE} AS redroid-base
+COPY envd-starter /src/envd-starter
+WORKDIR /src/envd-starter
+
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=0 GOOS=android GOARCH=arm64 \
+    go build -a -ldflags "-s -w" -o /out/envd-starter .
 
 FROM ${REDROID_BASE_IMAGE}
 
-# ReDroid only provides /system/bin/sh; entrypoint shebang and direct exec need /bin/sh.
-COPY --from=redroid-base /system/bin/sh /bin/sh
-
 COPY --from=envd-builder --chmod=755 /out/envd /usr/bin/envd
+COPY --from=envd-builder --chmod=755 /out/envd-starter /usr/bin/envd-starter
 
+# Keep shell entrypoint for debugging; production ENTRYPOINT uses envd-starter.
 COPY --chmod=755 android-redroid-entrypoint.sh /usr/local/bin/android-redroid-entrypoint.sh
 
 LABEL org.opencontainers.image.title="CubeSandbox Android Sandbox (ReDroid AOSP 16 + envd)"
@@ -81,4 +86,4 @@ EXPOSE 49983 5555
 # Default ReDroid boot props; override at `docker run` / template create time.
 CMD ["androidboot.redroid_width=1080", "androidboot.redroid_height=1920", "androidboot.redroid_dpi=480", "androidboot.redroid_gpu_mode=guest"]
 
-ENTRYPOINT ["/bin/sh", "/usr/local/bin/android-redroid-entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/envd-starter"]
