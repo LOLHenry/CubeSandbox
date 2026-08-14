@@ -42,10 +42,12 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
            . \
     && chmod +x /out/envd
 
+FROM ${REDROID_BASE_IMAGE} AS redroid-base
+
 FROM ${REDROID_BASE_IMAGE}
 
 # ReDroid only provides /system/bin/sh; entrypoint shebang and direct exec need /bin/sh.
-COPY --from=${REDROID_BASE_IMAGE} /system/bin/sh /bin/sh
+COPY --from=redroid-base /system/bin/sh /bin/sh
 
 COPY --from=envd-builder --chmod=755 /out/envd /usr/bin/envd
 
