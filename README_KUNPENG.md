@@ -316,7 +316,8 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 
 | 资产 | 说明 |
 |------|------|
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview10.tar.gz` | **推荐**：`envd-starter` 预启 envd（`-isnotfc`）再 `exec /init` + init.rc 兜底 |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview11.tar.gz` | **推荐**：preview10 + 全链路诊断日志（`envd-starter.log`、health 探针） |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview10.tar.gz` | `envd-starter` 预启 envd（`-isnotfc`）再 `exec /init` |
 | `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview9.tar.gz` | 仅 init.rc 启 envd，探活仍 refused |
 | `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview8.tar.gz` | `envd-starter`→`/init` + `cube-envd.rc` `on init`（无预启 envd） |
 | `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview7.tar.gz` | shell 入口，CubeVM 探活仍 refused（与 preview3 同类） |
@@ -330,7 +331,8 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 | preview3/6 | `/usr/bin/envd-starter`（无 `-isnotfc`） | ❌ 49983 refused | 不适用 |
 | preview5 | `["/system/bin/sh", script]` | 未验证 | ❌ ExitCode 255 |
 | preview8/9 | `envd-starter` 仅 exec `/init`，靠 init.rc | ❌ refused（preview9 实测） | 勿测 |
-| **preview10** | `envd-starter` 预启 envd `-isnotfc` + exec `/init` | **待验证** | 勿测 |
+| **preview11** | preview10 + 诊断日志 + init.rc wrapper 日志 | **待验证** | 勿测 |
+| preview10 | `envd-starter` 预启 envd `-isnotfc` + exec `/init` | 待验证 | 勿测 |
 | preview7 | shell 脚本 | ❌ refused | 勿测 |
 
 > **本地 `docker run` 不能验证 ReDroid**（需 CubeVM）；只以 `tpl create-from-image` 为准。
@@ -513,11 +515,23 @@ dial tcp 192.168.0.x:49983: connect: connection refused
 
 | 步骤 | 命令 / 检查 | 说明 |
 |------|-------------|------|
-| 1 | `file /usr/bin/envd`（容器内） | 必须是 **Android** ELF（`interpreter /system/bin/linker64`）。若是 `statically linked` 且 `GOOS=linux`，说明用了错误离线包，需 **重新构建/加载 §2.4.1 envd 包** |
-| 2 | `cat /tmp/envd.log` 或 `cat /data/local/tmp/envd.log` | envd 启动失败原因（权限、端口占用等） |
-| 3 | `ps -A \| grep envd` | 无进程 → 查 `envd-starter` 日志（stderr）与 `/data/local/tmp/envd.log`；用 **preview10**（预启 + `-isnotfc`） |
-| 4 | `tpl create-from-image` 加 `--cpu 4000 --memory 6144` | 默认 2GiB 时 Android 可能起不来，但 **49983 refused 通常是 envd 二进制不对** |
-| 5 | 模板构建日志 | `ls /data/log/template/<template_id>/` 或 `cubemastercli tpl image-job <job_id>` |
+| 1 | `file /usr/bin/envd`（容器内） | 必须是 **Android** ELF（`interpreter /system/bin/linker64`） |
+| 2 | **`cat /data/local/tmp/envd-starter.log`** | **preview10+** PID1 启动全链路日志（预启 envd、health 探针、exec /init） |
+| 3 | `cat /data/local/tmp/envd.log` | envd 进程 stdout/stderr（崩溃栈、bind 失败等） |
+| 4 | `cat /data/local/tmp/envd-initrc.log` | init.rc 兜底路径日志（`cube-envd.rc` → `start-cube-envd.sh`） |
+| 5 | `ps -A \| grep envd` | 无进程 → 对照 envd-starter.log 里 `envd spawned pid=` 是否出现 |
+| 6 | cubelet 模板构建日志 | `ls /data/log/template/<template_id>/` 或 `cubemastercli tpl status --job-id <id>` |
+
+**日志文件一览（preview10+）：**
+
+| 文件 | 写入方 | 内容 |
+|------|--------|------|
+| `/data/local/tmp/envd-starter.log` | `envd-starter`（PID1） | 配置、envd 启动重试、`:49983/health` 探针、exec `/init` |
+| `/tmp/envd-starter.log` | 同上（早期兜底） | `/data` 未挂载时的备份 |
+| `/data/local/tmp/envd.log` | envd 进程 | envd 自身日志 |
+| `/data/local/tmp/envd-initrc.log` | init.rc 兜底 | `start-cube-envd.sh` 被 init 拉起时 |
+
+模板 FAILED 后若沙箱已销毁，优先看 **cubelet 日志**里 `envd-starter:` 前缀行（同时写 stderr）。
 
 **修复后重新建模板**（务必带资源与探针）：
 

@@ -1,8 +1,9 @@
 # CubeSandbox envd for ReDroid cubebox templates.
 # PID1 is envd-starter → exec /init. envd must listen on :49983 for template probe.
 # -isnotfc: skip Firecracker MMDS; required in CubeVM/ReDroid.
+# Logs: /data/local/tmp/envd-initrc.log (wrapper), /data/local/tmp/envd.log (envd)
 
-service cube_envd /usr/bin/envd -isnotfc -port 49983
+service cube_envd /system/bin/sh /usr/bin/start-cube-envd.sh
     class main
     user root
     group root
