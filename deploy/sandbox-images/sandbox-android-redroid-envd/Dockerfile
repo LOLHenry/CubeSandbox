@@ -61,8 +61,24 @@ LABEL org.cubesandbox.runtime_model="cubevm-redroid"
 LABEL org.cubesandbox.envd.enabled="true"
 LABEL org.cubesandbox.envd.port="49983"
 LABEL org.cubesandbox.envd.goos="android"
+LABEL org.cubesandbox.adb.port="5555"
+LABEL org.cubesandbox.control_plane="envd:49983,adb:5555"
 
 ENV ENVD_PORT=49983
 ENV ENVD_REF=${ENVD_REF}
+ENV CUBESANDBOX_ADB_PORT=5555
+
+# Dual control plane (Tencent Agent Runtime Mobile style):
+#   - envd :49983  Cube SDK / template probe / commands.run / files.*
+#   - adbd :5555   adb connect automation
+EXPOSE 49983 5555
+
+# Default ReDroid boot props; override at `docker run` / template create time.
+CMD [
+  "androidboot.redroid_width=1080",
+  "androidboot.redroid_height=1920",
+  "androidboot.redroid_dpi=480",
+  "androidboot.redroid_gpu_mode=guest"
+]
 
 ENTRYPOINT ["/usr/local/bin/android-redroid-entrypoint.sh"]

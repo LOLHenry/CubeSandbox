@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Release tag suffix for bundle filename (e.g. envd-preview2)'
+        description: 'Release tag suffix for bundle filename (e.g. envd-preview3)'
         required: true
-        default: 'envd-preview2'
+        default: 'envd-preview3'
       android_image_tag:
         description: 'Android image tag (default 16.0.0-arm64)'
         required: false
@@ -121,19 +121,21 @@ jobs:
           ## Android Kunpeng ARM64 — ReDroid + envd (${RELEASE_TAG})
 
           - **envd**: compiled with \`GOOS=android GOARCH=arm64\` (bionic / linker64)
-          - **Fixes**: cubebox template probe \`:49983/health\` connection refused (old linux envd)
+          - **Dual control plane**: envd \`:49983\` (SDK / probe) + adbd \`:5555\` (adb connect)
           - **SHA256**: \`${sha256}\`
           - **Load**: \`gunzip -c ${bundle_name} | docker load\`
           - **Verify**: \`./deploy/sandbox-images/sandbox-android-redroid-envd/verify-envd-health.sh\`
-          - **Template**:
+          - **Template** (expose **both** ports for external access):
             \`\`\`bash
             cubemastercli tpl create-from-image \\
               --image sandbox-android-redroid-envd:16.0.0-arm64 \\
               --writable-layer-size 10Gi \\
               --expose-port 5555 \\
+              --expose-port 49983 \\
               --probe 49983 --probe-path /health \\
               --cpu 4000 --memory 6144
             \`\`\`
+          - **External access**: \`network-agent --host-proxy-bind-ip=0.0.0.0\`, then \`cubemastercli info -s <id>\` for host_port mappings
           EOF
           if ! gh release view "${GH_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             gh release create "${GH_RELEASE_TAG}" \

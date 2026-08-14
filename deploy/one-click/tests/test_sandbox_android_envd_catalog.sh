@@ -27,6 +27,10 @@ for reg in ("cn", "intl"):
         raise SystemExit(f"unexpected published image for {reg}")
 if data["template_defaults"].get("probe_port") != 49983:
     raise SystemExit("template_defaults.probe_port must be 49983")
+expose_ports = data["template_defaults"].get("expose_ports", [])
+for port in (5555, 49983):
+    if port not in expose_ports:
+        raise SystemExit(f"template_defaults.expose_ports must include {port}")
 offline = data.get("offline_bundle", {})
 if "envd-docker" not in offline.get("artifact_name_template", ""):
     raise SystemExit("offline bundle name must include envd-docker")

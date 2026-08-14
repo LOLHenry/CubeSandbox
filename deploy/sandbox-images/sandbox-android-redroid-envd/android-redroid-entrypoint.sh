@@ -3,11 +3,12 @@
 # Copyright (C) 2026 Tencent. All rights reserved.
 #
 # ReDroid ships with Android /init as its main entry. CubeSandbox cubebox templates
-# require envd on :49983 for health probes and SDK I/O. Start envd in the
-# background, then hand off to the original ReDroid init.
+# require envd on :49983 for health probes and SDK I/O; automation uses adbd on
+# :5555 (ReDroid default). Start envd in the background, then hand off to /init.
 set -eu
 
 ENVD_PORT="${ENVD_PORT:-49983}"
+ADB_PORT="${CUBESANDBOX_ADB_PORT:-5555}"
 ENVD_BIN="${ENVD_BIN:-/usr/bin/envd}"
 ENVD_LOG="${ENVD_LOG:-/data/local/tmp/envd.log}"
 
@@ -32,5 +33,7 @@ if ! kill -0 "${ENVD_PID}" 2>/dev/null; then
   echo "android-redroid-entrypoint: envd failed to start after ${n} attempt(s); see ${ENVD_LOG}" >&2
   tail -n 20 "${ENVD_LOG}" >&2 || true
 fi
+
+echo "android-redroid-entrypoint: envd pid=${ENVD_PID} port=${ENVD_PORT}; adbd expected on ${ADB_PORT}" >&2
 
 exec /init "$@"

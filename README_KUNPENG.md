@@ -316,24 +316,26 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 
 | 资产 | 说明 |
 |------|------|
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz` | ReDroid + **GOOS=android** envd（修复 :49983 探活） |
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz.sha256` | 校验文件 |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview3.tar.gz` | ReDroid + envd + **双通道外部映射**（`:49983` envd + `:5555` ADB） |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview3.tar.gz.sha256` | 校验文件 |
 
 Release 页面：https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-envd-preview
 
-> **health 探活**：请使用 **`envd-preview2`** 包（envd 为 Android/bionic 构建）。旧 `envd-preview` 内为 GOOS=linux envd，探活会 **connection refused**。
+> **双通道**：对齐腾讯云 Agent Runtime Mobile 方案——**envd :49983**（Cube SDK / 探活 / `commands.run`）+ **adbd :5555**（`adb connect` 自动化）。模板必须 **同时** `--expose-port 5555` 与 `--expose-port 49983`；从集群外访问还需 `network-agent --host-proxy-bind-ip=0.0.0.0`（见 §2.4.6）。
 
-包 sha256（**envd-preview2**，2026-08-14 CI 构建）：
+> **health 探活**：请使用 **`envd-preview2` 或更新** 的包（envd 为 Android/bionic 构建）。旧 `envd-preview` 内为 GOOS=linux envd，探活会 **connection refused**。
+
+包 sha256（**envd-preview3**，CI 构建后更新）：
 
 ```text
-a71d1d827ac4029578b11786cd267b6360512b1e687f36f9ef62262c24ea747a
+# 见 Release 资产旁的 .sha256 文件
 ```
 
 鲲鹏目标机加载：
 
 ```bash
-sha256sum -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz.sha256
-gunzip -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz | docker load
+sha256sum -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview3.tar.gz.sha256
+gunzip -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview3.tar.gz | docker load
 
 docker image inspect sandbox-android-redroid-envd:16.0.0-arm64 --format '{{.Architecture}}'
 # 期望：arm64
@@ -342,6 +344,7 @@ cubemastercli tpl create-from-image \
   --image sandbox-android-redroid-envd:16.0.0-arm64 \
   --writable-layer-size 10Gi \
   --expose-port 5555 \
+  --expose-port 49983 \
   --probe 49983 \
   --probe-path /health \
   --cpu 4000 \
@@ -421,6 +424,7 @@ cubemastercli tpl create-from-image \
   --image sandbox-android-redroid-envd:16.0.0-arm64 \
   --writable-layer-size 10Gi \
   --expose-port 5555 \
+  --expose-port 49983 \
   --probe 49983 \
   --probe-path /health \
   --cpu 4000 \
@@ -509,6 +513,7 @@ cubemastercli tpl create-from-image \
   --image sandbox-android-redroid-envd:16.0.0-arm64 \
   --writable-layer-size 10Gi \
   --expose-port 5555 \
+  --expose-port 49983 \
   --probe 49983 \
   --probe-path /health \
   --cpu 4000 \
@@ -516,6 +521,73 @@ cubemastercli tpl create-from-image \
 ```
 
 旧模板 `tpl-a433b11ce5c748fc8184fc6a` 可删除后重建：`cubemastercli tpl delete tpl-a433b11ce5c748fc8184fc6a`（若 CLI 支持）或控制台清理 FAILED 模板。
+
+#### 2.4.6 外部打通 envd + ADB 双通道
+
+参考 [腾讯云 Agent Runtime Mobile 试验](https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md)：Android 沙箱采用 **双控制面**——与商用 Mobile 沙箱一致。
+
+| 通道 | 容器端口 | 用途 |
+|------|----------|------|
+| **envd** | `49983` | 模板探活 `GET /health`、Cube SDK `commands.run` / `files.*` |
+| **ADB (adbd)** | `5555` | `adb connect <host>:<port>` 自动化、UI 探测、`getprop` 等 |
+
+**1. 模板必须暴露两个端口**（`--probe` 仍指向 envd，ADB 不参与探活）：
+
+```bash
+cubemastercli tpl create-from-image \
+  --image sandbox-android-redroid-envd:16.0.0-arm64 \
+  --writable-layer-size 10Gi \
+  --expose-port 5555 \
+  --expose-port 49983 \
+  --probe 49983 \
+  --probe-path /health \
+  --cpu 4000 \
+  --memory 6144
+```
+
+**2. network-agent 绑定到所有网卡**（默认 `127.0.0.1` 仅本机可连映射端口）：
+
+```bash
+# 编辑 /usr/local/services/cubetoolbox/scripts/systemd/network-agent-start.sh
+# 在 exec 行前增加 --host-proxy-bind-ip=0.0.0.0，例如：
+exec "${NETWORK_AGENT_BIN}" \
+  --cubelet-config "${CUBELET_CONFIG}" \
+  --state-dir "${NETWORK_AGENT_STATE_DIR}" \
+  --host-proxy-bind-ip=0.0.0.0
+
+sudo systemctl restart cube-sandbox-network-agent.service
+```
+
+**3. 防火墙**：放行 network-agent 分配的 **host_port**（非固定 5555/49983；每个沙箱动态映射）。
+
+**4. 创建沙箱后查映射端口**：
+
+```bash
+cubemastercli info -s <sandbox_id>
+# 在 port_mappings 中找 container_port=5555 / 49983 对应的 host_port
+```
+
+**5. 从外部验证**：
+
+```bash
+# envd 探活（host_port 替换为映射值）
+curl -s -o /dev/null -w "%{http_code}\n" "http://<节点IP>:<envd_host_port>/health"
+# 期望 204
+
+# ADB（需本机安装 platform-tools）
+adb connect <节点IP>:<adb_host_port>
+adb -s <节点IP>:<adb_host_port> shell getprop ro.hardware.gralloc
+# 期望包含 redroid
+```
+
+**6. 本地镜像自检**（鲲鹏 aarch64 上，privileged + 发布端口）：
+
+```bash
+./deploy/sandbox-images/sandbox-android-redroid-envd/verify-envd-health.sh
+# 依次检查 envd ELF、:49983/health、:5555 adbd；可选 adb connect
+```
+
+常见 **ADB `PORT_REFUSED`**：模板只暴露了 `49983` 未暴露 `5555`、内存不足（<6GiB）、Android 尚未 boot_completed、或 `host-proxy-bind-ip` 仍为 `127.0.0.1` 却从其他机器访问。
 
 ---
 
