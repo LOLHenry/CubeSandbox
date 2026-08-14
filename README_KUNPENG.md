@@ -321,11 +321,13 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 
 Release 页面：https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-envd-preview
 
-> **health 探活**：请使用 **`envd-preview2`** 包（envd 为 Android/bionic 构建）。旧 `envd-preview`（sha256 `2dfe0057…`）内为 GOOS=linux envd，探活会 **connection refused**。加载后先跑：
->
-> ```bash
-> ./deploy/sandbox-images/sandbox-android-redroid-envd/verify-envd-health.sh
-> ```
+> **health 探活**：请使用 **`envd-preview2`** 包（envd 为 Android/bionic 构建）。旧 `envd-preview` 内为 GOOS=linux envd，探活会 **connection refused**。
+
+包 sha256（**envd-preview2**，2026-08-14 CI 构建）：
+
+```text
+a71d1d827ac4029578b11786cd267b6360512b1e687f36f9ef62262c24ea747a
+```
 
 鲲鹏目标机加载：
 
