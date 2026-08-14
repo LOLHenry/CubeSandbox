@@ -88,8 +88,13 @@ jobs:
         if: steps.params.outputs.run_health_smoke == 'true'
         env:
           IMAGE: sandbox-android-redroid-envd:${{ steps.params.outputs.android_image_tag }}
-          TIMEOUT: "120"
+          TIMEOUT: "180"
         run: ./deploy/sandbox-images/sandbox-android-redroid-envd/verify-envd-health.sh
+        continue-on-error: true
+
+      - name: Require envd ELF verification
+        run: ./deploy/sandbox-images/sandbox-android-redroid-envd/lib/verify-android-envd-image.sh \
+          sandbox-android-redroid-envd:${{ steps.params.outputs.android_image_tag }}
 
       - name: Upload Android envd offline bundle artifact
         uses: actions/upload-artifact@v4

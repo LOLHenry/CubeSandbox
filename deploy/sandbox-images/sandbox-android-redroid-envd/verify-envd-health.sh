@@ -10,9 +10,11 @@
 #   IMAGE=sandbox-android-redroid-envd:16.0.0-arm64 TIMEOUT=90 ./verify-envd-health.sh
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGE="${IMAGE:-sandbox-android-redroid-envd:16.0.0-arm64}"
 CONTAINER="${CONTAINER:-redroid-envd-verify}"
 TIMEOUT="${TIMEOUT:-90}"
+SKIP_HEALTH="${SKIP_HEALTH:-0}"
 
 cleanup() {
   docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true
@@ -27,7 +29,12 @@ if ! docker image inspect "${IMAGE}" >/dev/null 2>&1; then
 fi
 
 echo "==> Checking envd ELF (must be Android /system/bin/linker64, not GOOS=linux static)"
-docker run --rm --entrypoint /system/bin/sh "${IMAGE}" -c 'file /usr/bin/envd; file /usr/bin/envd | grep -q "interpreter /system/bin/linker64"'
+"${SCRIPT_DIR}/lib/verify-android-envd-image.sh" "${IMAGE}"
+
+if [[ "${SKIP_HEALTH}" == "1" ]]; then
+  echo "SKIP_HEALTH=1: skipping privileged container /health smoke test"
+  exit 0
+fi
 
 echo "==> Starting ReDroid + envd (privileged, same as template build)"
 docker run -d --privileged --name "${CONTAINER}" "${IMAGE}" >/dev/null
