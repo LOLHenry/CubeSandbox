@@ -316,8 +316,9 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 
 | 资产 | 说明 |
 |------|------|
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview3.tar.gz` | ReDroid + envd + **双通道外部映射**（`:49983` envd + `:5555` ADB） |
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview3.tar.gz.sha256` | 校验文件 |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview4.tar.gz` | ReDroid + envd + **双通道**；**envd-preview4** 修复 `exec /init` 后 envd 秒退（`Setsid` + `cube-envd.rc`） |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview3.tar.gz` | 旧版（模板探活可能 `:49983 connection refused`） |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview4.tar.gz.sha256` | 校验文件 |
 
 Release 页面：https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-envd-preview
 
@@ -501,8 +502,8 @@ dial tcp 192.168.0.x:49983: connect: connection refused
 | 步骤 | 命令 / 检查 | 说明 |
 |------|-------------|------|
 | 1 | `file /usr/bin/envd`（容器内） | 必须是 **Android** ELF（`interpreter /system/bin/linker64`）。若是 `statically linked` 且 `GOOS=linux`，说明用了错误离线包，需 **重新构建/加载 §2.4.1 envd 包** |
-| 2 | `cat /data/local/tmp/envd.log` | envd 启动失败原因（权限、端口占用等） |
-| 3 | `ps -A \| grep envd` | 无进程 → entrypoint 未执行或 envd 秒退 |
+| 2 | `cat /tmp/envd.log` 或 `cat /data/local/tmp/envd.log` | envd 启动失败原因（权限、端口占用等） |
+| 3 | `ps -A \| grep envd` | 无进程 → entrypoint 未执行或 envd 在 `exec /init` 后秒退（**envd-preview4+** 用 `Setsid`+`init.rc` 修复） |
 | 4 | `tpl create-from-image` 加 `--cpu 4000 --memory 6144` | 默认 2GiB 时 Android 可能起不来，但 **49983 refused 通常是 envd 二进制不对** |
 | 5 | 模板构建日志 | `ls /data/log/template/<template_id>/` 或 `cubemastercli tpl image-job <job_id>` |
 

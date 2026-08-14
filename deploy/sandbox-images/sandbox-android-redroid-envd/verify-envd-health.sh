@@ -58,6 +58,7 @@ while (( SECONDS < deadline )); do
   if ! docker ps --format '{{.Names}}' | grep -qx "${CONTAINER}"; then
     echo "ERROR: container exited early" >&2
     docker logs "${CONTAINER}" 2>&1 | tail -30 >&2 || true
+    docker exec "${CONTAINER}" cat /tmp/envd.log 2>/dev/null | tail -20 >&2 || true
     docker exec "${CONTAINER}" cat /data/local/tmp/envd.log 2>/dev/null | tail -20 >&2 || true
     exit 1
   fi
@@ -70,6 +71,7 @@ while (( SECONDS < deadline )); do
     echo "  envd process up, health=${code:-pending} ..."
   else
     echo "  envd process missing, checking log ..."
+    docker exec "${CONTAINER}" cat /tmp/envd.log 2>/dev/null | tail -5 || true
     docker exec "${CONTAINER}" cat /data/local/tmp/envd.log 2>/dev/null | tail -5 || true
   fi
   sleep 3
@@ -77,6 +79,7 @@ done
 
 if [[ -z "${envd_ok}" ]]; then
   echo "ERROR: envd /health never returned 204 within ${TIMEOUT}s" >&2
+  docker exec "${CONTAINER}" cat /tmp/envd.log 2>/dev/null | tail -30 >&2 || true
   docker exec "${CONTAINER}" cat /data/local/tmp/envd.log 2>/dev/null | tail -30 >&2 || true
   exit 1
 fi

@@ -55,6 +55,10 @@ FROM ${REDROID_BASE_IMAGE}
 COPY --from=envd-builder --chmod=755 /out/envd /usr/bin/envd
 COPY --from=envd-builder --chmod=755 /out/envd-starter /usr/bin/envd-starter
 
+# Android init fallback: restart envd after /data mounts if PID1 bootstrap lost it.
+COPY android-init/cube-envd.rc /vendor/etc/init/cube-envd.rc
+COPY android-init/cube-envd.rc /system/etc/init/cube-envd.rc
+
 # Keep shell entrypoint for debugging; production ENTRYPOINT uses envd-starter.
 COPY --chmod=755 android-redroid-entrypoint.sh /usr/local/bin/android-redroid-entrypoint.sh
 
@@ -75,6 +79,7 @@ LABEL org.cubesandbox.adb.port="5555"
 LABEL org.cubesandbox.control_plane="envd:49983,adb:5555"
 
 ENV ENVD_PORT=49983
+ENV ENVD_LOG=/tmp/envd.log
 ENV ENVD_REF=${ENVD_REF}
 ENV CUBESANDBOX_ADB_PORT=5555
 

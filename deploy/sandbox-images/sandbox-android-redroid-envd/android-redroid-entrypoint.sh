@@ -10,7 +10,7 @@ set -eu
 ENVD_PORT="${ENVD_PORT:-49983}"
 ADB_PORT="${CUBESANDBOX_ADB_PORT:-5555}"
 ENVD_BIN="${ENVD_BIN:-/usr/bin/envd}"
-ENVD_LOG="${ENVD_LOG:-/data/local/tmp/envd.log}"
+ENVD_LOG="${ENVD_LOG:-/tmp/envd.log}"
 
 if [ ! -x "${ENVD_BIN}" ]; then
   echo "android-redroid-entrypoint: envd not executable at ${ENVD_BIN}" >&2
