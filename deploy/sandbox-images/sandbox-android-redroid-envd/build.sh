@@ -3,6 +3,8 @@
 # Copyright (C) 2026 Tencent. All rights reserved.
 #
 # Build CubeSandbox Android (ReDroid + envd) image for Kunpeng ARM64.
+# envd is compiled with GOOS=android inside the Dockerfile (not copied from
+# cubesandbox-base, which ships a GOOS=linux binary incompatible with ReDroid).
 #
 # Usage:
 #   ./deploy/sandbox-images/sandbox-android-redroid-envd/build.sh
@@ -18,33 +20,17 @@ IMAGE_NAME="${REGISTRY}/sandbox-android-redroid-envd:${TAG}"
 REDROID_LOCAL="sandbox-android-redroid:${TAG}"
 PLATFORM="${PLATFORM:-linux/arm64}"
 PUSH="${PUSH:-0}"
-ENVD_BASE_IMAGE="${ENVD_BASE_IMAGE:-ghcr.io/tencentcloud/cubesandbox-base:2026.16}"
-ENVD_FALLBACK_IMAGE="${ENVD_FALLBACK_IMAGE:-cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest}"
+ENVD_REF="${ENVD_REF:-2026.16}"
 
 if ! docker image inspect "${REDROID_LOCAL}" >/dev/null 2>&1; then
   echo "Base image ${REDROID_LOCAL} not found; building via ${REDROID_DIR}/build.sh"
   TAG="${TAG}" "${REDROID_DIR}/build.sh"
 fi
 
-pull_envd_source() {
-  local image="$1"
-  echo "Pulling envd source image ${image}"
-  if docker pull --platform "${PLATFORM}" "${image}"; then
-    ENVD_BASE_IMAGE="${image}"
-    return 0
-  fi
-  return 1
-}
-
-if ! pull_envd_source "${ENVD_BASE_IMAGE}"; then
-  echo "WARN: ${ENVD_BASE_IMAGE} unavailable for ${PLATFORM}; trying ${ENVD_FALLBACK_IMAGE}"
-  pull_envd_source "${ENVD_FALLBACK_IMAGE}"
-fi
-
-echo "Building ${IMAGE_NAME} (${PLATFORM}) with envd from ${ENVD_BASE_IMAGE}"
+echo "Building ${IMAGE_NAME} (${PLATFORM}) with envd GOOS=android ENVD_REF=${ENVD_REF}"
 docker build --platform "${PLATFORM}" \
   --build-arg "REDROID_BASE_IMAGE=${REDROID_LOCAL}" \
-  --build-arg "ENVD_BASE_IMAGE=${ENVD_BASE_IMAGE}" \
+  --build-arg "ENVD_REF=${ENVD_REF}" \
   -t "${IMAGE_NAME}" "${SCRIPT_DIR}"
 
 if [[ "${REGISTRY}" == *"-cn."* ]]; then
