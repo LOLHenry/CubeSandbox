@@ -40,7 +40,8 @@
     "code": "代码执行",
     "browser": "浏览器",
     "ai": "AI · LLM",
-    "base": "基础镜像"
+    "base": "基础镜像",
+    "android": "Android"
   },
   "items": {
     "sandbox-code": {
@@ -62,6 +63,10 @@
     "cubesandbox-base": {
       "name": "基础镜像",
       "description": "最小化基础镜像，仅含 envd，适合自定义构建。"
+    },
+    "sandbox-android-kunpeng-arm64": {
+      "name": "Android 沙箱（鲲鹏 · ReDroid 16）",
+      "description": "CubeVM 内运行 ReDroid Android 16（AOSP 16），面向鲲鹏 ARM64 裸金属；暴露 ADB 5555，需 android 实例类型与 guest Binder 内核（预览）。"
     }
   },
   "tagLabels": {
@@ -76,6 +81,10 @@
     "aio": "All-in-One",
     "deepseek": "DeepSeek",
     "base": "基础",
-    "envd": "envd"
+    "envd": "envd",
+    "android": "Android",
+    "redroid": "ReDroid",
+    "adb": "ADB",
+    "kunpeng": "鲲鹏"
   }
 }

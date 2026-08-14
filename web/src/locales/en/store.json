@@ -40,7 +40,8 @@
     "code": "Code Execution",
     "browser": "Browser",
     "ai": "AI · LLM",
-    "base": "Base Image"
+    "base": "Base Image",
+    "android": "Android"
   },
   "items": {
     "sandbox-code": {
@@ -62,6 +63,10 @@
     "cubesandbox-base": {
       "name": "Base Image",
       "description": "Minimal base image with envd only, ideal for custom builds."
+    },
+    "sandbox-android-kunpeng-arm64": {
+      "name": "Android Sandbox (Kunpeng · ReDroid 16)",
+      "description": "ReDroid Android 16 (AOSP 16) inside CubeVM for Kunpeng ARM64 bare metal; exposes ADB 5555. Requires android instance type and guest Binder kernel (preview)."
     }
   },
   "tagLabels": {
@@ -76,6 +81,10 @@
     "aio": "All-in-One",
     "deepseek": "DeepSeek",
     "base": "Base",
-    "envd": "envd"
+    "envd": "envd",
+    "android": "Android",
+    "redroid": "ReDroid",
+    "adb": "ADB",
+    "kunpeng": "Kunpeng"
   }
 }

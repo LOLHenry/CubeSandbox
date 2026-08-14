@@ -34,7 +34,13 @@ EOF
     "pvm_version": "6.6.69-1.2.cubesandbox",
     "vmlinux_digest_sha256": "sha256:ordinary",
     "vmlinux_pvm_digest_sha256": "sha256:pvm"
-  }
+  },
+  "sandbox_catalog": [
+    {
+      "id": "sandbox-android-kunpeng-arm64",
+      "instance_type": "android"
+    }
+  ]
 }
 EOF
 

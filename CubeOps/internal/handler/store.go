@@ -39,6 +39,7 @@ func (h *StoreHandler) Register(r *gin.RouterGroup) {
 var storeImages = []string{
 	"cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest",
 	"cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-browser:latest",
+	"cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64",
 	"ghcr.io/tencentcloud/cubesandbox-base:latest",
 }
 

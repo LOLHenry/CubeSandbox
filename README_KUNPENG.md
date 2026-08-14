@@ -255,6 +255,38 @@ cubemastercli tpl watch --job-id <job_id>
 > 仅当本机能稳定访问镜像仓库时，才可保持 native 默认开启，并直接使用  
 > `--image cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest`。
 
+### 2.4 Android 沙箱（鲲鹏 · ReDroid AOSP 16，预览）
+
+one-click arm64 发布包附带 catalog：`assets/sandbox-catalog/sandbox-android-kunpeng-arm64.json`（亦写入 `release-manifest.json` 的 `sandbox_catalog`）。
+
+**官方镜像（arm64）：**
+
+```text
+cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64
+```
+
+上游 workload：`redroid/redroid:16.0.0_64only-latest`（AOSP 16）。构建封装镜像见 `deploy/sandbox-images/sandbox-android-redroid/`。
+
+黄区离线导出：
+
+```bash
+./deploy/one-click/scripts/one-click/build-android-sandbox-offline-bundle.sh
+# 目标机：gunzip -c cube-sandbox-android-kunpeng-arm64-docker.tar.gz | docker load
+```
+
+制作模板（需平台已启用 `instance_type=android` 与 Android guest Binder 内核，当前为**预览**）：
+
+```bash
+docker tag \
+  cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64 \
+  sandbox-android-redroid:16.0.0-arm64
+
+cubemastercli cubebox template create-from-image \
+  --image sandbox-android-redroid:16.0.0-arm64 \
+  --writable-layer-size 10Gi \
+  --expose-ports 5555
+```
+
 ---
 
 ## 3. 启动后：如何调用接口创建 / 使用沙箱

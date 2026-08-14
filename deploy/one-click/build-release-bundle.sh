@@ -166,6 +166,8 @@ generate_release_manifest() {
 
   log "generating release manifest: ${output}"
 
+  export ONE_CLICK_SANDBOX_CATALOG_DIR="${SCRIPT_DIR}/assets/sandbox-catalog"
+
   local cube_version="${CUBE_VERSION}"
   local cube_commit="${CUBE_COMMIT}"
   local cube_build_time="${CUBE_BUILD_TIME}"
@@ -339,6 +341,19 @@ if pvm_digest:
     kernel["pvm_version"] = kernel_pvm_version
     kernel["vmlinux_pvm_digest_sha256"] = pvm_digest
 
+sandbox_catalog = []
+catalog_dir = os.environ.get("ONE_CLICK_SANDBOX_CATALOG_DIR", "")
+if catalog_dir and os.path.isdir(catalog_dir):
+    for name in sorted(os.listdir(catalog_dir)):
+        if not name.endswith(".json"):
+            continue
+        path = os.path.join(catalog_dir, name)
+        with open(path, "r", encoding="utf-8") as f:
+            entry = json.load(f)
+        if not isinstance(entry, dict) or not entry.get("id"):
+            raise ValueError(f"sandbox catalog entry missing id: {path}")
+        sandbox_catalog.append(entry)
+
 manifest = {
     "release_version": release_version,
     "built_at": cube_build_time,
@@ -348,6 +363,8 @@ manifest = {
     "guest_image": guest_image,
     "kernel": kernel,
 }
+if sandbox_catalog:
+    manifest["sandbox_catalog"] = sandbox_catalog
 
 if not kernel.get("vmlinux_digest_sha256"):
     raise ValueError("missing kernel vmlinux digest")
@@ -705,6 +722,9 @@ copy_file "${SCRIPT_DIR}/lib/common.sh" "${DIST_ROOT}/lib/common.sh"
 copy_dir_contents "${SCRIPT_DIR}/scripts/common" "${DIST_ROOT}/scripts/common"
 copy_file "${PACKAGE_TAR}" "${DIST_ROOT}/assets/package/sandbox-package.tar.gz"
 copy_file "${KERNEL_ARTIFACT_ZIP}" "${DIST_ROOT}/assets/kernel-artifacts/cube-kernel-scf.zip"
+if [[ -d "${SCRIPT_DIR}/assets/sandbox-catalog" ]]; then
+  copy_dir_contents "${SCRIPT_DIR}/assets/sandbox-catalog" "${DIST_ROOT}/assets/sandbox-catalog"
+fi
 
 # Ship the Tencent Cloud terraform cluster deployer at the bundle top level so
 # that, right after `tar xzf cube-sandbox-one-click-<version>.tar.gz`, the user
