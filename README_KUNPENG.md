@@ -350,22 +350,68 @@ RELEASE_TAG=preview ./deploy/one-click/scripts/one-click/build-android-sandbox-o
 
 #### 2.4.3 制作模板
 
-需平台已启用 `instance_type=android` 与 Android guest Binder 内核（当前为**预览**）。离线 load 后本地已有 CN tag，可直接打短名：
+> **与官方文档的关系**：按 [自带镜像接入 (envd)](docs/zh/guide/tutorials/bring-your-own-image.md)，**当前 `cubebox` 模板流水线要求镜像内运行 `envd`（`:49983/health`）**，否则模板探活失败、SDK 的 `commands.run` / `files.*` 也无法工作。  
+> 预览 Release 里的 `sandbox-android-redroid` **仅封装 ReDroid，尚未内置 envd**。若你现在就用 `tpl create-from-image`（默认 `instance_type=cubebox`），需要先做 §2.4.4 的 envd 注入镜像。  
+> 目标态 `instance_type=android` 将改用 **ADB / `boot_completed` 探针**（catalog `probe_port: 5555`），届时不再强依赖 envd——该运行时仍在开发中。
+
+在 **envd 已注入** 且平台已启用 Android guest Binder 的前提下：
 
 ```bash
 docker tag \
   cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64 \
   sandbox-android-redroid:16.0.0-arm64
 
+# 过渡方案：镜像内已有 envd 时，探活打 49983（平台会自动保留 49983 端口）
 cubemastercli tpl create-from-image \
-  --image sandbox-android-redroid:16.0.0-arm64 \
+  --image sandbox-android-redroid-envd:16.0.0-arm64 \
   --writable-layer-size 10Gi \
-  --expose-port 5555
+  --expose-port 5555 \
+  --probe 49983 \
+  --probe-path /health
 ```
 
-黄区若已设 `CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false`（§2.0），模板创建同样应使用**本地短名** `sandbox-android-redroid:16.0.0-arm64`，不要写远程仓库全名。
+黄区若已设 `CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false`（§2.0），模板创建应使用**本地短名**，不要写远程仓库全名。
 
 默认 ReDroid 启动参数（catalog 中 `redroid_boot_args`）：1080×1920、DPI 480、`guest` GPU 模式；ADB 端口 **5555**。
+
+#### 2.4.4 往 ReDroid 镜像注入 envd（当前 cubebox 路径必做）
+
+官方做法见 [bring-your-own-image.md](docs/zh/guide/tutorials/bring-your-own-image.md) §3：从 `ghcr.io/tencentcloud/cubesandbox-base:2026.16`（支持 arm64）拷贝 `envd` 与 `cube-entrypoint.sh`，在容器启动时后台拉起 envd。
+
+ReDroid 自带 Android `init` 入口，不能简单 `ENTRYPOINT cube-entrypoint.sh` 覆盖。过渡做法是自定义入口脚本：**先后台启动 envd，再 exec ReDroid 原入口**。示例 Dockerfile 骨架：
+
+```dockerfile
+FROM redroid/redroid:16.0.0_64only-latest
+
+COPY --from=ghcr.io/tencentcloud/cubesandbox-base:2026.16 \
+     /usr/bin/envd /usr/bin/envd
+
+# 记录上游 entrypoint（ReDroid 镜像元数据），由自定义脚本接管
+COPY android-redroid-entrypoint.sh /usr/local/bin/android-redroid-entrypoint.sh
+RUN chmod +x /usr/bin/envd /usr/local/bin/android-redroid-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/android-redroid-entrypoint.sh"]
+```
+
+`android-redroid-entrypoint.sh` 核心逻辑：
+
+```bash
+#!/bin/sh
+set -eu
+/usr/bin/envd -port 49983 >>/var/log/envd.log 2>&1 &
+exec /init "$@"    # ReDroid 原入口，按实际镜像调整
+```
+
+构建并验证 envd：
+
+```bash
+docker build --platform linux/arm64 -t sandbox-android-redroid-envd:16.0.0-arm64 .
+docker run -d --name redroid-test sandbox-android-redroid-envd:16.0.0-arm64
+docker exec redroid-test curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:49983/health
+# 期望：204
+```
+
+本地验证通过后再执行 §2.4.3 的 `tpl create-from-image`。
 
 ---
 
