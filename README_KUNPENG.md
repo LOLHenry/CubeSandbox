@@ -316,10 +316,8 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 
 | 资产 | 说明 |
 |------|------|
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview5.tar.gz` | **推荐**：双通道 + 恢复 preview2 同款 shell 入口（模板探活已通过） |
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview4.tar.gz` | 使用 `envd-starter`，鲲鹏上模板探活易失败，勿用 |
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview3.tar.gz` | 同上（`envd-starter` 回归） |
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview5.tar.gz.sha256` | 校验文件 |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview6.tar.gz` | **推荐**：`envd-starter` + `init.rc` 启 envd（不依赖 `/system/bin/sh`） |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview5.tar.gz` | 用 `/system/bin/sh` 作入口，宿主机 docker 会 `no such file`（ExitCode 255） |
 
 Release 页面：https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-envd-preview
 

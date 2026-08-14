@@ -42,16 +42,23 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
            . \
     && chmod +x /out/envd
 
+COPY envd-starter /src/envd-starter
+WORKDIR /src/envd-starter
+
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=0 GOOS=android GOARCH=arm64 \
+    go build -a -ldflags "-s -w" -o /out/envd-starter .
+
 FROM ${REDROID_BASE_IMAGE}
 
 COPY --from=envd-builder --chmod=755 /out/envd /usr/bin/envd
+COPY --from=envd-builder --chmod=755 /out/envd-starter /usr/bin/envd-starter
 
-# Android init fallback: restart envd after /data mounts if PID1 bootstrap lost it.
+# Android init starts envd (cube-envd.rc). Shell entrypoint unusable on Kunpeng docker.
 COPY android-init/cube-envd.rc /vendor/etc/init/cube-envd.rc
 COPY android-init/cube-envd.rc /system/etc/init/cube-envd.rc
 
-# Production ENTRYPOINT: shell backgrounds envd then exec /init (proven on Kunpeng
-# template builds). Explicit /system/bin/sh — ReDroid has no /bin/sh.
 COPY --chmod=755 android-redroid-entrypoint.sh /usr/local/bin/android-redroid-entrypoint.sh
 
 LABEL org.opencontainers.image.title="CubeSandbox Android Sandbox (ReDroid AOSP 16 + envd)"
@@ -83,4 +90,4 @@ EXPOSE 49983 5555
 # Default ReDroid boot props; override at `docker run` / template create time.
 CMD ["androidboot.redroid_width=1080", "androidboot.redroid_height=1920", "androidboot.redroid_dpi=480", "androidboot.redroid_gpu_mode=guest"]
 
-ENTRYPOINT ["/system/bin/sh", "/usr/local/bin/android-redroid-entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/envd-starter"]

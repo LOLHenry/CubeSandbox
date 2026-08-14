@@ -1,13 +1,15 @@
-# CubeSandbox envd daemon for ReDroid cubebox templates.
-# envd-starter launches envd before exec /init; this service restarts envd
-# after /data is mounted if the early bootstrap did not survive handoff.
+# CubeSandbox envd for ReDroid cubebox templates.
+# envd-starter only execs /init; Android init starts envd here (no /system/bin/sh).
 
 service cube_envd /usr/bin/envd -port 49983
     class main
     user root
     group root
-    disabled
+    seclabel u:r:su:s0
+
+on init
+    start cube_envd
 
 on post-fs-data
     mkdir /data/local/tmp 0771 system shell
-    start cube_envd
+    restart cube_envd
