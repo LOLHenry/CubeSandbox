@@ -316,25 +316,25 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 
 | 资产 | 说明 |
 |------|------|
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview4.tar.gz` | ReDroid + envd + **双通道**；**envd-preview4** 修复 `exec /init` 后 envd 秒退（`Setsid` + `cube-envd.rc`） |
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview3.tar.gz` | 旧版（模板探活可能 `:49983 connection refused`） |
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview4.tar.gz.sha256` | 校验文件 |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview5.tar.gz` | **推荐**：双通道 + 恢复 preview2 同款 shell 入口（模板探活已通过） |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview4.tar.gz` | 使用 `envd-starter`，鲲鹏上模板探活易失败，勿用 |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview3.tar.gz` | 同上（`envd-starter` 回归） |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview5.tar.gz.sha256` | 校验文件 |
 
 Release 页面：https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-envd-preview
 
 > **双通道**：对齐腾讯云 Agent Runtime Mobile 方案——**envd :49983**（Cube SDK / 探活 / `commands.run`）+ **adbd :5555**（`adb connect` 自动化）。模板必须 **同时** `--expose-port 5555` 与 `--expose-port 49983`；从集群外访问还需 `network-agent --host-proxy-bind-ip=0.0.0.0`（见 §2.4.6）。
 
-> **health 探活**：请使用 **`envd-preview2` 或更新** 的包（envd 为 Android/bionic 构建）。旧 `envd-preview` 内为 GOOS=linux envd，探活会 **connection refused**。
+> **health 探活**：请使用 **`envd-preview5`**（或 **preview2**）。**preview3/preview4** 改用 `envd-starter` 作 ENTRYPOINT，鲲鹏上模板 `CREATING_TEMPLATE` 易报 `:49983 connection refused`；preview5 改回 `/system/bin/sh` + `android-redroid-entrypoint.sh`（与首次建模板成功的 preview2 相同机制），并保留双通道 EXPOSE。
 
-包 sha256（**envd-preview4**，修复 `exec /init` 后 envd 丢失导致探活 refused）：
+包（**envd-preview5**）：
 
 ```bash
-# 从 Release 下载 preview4 包后：
-sha256sum -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview4.tar.gz.sha256
-gunzip -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview4.tar.gz | docker load
+sha256sum -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview5.tar.gz.sha256
+gunzip -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview5.tar.gz | docker load
 ```
 
-旧 **envd-preview3** 若遇 `:49983 connection refused`，请升级 preview4 或本地 `./deploy/sandbox-images/sandbox-android-redroid-envd/build.sh` 重建。
+若已加载 **preview3/preview4**，请重新 `docker load` preview5 覆盖同名 tag。
 
 鲲鹏目标机加载后验证架构并建模板：
 
@@ -459,14 +459,17 @@ ReDroid 自带 Android `init` 入口，不能简单 `ENTRYPOINT cube-entrypoint.
 # 或加载离线包 §2.4.1
 ```
 
-`envd-starter`（GOOS=android 小二进制）在 `exec /init` 前拉起 envd；`android-redroid-entrypoint.sh` 保留作调试参考。
+生产入口为 **`/system/bin/sh` + `android-redroid-entrypoint.sh`**：shell 将 envd 放后台（`&`），再 `exec /init`。该方式在鲲鹏上 **模板探活已通过**；preview3/preview4 的 `envd-starter` 反而导致探活失败，已在 preview5 撤销。
 
 ```bash
-# 生产 ENTRYPOINT: /usr/bin/envd-starter
+# Dockerfile ENTRYPOINT（preview5）:
+# ENTRYPOINT ["/system/bin/sh", "/usr/local/bin/android-redroid-entrypoint.sh"]
 # 等价逻辑：
-/usr/bin/envd -port 49983 >>/data/local/tmp/envd.log 2>&1 &
+/usr/bin/envd -port 49983 >>/tmp/envd.log 2>&1 &
 exec /init "$@"    # ReDroid 原入口
 ```
+
+另含 `cube-envd.rc`：若早期 bootstrap 丢失，Android `post-fs-data` 会再次拉起 envd。
 
 构建并验证 envd（在 **鲲鹏 aarch64** 上执行）：
 
@@ -504,7 +507,7 @@ dial tcp 192.168.0.x:49983: connect: connection refused
 |------|-------------|------|
 | 1 | `file /usr/bin/envd`（容器内） | 必须是 **Android** ELF（`interpreter /system/bin/linker64`）。若是 `statically linked` 且 `GOOS=linux`，说明用了错误离线包，需 **重新构建/加载 §2.4.1 envd 包** |
 | 2 | `cat /tmp/envd.log` 或 `cat /data/local/tmp/envd.log` | envd 启动失败原因（权限、端口占用等） |
-| 3 | `ps -A \| grep envd` | 无进程 → entrypoint 未执行或 envd 在 `exec /init` 后秒退（**envd-preview4+** 用 `Setsid`+`init.rc` 修复） |
+| 3 | `ps -A \| grep envd` | 无进程 → 入口脚本未跑或 envd 秒退；**preview3/4（envd-starter）** 易现此问题，请换 **preview5** 或 **preview2** |
 | 4 | `tpl create-from-image` 加 `--cpu 4000 --memory 6144` | 默认 2GiB 时 Android 可能起不来，但 **49983 refused 通常是 envd 二进制不对** |
 | 5 | 模板构建日志 | `ls /data/log/template/<template_id>/` 或 `cubemastercli tpl image-job <job_id>` |
 
