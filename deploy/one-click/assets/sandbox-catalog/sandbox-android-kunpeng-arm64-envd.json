@@ -69,6 +69,7 @@
   },
   "implementation_notes": [
     "Use tpl create-from-image with --probe 49983 --probe-path /health and --expose-port 5555.",
+    "envd must be built with GOOS=android (bionic); cubesandbox-base envd (GOOS=linux) will not run in ReDroid.",
     "Requires android guest kernel (CONFIG_ANDROID_BINDER_IPC) for full ReDroid/adbd functionality.",
     "instance_type=android runtime remains in development; this catalog entry targets cubebox + envd."
   ]

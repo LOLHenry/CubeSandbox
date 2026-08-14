@@ -1,27 +1,55 @@
+# syntax=docker/dockerfile:1.7
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (C) 2026 Tencent. All rights reserved.
 #
 # CubeSandbox Android workload image with envd for cubebox template flow.
-# Wraps sandbox-android-redroid (ReDroid AOSP 16) and injects envd from cubesandbox-base.
+# Wraps sandbox-android-redroid (ReDroid AOSP 16) and injects envd built for
+# Android/bionic (GOOS=android). Do NOT copy envd from cubesandbox-base: that
+# binary targets GOOS=linux and will not execute inside ReDroid.
 #
 # Build (on aarch64 host or buildx):
 #   docker build --platform linux/arm64 \
 #     -t cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid-envd:16.0.0-arm64 .
 
 ARG REDROID_BASE_IMAGE=sandbox-android-redroid:16.0.0-arm64
-# ghcr cubesandbox-base may lack arm64 on some registries; build.sh falls back to sandbox-code.
-ARG ENVD_BASE_IMAGE=ghcr.io/tencentcloud/cubesandbox-base:2026.16
+ARG ENVD_REF=2026.16
+ARG GO_VERSION=1.25.4
+ARG ENVD_UPSTREAM_REPO=https://github.com/e2b-dev/infra.git
 
-FROM ${ENVD_BASE_IMAGE} AS envd-source
+FROM golang:${GO_VERSION}-bookworm AS envd-builder
+
+ARG ENVD_REF
+ARG ENVD_UPSTREAM_REPO
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+
+RUN git clone --depth 1 --branch "${ENVD_REF}" "${ENVD_UPSTREAM_REPO}" infra
+
+WORKDIR /src/infra/packages/envd
+
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    commit_sha="$(git -C /src/infra rev-parse --short HEAD)" \
+    && echo "Building envd for android/arm64 from ${ENVD_UPSTREAM_REPO}@${ENVD_REF} (commit=${commit_sha})" \
+    && CGO_ENABLED=0 GOOS=android GOARCH=arm64 \
+       go build -a \
+           -ldflags "-X=main.commitSHA=${commit_sha} -s -w" \
+           -o /out/envd \
+           . \
+    && chmod +x /out/envd
 
 FROM ${REDROID_BASE_IMAGE}
 
-COPY --from=envd-source --chmod=755 /usr/bin/envd /usr/bin/envd
+COPY --from=envd-builder --chmod=755 /out/envd /usr/bin/envd
 
 COPY --chmod=755 android-redroid-entrypoint.sh /usr/local/bin/android-redroid-entrypoint.sh
 
 LABEL org.opencontainers.image.title="CubeSandbox Android Sandbox (ReDroid AOSP 16 + envd)"
-LABEL org.opencontainers.image.description="ReDroid Android 16 with envd for cubebox templates on Kunpeng ARM64"
+LABEL org.opencontainers.image.description="ReDroid Android 16 with android/bionic envd for cubebox templates on Kunpeng ARM64"
 LABEL org.opencontainers.image.vendor="Tencent Cloud CubeSandbox"
 LABEL org.cubesandbox.sandbox.id="sandbox-android-kunpeng-arm64-envd"
 LABEL org.cubesandbox.sandbox.category="android"
@@ -32,7 +60,9 @@ LABEL org.cubesandbox.instance_type="cubebox"
 LABEL org.cubesandbox.runtime_model="cubevm-redroid"
 LABEL org.cubesandbox.envd.enabled="true"
 LABEL org.cubesandbox.envd.port="49983"
+LABEL org.cubesandbox.envd.goos="android"
 
 ENV ENVD_PORT=49983
+ENV ENVD_REF=${ENVD_REF}
 
 ENTRYPOINT ["/usr/local/bin/android-redroid-entrypoint.sh"]

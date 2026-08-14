@@ -316,22 +316,22 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 
 | 资产 | 说明 |
 |------|------|
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview.tar.gz` | ReDroid + envd（含 CN / INT / local 三个 tag） |
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview.tar.gz.sha256` | 校验文件 |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz` | ReDroid + **GOOS=android** envd（修复 :49983 探活） |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz.sha256` | 校验文件 |
 
 Release 页面：https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-envd-preview
 
-包 sha256（2026-08-14 构建）：
-
-```text
-2dfe00579d39e89e1b59889abe0b14bed2f76f08c04be6da48d1c13164e50fdb
-```
+> **health 探活**：请使用 **`envd-preview2`** 包（envd 为 Android/bionic 构建）。旧 `envd-preview`（sha256 `2dfe0057…`）内为 GOOS=linux envd，探活会 **connection refused**。加载后先跑：
+>
+> ```bash
+> ./deploy/sandbox-images/sandbox-android-redroid-envd/verify-envd-health.sh
+> ```
 
 鲲鹏目标机加载：
 
 ```bash
-sha256sum -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview.tar.gz.sha256
-gunzip -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview.tar.gz | docker load
+sha256sum -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz.sha256
+gunzip -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz | docker load
 
 docker image inspect sandbox-android-redroid-envd:16.0.0-arm64 --format '{{.Architecture}}'
 # 期望：arm64
@@ -341,7 +341,9 @@ cubemastercli tpl create-from-image \
   --writable-layer-size 10Gi \
   --expose-port 5555 \
   --probe 49983 \
-  --probe-path /health
+  --probe-path /health \
+  --cpu 4000 \
+  --memory 6144
 ```
 
 镜像 Dockerfile：`deploy/sandbox-images/sandbox-android-redroid-envd/`。构建脚本：`deploy/one-click/scripts/one-click/build-android-sandbox-envd-offline-bundle.sh`。
@@ -437,42 +439,81 @@ cubemastercli tpl create-from-image \
 
 #### 2.4.4 往 ReDroid 镜像注入 envd（当前 cubebox 路径必做）
 
-官方做法见 [bring-your-own-image.md](docs/zh/guide/tutorials/bring-your-own-image.md) §3：从 `ghcr.io/tencentcloud/cubesandbox-base:2026.16`（支持 arm64）拷贝 `envd` 与 `cube-entrypoint.sh`，在容器启动时后台拉起 envd。
+官方做法见 [bring-your-own-image.md](docs/zh/guide/tutorials/bring-your-own-image.md) §3：在 **Linux 容器**（Ubuntu 等）里从 `cubesandbox-base` 拷贝 `envd` 即可。
 
-ReDroid 自带 Android `init` 入口，不能简单 `ENTRYPOINT cube-entrypoint.sh` 覆盖。过渡做法是自定义入口脚本：**先后台启动 envd，再 exec ReDroid 原入口**。示例 Dockerfile 骨架：
+**ReDroid 例外**：ReDroid 用户态是 **Android / bionic**，`cubesandbox-base` 里的 `envd` 是 **`GOOS=linux`** 静态二进制，**无法在 ReDroid 内执行**。必须从 `e2b-dev/infra` 用 **`GOOS=android GOARCH=arm64`** 交叉编译 envd（本仓库 `sandbox-android-redroid-envd/Dockerfile` 已内置该步骤）。
 
-```dockerfile
-FROM redroid/redroid:16.0.0_64only-latest
+ReDroid 自带 Android `init` 入口，不能简单 `ENTRYPOINT cube-entrypoint.sh` 覆盖。过渡做法是自定义入口脚本：**先后台启动 envd，再 exec ReDroid 原入口**。
 
-COPY --from=ghcr.io/tencentcloud/cubesandbox-base:2026.16 \
-     /usr/bin/envd /usr/bin/envd
-
-# 记录上游 entrypoint（ReDroid 镜像元数据），由自定义脚本接管
-COPY android-redroid-entrypoint.sh /usr/local/bin/android-redroid-entrypoint.sh
-RUN chmod +x /usr/bin/envd /usr/local/bin/android-redroid-entrypoint.sh
-
-ENTRYPOINT ["/usr/local/bin/android-redroid-entrypoint.sh"]
+```bash
+# 推荐：直接用本仓库镜像（已编译 android/bionic envd）
+./deploy/sandbox-images/sandbox-android-redroid-envd/build.sh
+# 或加载离线包 §2.4.1
 ```
 
 `android-redroid-entrypoint.sh` 核心逻辑：
 
 ```bash
-#!/bin/sh
+#!/system/bin/sh
 set -eu
-/usr/bin/envd -port 49983 >>/var/log/envd.log 2>&1 &
-exec /init "$@"    # ReDroid 原入口，按实际镜像调整
+/usr/bin/envd -port 49983 >>/data/local/tmp/envd.log 2>&1 &
+exec /init "$@"    # ReDroid 原入口
 ```
 
-构建并验证 envd：
+构建并验证 envd（在 **鲲鹏 aarch64** 上执行）：
 
 ```bash
-docker build --platform linux/arm64 -t sandbox-android-redroid-envd:16.0.0-arm64 .
-docker run -d --name redroid-test sandbox-android-redroid-envd:16.0.0-arm64
-docker exec redroid-test curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:49983/health
-# 期望：204
+docker build --platform linux/arm64 -t sandbox-android-redroid-envd:16.0.0-arm64 \
+  deploy/sandbox-images/sandbox-android-redroid-envd
+
+docker run -d --privileged --name redroid-test sandbox-android-redroid-envd:16.0.0-arm64
+
+# 1) 确认是 Android 链接的 envd（应看到 interpreter /system/bin/linker64）
+docker exec redroid-test file /usr/bin/envd
+
+# 2) 确认进程在跑
+docker exec redroid-test ps -A | grep envd
+
+# 3) HTTP 探针（ReDroid 通常无 curl，用 toybox wget）
+docker exec redroid-test toybox wget -q -O /dev/null http://127.0.0.1:49983/health && echo "envd OK"
+# 期望：envd OK（对应 HTTP 204）
 ```
 
 本地验证通过后再执行 §2.4.3 的 `tpl create-from-image`。
+
+#### 2.4.5 模板探活失败：`:49983 connection refused`
+
+若 `tpl create-from-image` / `tpl image-job` 报错类似：
+
+```text
+template tpl-xxx creation failed: Get "http://192.168.0.x:49983/health":
+dial tcp 192.168.0.x:49983: connect: connection refused
+```
+
+表示模板构建沙箱内 **49983 无进程监听**。按下面顺序排查：
+
+| 步骤 | 命令 / 检查 | 说明 |
+|------|-------------|------|
+| 1 | `file /usr/bin/envd`（容器内） | 必须是 **Android** ELF（`interpreter /system/bin/linker64`）。若是 `statically linked` 且 `GOOS=linux`，说明用了错误离线包，需 **重新构建/加载 §2.4.1 envd 包** |
+| 2 | `cat /data/local/tmp/envd.log` | envd 启动失败原因（权限、端口占用等） |
+| 3 | `ps -A \| grep envd` | 无进程 → entrypoint 未执行或 envd 秒退 |
+| 4 | `tpl create-from-image` 加 `--cpu 4000 --memory 6144` | 默认 2GiB 时 Android 可能起不来，但 **49983 refused 通常是 envd 二进制不对** |
+| 5 | 模板构建日志 | `ls /data/log/template/<template_id>/` 或 `cubemastercli tpl image-job <job_id>` |
+
+**修复后重新建模板**（务必带资源与探针）：
+
+```bash
+cubemastercli tpl create-from-image \
+  --image sandbox-android-redroid-envd:16.0.0-arm64 \
+  --writable-layer-size 10Gi \
+  --expose-port 5555 \
+  --probe 49983 \
+  --probe-path /health \
+  --cpu 4000 \
+  --memory 6144
+```
+
+旧模板 `tpl-a433b11ce5c748fc8184fc6a` 可删除后重建：`cubemastercli tpl delete tpl-a433b11ce5c748fc8184fc6a`（若 CLI 支持）或控制台清理 FAILED 模板。
 
 ---
 

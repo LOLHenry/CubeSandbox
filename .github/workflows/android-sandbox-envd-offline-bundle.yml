@@ -4,22 +4,30 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Release tag suffix for bundle filename (e.g. envd-preview)'
+        description: 'Release tag suffix for bundle filename (e.g. envd-preview2)'
         required: true
-        default: 'envd-preview'
+        default: 'envd-preview2'
       android_image_tag:
         description: 'Android image tag (default 16.0.0-arm64)'
         required: false
         default: '16.0.0-arm64'
       upload_to_release:
-        description: 'Upload bundle to an existing GitHub Release with the same tag'
+        description: 'Upload bundle to GitHub Release'
         required: false
         default: true
         type: boolean
       release_name:
-        description: 'GitHub Release tag to upload to (defaults to android-kunpeng-arm64-<release_tag>)'
+        description: 'GitHub Release tag (default android-kunpeng-arm64-envd-preview)'
         required: false
         default: 'android-kunpeng-arm64-envd-preview'
+      run_health_smoke:
+        description: 'Run privileged envd /health smoke test after image build'
+        required: false
+        default: true
+        type: boolean
+  push:
+    tags:
+      - 'android-kunpeng-envd-*'
 
 permissions:
   contents: write
@@ -31,6 +39,32 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Resolve build parameters
+        id: params
+        run: |
+          set -euo pipefail
+          android_image_tag="${{ inputs.android_image_tag }}"
+          if [[ -z "${android_image_tag}" ]]; then
+            android_image_tag="16.0.0-arm64"
+          fi
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            ref="${GITHUB_REF_NAME}"
+            release_tag="${ref#android-kunpeng-envd-}"
+            upload="true"
+            release_name="android-kunpeng-arm64-envd-preview"
+            health_smoke="true"
+          else
+            release_tag="${{ inputs.release_tag }}"
+            upload="${{ inputs.upload_to_release }}"
+            release_name="${{ inputs.release_name }}"
+            health_smoke="${{ inputs.run_health_smoke }}"
+          fi
+          echo "release_tag=${release_tag}" >> "${GITHUB_OUTPUT}"
+          echo "android_image_tag=${android_image_tag}" >> "${GITHUB_OUTPUT}"
+          echo "upload_to_release=${upload}" >> "${GITHUB_OUTPUT}"
+          echo "release_name=${release_name}" >> "${GITHUB_OUTPUT}"
+          echo "run_health_smoke=${health_smoke}" >> "${GITHUB_OUTPUT}"
 
       - name: Free disk space
         uses: jlumbroso/free-disk-space@main
@@ -45,38 +79,70 @@ jobs:
 
       - name: Build and export Android envd offline bundle
         env:
-          RELEASE_TAG: ${{ inputs.release_tag }}
-          ANDROID_IMAGE_TAG: ${{ inputs.android_image_tag }}
+          RELEASE_TAG: ${{ steps.params.outputs.release_tag }}
+          ANDROID_IMAGE_TAG: ${{ steps.params.outputs.android_image_tag }}
           BUILD_IMAGE: "1"
         run: ./deploy/one-click/scripts/one-click/build-android-sandbox-envd-offline-bundle.sh
+
+      - name: Smoke test envd /health
+        if: steps.params.outputs.run_health_smoke == 'true'
+        env:
+          IMAGE: sandbox-android-redroid-envd:${{ steps.params.outputs.android_image_tag }}
+          TIMEOUT: "120"
+        run: ./deploy/sandbox-images/sandbox-android-redroid-envd/verify-envd-health.sh
 
       - name: Upload Android envd offline bundle artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-envd-offline-bundle-${{ inputs.release_tag }}-arm64
+          name: android-envd-offline-bundle-${{ steps.params.outputs.release_tag }}-arm64
           path: |
-            deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-envd-docker-${{ inputs.release_tag }}.tar.gz
-            deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-envd-docker-${{ inputs.release_tag }}.tar.gz.sha256
+            deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-envd-docker-${{ steps.params.outputs.release_tag }}.tar.gz
+            deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-envd-docker-${{ steps.params.outputs.release_tag }}.tar.gz.sha256
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
       - name: Upload Android envd offline bundle to Release
-        if: inputs.upload_to_release
+        if: steps.params.outputs.upload_to_release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-          GH_RELEASE_TAG: ${{ inputs.release_name }}
+          RELEASE_TAG: ${{ steps.params.outputs.release_tag }}
+          GH_RELEASE_TAG: ${{ steps.params.outputs.release_name }}
         run: |
           set -euo pipefail
           bundle_path="deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-envd-docker-${RELEASE_TAG}.tar.gz"
           sha_path="${bundle_path}.sha256"
+          sha256="$(awk '{print $1}' "${sha_path}")"
+          bundle_name="$(basename "${bundle_path}")"
           test -f "${bundle_path}"
           test -f "${sha_path}"
+          notes_file="$(mktemp)"
+          cat > "${notes_file}" <<EOF
+          ## Android Kunpeng ARM64 — ReDroid + envd (${RELEASE_TAG})
+
+          - **envd**: compiled with \`GOOS=android GOARCH=arm64\` (bionic / linker64)
+          - **Fixes**: cubebox template probe \`:49983/health\` connection refused (old linux envd)
+          - **SHA256**: \`${sha256}\`
+          - **Load**: \`gunzip -c ${bundle_name} | docker load\`
+          - **Verify**: \`./deploy/sandbox-images/sandbox-android-redroid-envd/verify-envd-health.sh\`
+          - **Template**:
+            \`\`\`bash
+            cubemastercli tpl create-from-image \\
+              --image sandbox-android-redroid-envd:16.0.0-arm64 \\
+              --writable-layer-size 10Gi \\
+              --expose-port 5555 \\
+              --probe 49983 --probe-path /health \\
+              --cpu 4000 --memory 6144
+            \`\`\`
+          EOF
           if ! gh release view "${GH_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             gh release create "${GH_RELEASE_TAG}" \
               --repo "${GITHUB_REPOSITORY}" \
               --title "Android Kunpeng ARM64 envd preview" \
-              --notes "ReDroid AOSP 16 + envd offline bundle for Kunpeng ARM64 (cubebox template path)."
+              --notes-file "${notes_file}"
+          else
+            gh release edit "${GH_RELEASE_TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --notes-file "${notes_file}"
           fi
           gh release upload "${GH_RELEASE_TAG}" "${bundle_path}" "${sha_path}" \
             --repo "${GITHUB_REPOSITORY}" \
