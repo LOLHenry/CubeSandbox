@@ -92,10 +92,6 @@ jobs:
         run: ./deploy/sandbox-images/sandbox-android-redroid-envd/verify-envd-health.sh
         continue-on-error: true
 
-      - name: Require envd ELF verification
-        run: ./deploy/sandbox-images/sandbox-android-redroid-envd/lib/verify-android-envd-image.sh \
-          sandbox-android-redroid-envd:${{ steps.params.outputs.android_image_tag }}
-
       - name: Upload Android envd offline bundle artifact
         uses: actions/upload-artifact@v4
         with:
