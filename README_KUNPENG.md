@@ -357,10 +357,10 @@ docker tag \
   cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64 \
   sandbox-android-redroid:16.0.0-arm64
 
-cubemastercli cubebox template create-from-image \
+cubemastercli tpl create-from-image \
   --image sandbox-android-redroid:16.0.0-arm64 \
   --writable-layer-size 10Gi \
-  --expose-ports 5555
+  --expose-port 5555
 ```
 
 黄区若已设 `CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false`（§2.0），模板创建同样应使用**本地短名** `sandbox-android-redroid:16.0.0-arm64`，不要写远程仓库全名。
