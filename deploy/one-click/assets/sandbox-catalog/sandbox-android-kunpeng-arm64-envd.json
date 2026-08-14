@@ -1,0 +1,75 @@
+{
+  "id": "sandbox-android-kunpeng-arm64-envd",
+  "display_name": "Android Sandbox (Kunpeng ARM64 · ReDroid + envd)",
+  "display_name_zh": "Android 沙箱（鲲鹏 ARM64 · ReDroid + envd）",
+  "description": "ReDroid Android 16 with envd for current cubebox template flow (probe :49983, ADB :5555).",
+  "description_zh": "内置 envd 的 ReDroid Android 16 镜像，适用于当前 cubebox 模板流程（探针 :49983，ADB :5555）。",
+  "category": "android",
+  "official": true,
+  "release_status": "preview",
+  "instance_type": "cubebox",
+  "runtime_model": "cubevm-redroid",
+  "platform": {
+    "arch": "arm64",
+    "host_profile": "kunpeng920",
+    "kvm_required": true,
+    "pvm_supported": false
+  },
+  "workload": {
+    "engine": "redroid",
+    "android_version": "16",
+    "android_api_level": 36,
+    "upstream_image": "redroid/redroid:16.0.0_64only-latest",
+    "envd": {
+      "enabled": true,
+      "port": 49983,
+      "health_path": "/health"
+    },
+    "published_images": {
+      "cn": "cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid-envd:16.0.0-arm64",
+      "intl": "cube-sandbox-int.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid-envd:16.0.0-arm64",
+      "local_tag": "sandbox-android-redroid-envd:16.0.0-arm64"
+    }
+  },
+  "guest_kernel": {
+    "flavor": "android-guest",
+    "localversion_suffix": "cube.bm.guest",
+    "config_ref": "configs/kernel-oc9.aarch64.config",
+    "binder_required": true
+  },
+  "template_defaults": {
+    "writable_layer_size": "10Gi",
+    "expose_ports": [5555, 49983],
+    "probe_port": 49983,
+    "probe_path": "/health",
+    "resources": {
+      "cpu": "4",
+      "mem": "6Gi"
+    },
+    "security_context": {
+      "privileged": true,
+      "readonly_rootfs": false
+    },
+    "redroid_boot_args": [
+      "androidboot.redroid_width=1080",
+      "androidboot.redroid_height=1920",
+      "androidboot.redroid_dpi=480",
+      "androidboot.redroid_gpu_mode=guest"
+    ]
+  },
+  "offline_bundle": {
+    "artifact_name_template": "cube-sandbox-android-kunpeng-arm64-envd-docker-{release_version}.tar.gz",
+    "sha256_artifact_name_template": "cube-sandbox-android-kunpeng-arm64-envd-docker-{release_version}.tar.gz.sha256",
+    "build_script": "deploy/one-click/scripts/one-click/build-android-sandbox-envd-offline-bundle.sh",
+    "images": [
+      "cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid-envd:16.0.0-arm64",
+      "cube-sandbox-int.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid-envd:16.0.0-arm64",
+      "sandbox-android-redroid-envd:16.0.0-arm64"
+    ]
+  },
+  "implementation_notes": [
+    "Use tpl create-from-image with --probe 49983 --probe-path /health and --expose-port 5555.",
+    "Requires android guest kernel (CONFIG_ANDROID_BINDER_IPC) for full ReDroid/adbd functionality.",
+    "instance_type=android runtime remains in development; this catalog entry targets cubebox + envd."
+  ]
+}

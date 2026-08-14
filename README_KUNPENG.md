@@ -312,6 +312,36 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 
 加载方式同上，把文件名中的 `preview` 换成对应版本号即可。
 
+**envd 版离线包（推荐用于当前 cubebox 模板路径）**
+
+| 资产 | 说明 |
+|------|------|
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview.tar.gz` | ReDroid + envd（含 CN / INT / local 三个 tag） |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview.tar.gz.sha256` | 校验文件 |
+
+Release 页面：https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-envd-preview
+
+鲲鹏目标机加载：
+
+```bash
+sha256sum -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview.tar.gz.sha256
+gunzip -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview.tar.gz | docker load
+
+docker image inspect sandbox-android-redroid-envd:16.0.0-arm64 --format '{{.Architecture}}'
+# 期望：arm64
+
+cubemastercli tpl create-from-image \
+  --image sandbox-android-redroid-envd:16.0.0-arm64 \
+  --writable-layer-size 10Gi \
+  --expose-port 5555 \
+  --probe 49983 \
+  --probe-path /health
+```
+
+镜像 Dockerfile：`deploy/sandbox-images/sandbox-android-redroid-envd/`。构建脚本：`deploy/one-click/scripts/one-click/build-android-sandbox-envd-offline-bundle.sh`。
+
+GitHub Actions 手动构建：仓库 → Actions → **Android Sandbox Envd Offline Bundle**（`upload_to_release` 默认上传到 `android-kunpeng-arm64-envd-preview`）。
+
 #### 2.4.2 自行构建离线包
 
 在 **aarch64** 构建机（或已启用 `qemu-aarch64` 的 x86_64 + Docker）上：
@@ -340,18 +370,27 @@ ls -lh deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-docker-*.tar.gz*
 RELEASE_TAG=preview ./deploy/one-click/scripts/one-click/build-android-sandbox-offline-bundle.sh
 ```
 
+**envd 版离线包**（先构建 `sandbox-android-redroid-envd` 镜像再导出）：
+
+```bash
+RELEASE_TAG=envd-preview BUILD_IMAGE=1 \
+  ./deploy/one-click/scripts/one-click/build-android-sandbox-envd-offline-bundle.sh
+
+ls -lh deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-envd-docker-*.tar.gz*
+```
+
 **GitHub Actions 远程构建**（仓库 → Actions → **Android Sandbox Offline Bundle**）：
 
 - `release_tag`：输出文件名后缀（如 `preview`）
 - `android_image_tag`：默认 `16.0.0-arm64`
 - `upload_to_release`：勾选后上传到同名 GitHub Release
 
-打正式 `v*` tag 时，`release-one-click.yml` 也会在 `ubuntu-24.04-arm` 上自动构建并上传 Android 离线包。
+打正式 `v*` tag 时，`release-one-click.yml` 也会在 `ubuntu-24.04-arm` 上自动构建并上传 Android 离线包（含 **envd 版** `cube-sandbox-android-kunpeng-arm64-envd-docker-<tag>.tar.gz`）。
 
 #### 2.4.3 制作模板
 
 > **与官方文档的关系**：按 [自带镜像接入 (envd)](docs/zh/guide/tutorials/bring-your-own-image.md)，**当前 `cubebox` 模板流水线要求镜像内运行 `envd`（`:49983/health`）**，否则模板探活失败、SDK 的 `commands.run` / `files.*` 也无法工作。  
-> 预览 Release 里的 `sandbox-android-redroid` **仅封装 ReDroid，尚未内置 envd**。若你现在就用 `tpl create-from-image`（默认 `instance_type=cubebox`），需要先做 §2.4.4 的 envd 注入镜像。  
+> 推荐使用 §2.4.1 的 **envd 离线包**（`sandbox-android-redroid-envd:16.0.0-arm64`）。纯 ReDroid 包（无 envd）仅适合预览 Android 运行时本身；若要用 `tpl create-from-image`，请用 envd 包或 §2.4.4 自行注入。  
 > 目标态 `instance_type=android` 将改用 **ADB / `boot_completed` 探针**（catalog `probe_port: 5555`），届时不再强依赖 envd——该运行时仍在开发中。
 
 在 **envd 已注入** 且平台已启用 Android guest Binder 的前提下：
@@ -1421,4 +1460,5 @@ grep -a -E 'start vm|vm ready|agent is ready|Create sandbox|timeout' \
 | one-click arm64 包 | GitHub / CNB Releases 中的 `cube-sandbox-one-click-*-arm64.tar.gz` |
 | 离线 Docker arm64 包 | https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-docker-arm64-v0.6.0 |
 | Android 沙箱离线包（ReDroid AOSP 16 / preview） | https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-preview |
+| Android 沙箱离线包（ReDroid + envd / preview） | https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-envd-preview |
 | e2b 离线 Python wheels（aarch64 / cp312） | https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64 |

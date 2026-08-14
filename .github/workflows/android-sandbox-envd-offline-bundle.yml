@@ -1,0 +1,83 @@
+name: Android Sandbox Envd Offline Bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag suffix for bundle filename (e.g. envd-preview)'
+        required: true
+        default: 'envd-preview'
+      android_image_tag:
+        description: 'Android image tag (default 16.0.0-arm64)'
+        required: false
+        default: '16.0.0-arm64'
+      upload_to_release:
+        description: 'Upload bundle to an existing GitHub Release with the same tag'
+        required: false
+        default: true
+        type: boolean
+      release_name:
+        description: 'GitHub Release tag to upload to (defaults to android-kunpeng-arm64-<release_tag>)'
+        required: false
+        default: 'android-kunpeng-arm64-envd-preview'
+
+permissions:
+  contents: write
+
+jobs:
+  build_android_envd_offline_bundle:
+    name: Build Android envd offline bundle (arm64)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Build and export Android envd offline bundle
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          ANDROID_IMAGE_TAG: ${{ inputs.android_image_tag }}
+          BUILD_IMAGE: "1"
+        run: ./deploy/one-click/scripts/one-click/build-android-sandbox-envd-offline-bundle.sh
+
+      - name: Upload Android envd offline bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-envd-offline-bundle-${{ inputs.release_tag }}-arm64
+          path: |
+            deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-envd-docker-${{ inputs.release_tag }}.tar.gz
+            deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-envd-docker-${{ inputs.release_tag }}.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Android envd offline bundle to Release
+        if: inputs.upload_to_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          GH_RELEASE_TAG: ${{ inputs.release_name }}
+        run: |
+          set -euo pipefail
+          bundle_path="deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-envd-docker-${RELEASE_TAG}.tar.gz"
+          sha_path="${bundle_path}.sha256"
+          test -f "${bundle_path}"
+          test -f "${sha_path}"
+          if ! gh release view "${GH_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release create "${GH_RELEASE_TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "Android Kunpeng ARM64 envd preview" \
+              --notes "ReDroid AOSP 16 + envd offline bundle for Kunpeng ARM64 (cubebox template path)."
+          fi
+          gh release upload "${GH_RELEASE_TAG}" "${bundle_path}" "${sha_path}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber
