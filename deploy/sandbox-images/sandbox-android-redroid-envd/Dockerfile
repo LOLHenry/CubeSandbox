@@ -44,6 +44,9 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM ${REDROID_BASE_IMAGE}
 
+# ReDroid only provides /system/bin/sh; entrypoint shebang and direct exec need /bin/sh.
+COPY --from=${REDROID_BASE_IMAGE} /system/bin/sh /bin/sh
+
 COPY --from=envd-builder --chmod=755 /out/envd /usr/bin/envd
 
 COPY --chmod=755 android-redroid-entrypoint.sh /usr/local/bin/android-redroid-entrypoint.sh
@@ -76,4 +79,4 @@ EXPOSE 49983 5555
 # Default ReDroid boot props; override at `docker run` / template create time.
 CMD ["androidboot.redroid_width=1080", "androidboot.redroid_height=1920", "androidboot.redroid_dpi=480", "androidboot.redroid_gpu_mode=guest"]
 
-ENTRYPOINT ["/system/bin/sh", "/usr/local/bin/android-redroid-entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/android-redroid-entrypoint.sh"]

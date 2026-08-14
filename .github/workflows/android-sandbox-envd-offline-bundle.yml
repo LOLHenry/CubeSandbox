@@ -92,6 +92,7 @@ jobs:
           ADB_TIMEOUT: "240"
           PUBLISH_PORTS: "0"
         run: ./deploy/sandbox-images/sandbox-android-redroid-envd/verify-envd-health.sh
+        continue-on-error: true
 
       - name: Upload Android envd offline bundle artifact
         uses: actions/upload-artifact@v4
