@@ -325,10 +325,10 @@ Release 页面：https://github.com/LOLHenry/CubeSandbox/releases/tag/android-ku
 
 > **health 探活**：请使用 **`envd-preview2` 或更新** 的包（envd 为 Android/bionic 构建）。旧 `envd-preview` 内为 GOOS=linux envd，探活会 **connection refused**。
 
-包 sha256（**envd-preview3**，CI 构建后更新）：
+包 sha256（**envd-preview3**，2026-08-14 CI 构建）：
 
 ```text
-# 见 Release 资产旁的 .sha256 文件
+0f00434926dc93da36630d6c4a0638fdc6bac1b9887406f0bb90d81788d8a283
 ```
 
 鲲鹏目标机加载：
@@ -457,11 +457,11 @@ ReDroid 自带 Android `init` 入口，不能简单 `ENTRYPOINT cube-entrypoint.
 # 或加载离线包 §2.4.1
 ```
 
-`android-redroid-entrypoint.sh` 核心逻辑：
+`envd-starter`（GOOS=android 小二进制）在 `exec /init` 前拉起 envd；`android-redroid-entrypoint.sh` 保留作调试参考。
 
 ```bash
-#!/system/bin/sh
-set -eu
+# 生产 ENTRYPOINT: /usr/bin/envd-starter
+# 等价逻辑：
 /usr/bin/envd -port 49983 >>/data/local/tmp/envd.log 2>&1 &
 exec /init "$@"    # ReDroid 原入口
 ```
