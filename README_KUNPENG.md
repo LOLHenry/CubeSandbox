@@ -121,6 +121,8 @@ docker image inspect \
 
 `load-images.sh` 会把 int 的 arm64 镜像同时 tag 成 cn 名，便于 `MIRROR=cn` 离线使用。
 
+> **Android 沙箱（ReDroid）** 的 workload 镜像**不在**上述 one-click 组件包里，需单独下载 §2.4 的 Android 离线包。
+
 ### 1.4 运行安装
 
 回到 one-click 目录：
@@ -263,27 +265,92 @@ one-click arm64 发布包附带 catalog：`assets/sandbox-catalog/sandbox-androi
 
 ```text
 cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64
+cube-sandbox-int.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64
+sandbox-android-redroid:16.0.0-arm64
 ```
 
-上游 workload：`redroid/redroid:16.0.0_64only-latest`（AOSP 16）。构建封装镜像见 `deploy/sandbox-images/sandbox-android-redroid/`。
+上游 workload：`redroid/redroid:16.0.0_64only-latest`（AOSP 16）。封装 Dockerfile 见 `deploy/sandbox-images/sandbox-android-redroid/`。
 
-黄区离线导出（在 **arm64** 构建机执行，或 Release 资产直接下载）：
+> **状态说明**：catalog 与离线包已就绪；`instance_type=android` 运行时（Android guest Binder 内核、`androidcbri`、模板 `boot_completed` 探针）仍在开发中，当前为**预览**。
+
+#### 2.4.1 黄区离线包（推荐：直接下载 Release）
+
+**预览 Release（已构建、可下载）：**
+
+https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-preview
+
+| 资产 | 说明 |
+|------|------|
+| `cube-sandbox-android-kunpeng-arm64-docker-preview.tar.gz` | 离线 Docker 镜像包（含 CN / INT / local 三个 tag） |
+| `cube-sandbox-android-kunpeng-arm64-docker-preview.tar.gz.sha256` | 校验文件 |
+
+包 sha256（2026-08-14 构建）：
+
+```text
+2780df92a4bda72952c1453663fa7e41ed1a66243df11bb8e43b9b782fe86886
+```
+
+鲲鹏目标机加载：
 
 ```bash
-# 本地构建（含镜像 build）
-RELEASE_TAG=v0.6.0 BUILD_IMAGE=1 \
-  ./deploy/one-click/scripts/one-click/build-android-sandbox-offline-bundle.sh
+# 下载 preview 包与 .sha256 后
+sha256sum -c cube-sandbox-android-kunpeng-arm64-docker-preview.tar.gz.sha256
+gunzip -c cube-sandbox-android-kunpeng-arm64-docker-preview.tar.gz | docker load
 
-# Release 资产名（与 one-click 同 tag）：
-#   cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz
-#   cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
-
-# 目标机加载
-sha256sum -c cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
-gunzip -c cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz | docker load
+# 必须看到 arm64（不是 amd64）
+docker image inspect \
+  cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64 \
+  --format '{{.Architecture}}'
 ```
 
-制作模板（需平台已启用 `instance_type=android` 与 Android guest Binder 内核，当前为**预览**）：
+**正式版 Release**（打 `v*` tag 后由 CI 自动上传，资产名与 tag 对齐）：
+
+```text
+cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz
+cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
+```
+
+加载方式同上，把文件名中的 `preview` 换成对应版本号即可。
+
+#### 2.4.2 自行构建离线包
+
+在 **aarch64** 构建机（或已启用 `qemu-aarch64` 的 x86_64 + Docker）上：
+
+```bash
+# 一键：构建镜像 + 导出 tar.gz + 写 sha256
+RELEASE_TAG=preview BUILD_IMAGE=1 \
+  ./deploy/one-click/scripts/one-click/build-android-sandbox-offline-bundle.sh
+
+# 产物默认在 deploy/one-click/dist/
+ls -lh deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-docker-*.tar.gz*
+```
+
+环境变量：
+
+| 变量 | 作用 |
+|------|------|
+| `RELEASE_TAG` | 输出文件名后缀（如 `preview`、`v0.6.0`） |
+| `BUILD_IMAGE=1` | 先执行 `deploy/sandbox-images/sandbox-android-redroid/build.sh` |
+| `ANDROID_IMAGE_TAG` | 镜像 tag，默认 `16.0.0-arm64` |
+| `OUT_DIR` | 输出目录，默认 `deploy/one-click/dist` |
+
+仅导出已有本地镜像（不重新 build）：
+
+```bash
+RELEASE_TAG=preview ./deploy/one-click/scripts/one-click/build-android-sandbox-offline-bundle.sh
+```
+
+**GitHub Actions 远程构建**（仓库 → Actions → **Android Sandbox Offline Bundle**）：
+
+- `release_tag`：输出文件名后缀（如 `preview`）
+- `android_image_tag`：默认 `16.0.0-arm64`
+- `upload_to_release`：勾选后上传到同名 GitHub Release
+
+打正式 `v*` tag 时，`release-one-click.yml` 也会在 `ubuntu-24.04-arm` 上自动构建并上传 Android 离线包。
+
+#### 2.4.3 制作模板
+
+需平台已启用 `instance_type=android` 与 Android guest Binder 内核（当前为**预览**）。离线 load 后本地已有 CN tag，可直接打短名：
 
 ```bash
 docker tag \
@@ -295,6 +362,10 @@ cubemastercli cubebox template create-from-image \
   --writable-layer-size 10Gi \
   --expose-ports 5555
 ```
+
+黄区若已设 `CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false`（§2.0），模板创建同样应使用**本地短名** `sandbox-android-redroid:16.0.0-arm64`，不要写远程仓库全名。
+
+默认 ReDroid 启动参数（catalog 中 `redroid_boot_args`）：1080×1920、DPI 480、`guest` GPU 模式；ADB 端口 **5555**。
 
 ---
 
@@ -1181,6 +1252,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" "http://<鲲鹏IP>:12088/"
 | `failed to resolve image` / `tencentcloudcr.com:443: i/o timeout` | 远程仓库不可达；离线请走 §2.0～2.3 |
 | `native export failed to resolve ... index.docker.io ... i/o timeout` | **不是平台不匹配**。默认 native 导出把短名当成 Docker Hub。设 `CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` 并重启 cubemaster（§2.0） |
 | `requested image's platform (linux/amd64) does not match` | 才是平台问题；删掉 amd64 镜像，重新 load arm64 离线包 |
+| Android 模板 `sandbox-android-redroid` 平台不对 | 用 §2.4.1 的 Android 离线包 `docker load`，确认 `Architecture=arm64`；勿混用 §1.3 的 one-click 组件包 |
 | `mirrors.tools.huawei.com/pypi/simple` 找不到 `e2b-code-interpreter` | 该内网镜像未同步此包；按 §3.6.1-A0 下载 [预打包 Release](https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64)，或在联网机 `pip download` 后在鲲鹏 `pip install --no-index --find-links=...` |
 | `getaddrinfo failed` / `49999-*.cube.app` 解析失败 | 客户端不在集群 DNS 域内；**在鲲鹏本机跑 SDK / OpenClaw**（§3.6），不要从 Windows 远程当执行端 |
 | `install.sh` 长时间无输出 | 多半在等 systemd；另开终端看 `systemctl list-jobs`。若已 `install complete`，不要反复全量安装，直接做模板 |
@@ -1279,6 +1351,8 @@ grep -a -E 'start vm|vm ready|agent is ready|Create sandbox|timeout' \
 - [ ] **`CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` + 重启 cubemaster**（§2.0；两边 env 都写）  
 - [ ] `docker tag ... sandbox-code:latest`，确认 `Architecture=arm64`  
 - [ ] `tpl create-from-image --image sandbox-code:latest` → `READY`，记下 `template_id`  
+- [ ] （可选 **Android 预览**）§2.4.1 下载 [Android 离线包](https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-preview) → `docker load` → 确认 `sandbox-android-redroid` 为 arm64  
+- [ ] （可选 **Android 预览**）§2.4.3 `tpl create-from-image --image sandbox-android-redroid:16.0.0-arm64`（需运行时支持）  
 - [ ] **离线 Python**：§3.6.1-A0 下载 [预打包 Release](https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64) → §3.6.4 装到鲲鹏  
 - [ ] **第一段演示**：§3.6.5 `code-sandbox-quickstart`（`exec_code.py` / `cmd.py`）通过  
 - [ ] **OpenClaw 配置**：§3.6.6 `openclaw.json`（`pathPrepend` + `env`）+ skill UTF-8 安装  
@@ -1300,4 +1374,5 @@ grep -a -E 'start vm|vm ready|agent is ready|Create sandbox|timeout' \
 | 官方 ARM 支持说明 | [docs/zh/blog/posts/2026-07-08-cubesandbox-arm-support.md](docs/zh/blog/posts/2026-07-08-cubesandbox-arm-support.md) |
 | one-click arm64 包 | GitHub / CNB Releases 中的 `cube-sandbox-one-click-*-arm64.tar.gz` |
 | 离线 Docker arm64 包 | https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-docker-arm64-v0.6.0 |
+| Android 沙箱离线包（ReDroid AOSP 16 / preview） | https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-preview |
 | e2b 离线 Python wheels（aarch64 / cp312） | https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64 |
