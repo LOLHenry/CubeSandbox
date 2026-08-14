@@ -401,19 +401,35 @@ ls -lh deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-envd-docker-*.ta
 
 在 **envd 已注入** 且平台已启用 Android guest Binder 的前提下：
 
+> **内存 / CPU（重要）**  
+> `cubemastercli tpl create-from-image` 若显式传 `--cpu` / `--memory`，默认各为 **2000**（2 核、**2000Mi ≈ 2GiB**）。  
+> 对 **ReDroid AOSP 16 + 1080×1920** 在 **CubeVM** 内运行，2GiB **明显不足**（还要算上 MicroVM 内核、agent、envd、Android system_server）。  
+> ReDroid 上游：约 **2GiB 为勉强下限**，**4GiB+ 推荐**；本仓库 catalog 默认 **4 核 / 6GiB**（`sandbox-android-kunpeng-arm64*.json`）。  
+> **建 Android 模板时务必显式加大**，否则易出现容器 `running` 但 adbd/5555 起不来、`PORT_REFUSED`。
+
 ```bash
 docker tag \
   cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-android-redroid:16.0.0-arm64 \
   sandbox-android-redroid:16.0.0-arm64
 
-# 过渡方案：镜像内已有 envd 时，探活打 49983（平台会自动保留 49983 端口）
+# 推荐：4 核 + 6GiB 内存（--memory 单位为 MB，6144 = 6GiB）
 cubemastercli tpl create-from-image \
   --image sandbox-android-redroid-envd:16.0.0-arm64 \
   --writable-layer-size 10Gi \
   --expose-port 5555 \
   --probe 49983 \
-  --probe-path /health
+  --probe-path /health \
+  --cpu 4000 \
+  --memory 6144
 ```
+
+| 场景 | 建议 `--cpu` | 建议 `--memory` (MB) |
+|------|-------------|----------------------|
+| 最低可试（720p / 调试） | 2000 | 4096 |
+| **推荐（1080×1920，catalog 默认）** | **4000** | **6144** |
+| 留余量 / 多应用 | 4000–8000 | 8192 |
+
+`tpl info <template-id>` 或 `cubemastercli info -s <sandbox-id>` 里应看到约 **4000m CPU / 6144Mi**（或你指定的值），而不是 2000Mi。
 
 黄区若已设 `CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false`（§2.0），模板创建应使用**本地短名**，不要写远程仓库全名。
 
