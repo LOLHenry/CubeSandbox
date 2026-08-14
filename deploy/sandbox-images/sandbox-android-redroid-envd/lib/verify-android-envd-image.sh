@@ -3,6 +3,7 @@
 # Copyright (C) 2026 Tencent. All rights reserved.
 #
 # Verify envd inside a sandbox-android-redroid-envd image is Android/bionic ELF.
+# Extracts /usr/bin/envd to the host (no container exec required).
 # Usage: verify-android-envd-image.sh <image-ref>
 set -euo pipefail
 
@@ -19,7 +20,17 @@ if [[ "${ARCH}" != "arm64" ]]; then
   exit 1
 fi
 
-FILE_OUT="$(docker run --rm --entrypoint /system/bin/sh "${IMAGE}" -c 'file /usr/bin/envd')"
+TMP_BIN="$(mktemp)"
+CID="$(docker create "${IMAGE}")"
+cleanup() {
+  docker rm -f "${CID}" >/dev/null 2>&1 || true
+  rm -f "${TMP_BIN}"
+}
+trap cleanup EXIT
+
+docker cp "${CID}:/usr/bin/envd" "${TMP_BIN}"
+
+FILE_OUT="$(file "${TMP_BIN}")"
 echo "${FILE_OUT}"
 
 if echo "${FILE_OUT}" | grep -q 'statically linked'; then
