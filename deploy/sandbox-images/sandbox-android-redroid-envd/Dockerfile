@@ -74,11 +74,6 @@ ENV CUBESANDBOX_ADB_PORT=5555
 EXPOSE 49983 5555
 
 # Default ReDroid boot props; override at `docker run` / template create time.
-CMD [
-  "androidboot.redroid_width=1080",
-  "androidboot.redroid_height=1920",
-  "androidboot.redroid_dpi=480",
-  "androidboot.redroid_gpu_mode=guest"
-]
+CMD ["androidboot.redroid_width=1080", "androidboot.redroid_height=1920", "androidboot.redroid_dpi=480", "androidboot.redroid_gpu_mode=guest"]
 
 ENTRYPOINT ["/usr/local/bin/android-redroid-entrypoint.sh"]
