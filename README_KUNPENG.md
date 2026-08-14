@@ -321,6 +321,12 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 
 Release 页面：https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-envd-preview
 
+包 sha256（2026-08-14 构建）：
+
+```text
+2dfe00579d39e89e1b59889abe0b14bed2f76f08c04be6da48d1c13164e50fdb
+```
+
 鲲鹏目标机加载：
 
 ```bash
