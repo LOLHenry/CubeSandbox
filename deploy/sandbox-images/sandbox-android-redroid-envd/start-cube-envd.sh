@@ -17,10 +17,10 @@ log() {
 
 mkdir -p "$(dirname "${ENVD_LOG}")" "$(dirname "${STARTER_LOG}")" 2>/dev/null || true
 
-log "starting ${ENVD_BIN} -isnotfc -port ${ENVD_PORT} (log=${ENVD_LOG})"
+log "starting ${ENVD_BIN} -isnotfc -no-cgroups -verbose -port ${ENVD_PORT} (log=${ENVD_LOG})"
 if [ ! -x "${ENVD_BIN}" ]; then
   log "ERROR: ${ENVD_BIN} not executable"
   exit 1
 fi
 
-exec "${ENVD_BIN}" -isnotfc -port "${ENVD_PORT}" >>"${ENVD_LOG}" 2>&1
+exec "${ENVD_BIN}" -isnotfc -no-cgroups -verbose -port "${ENVD_PORT}" >>"${ENVD_LOG}" 2>&1

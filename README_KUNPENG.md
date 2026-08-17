@@ -331,7 +331,7 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 | preview3/6 | `/usr/bin/envd-starter`（无 `-isnotfc`） | ❌ 49983 refused | 不适用 |
 | preview5 | `["/system/bin/sh", script]` | 未验证 | ❌ ExitCode 255 |
 | preview8/9 | `envd-starter` 仅 exec `/init`，靠 init.rc | ❌ refused（preview9 实测） | 勿测 |
-| **preview11** | preview10 + 诊断日志 + init.rc wrapper 日志 | **待验证** | 勿测 |
+| **preview12** | envd `-isnotfc -no-cgroups -verbose`（CubeVM/Android cgroup 修复） | **待验证** | 勿测 |
 | preview10 | `envd-starter` 预启 envd `-isnotfc` + exec `/init` | 待验证 | 勿测 |
 | preview7 | shell 脚本 | ❌ refused | 勿测 |
 

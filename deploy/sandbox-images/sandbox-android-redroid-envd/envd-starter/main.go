@@ -95,7 +95,7 @@ func startEnvd(log *starterLog, bin, port, logPath string) error {
 	}
 	defer nullFile.Close()
 
-	args := []string{"-isnotfc", "-port", port}
+	args := []string{"-isnotfc", "-no-cgroups", "-verbose", "-port", port}
 	var lastErr error
 
 	for attempt := 1; attempt <= 5; attempt++ {
