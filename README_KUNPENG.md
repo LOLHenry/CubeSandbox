@@ -518,13 +518,35 @@ dial tcp 192.168.0.x:49983: connect: connection refused
 | 步骤 | 命令 / 检查 | 说明 |
 |------|-------------|------|
 | 1 | `file /usr/bin/envd`（容器内） | 必须是 **Android** ELF（`interpreter /system/bin/linker64`） |
-| 2 | **`cat /data/local/tmp/envd-starter.log`** | **preview10+** PID1 启动全链路日志（预启 envd、health 探针、exec /init） |
-| 3 | `cat /data/local/tmp/envd.log` | envd 进程 stdout/stderr（崩溃栈、bind 失败等） |
-| 4 | `cat /data/local/tmp/envd-initrc.log` | init.rc 兜底路径日志（`cube-envd.rc` → `start-cube-envd.sh`） |
-| 5 | `ps -A \| grep envd` | 无进程 → 对照 envd-starter.log 里 `envd spawned pid=` 是否出现 |
-| 6 | cubelet 模板构建日志 | `ls /data/log/template/<template_id>/` 或 `cubemastercli tpl status --job-id <id>` |
+| 2 | **`cubecli logs --tpl <template-id>`** | **宿主机**上读模板构建 PID1 的 stderr（含 `envd-starter:` 行） |
+| 3 | `cat /data/log/template/<template-id>_0/stderr` | 同上，原始文件 |
+| 4 | `grep -a probe /data/log/Cubelet/Cubelet-req.log` | Cubelet 探活记录（注意 **Cubelet** 大写 C） |
+| 5 | `grep -a <template-id> /data/log/CubeShim/cube-shim-req.log` | Guest 内核启动（`Linux version` 等） |
 
-**日志文件一览（preview10+）：**
+**不要**在宿主机上 `cat /data/local/tmp/envd-starter.log`——那是 **ReDroid 虚拟机内部**路径，模板 FAILED 后沙箱销毁，文件随之消失。只有构建进行中或成功快照前才有机会在 guest 内读到。
+
+**宿主机取证（以你这次 job 为例）：**
+
+```bash
+TEMPLATE_ID=tpl-e094cf5a2ba14afca438d9d3
+
+# 1) 模板构建容器 stderr（envd-starter 写这里）
+cubecli logs --tpl --all --stderr "${TEMPLATE_ID}"
+
+# 或直接读文件
+ls -la "/data/log/template/${TEMPLATE_ID}_0/"
+tail -200 "/data/log/template/${TEMPLATE_ID}_0/stderr"
+
+# 2) Cubelet 探活 / 创建失败原因
+grep -a "${TEMPLATE_ID}\|probe \[" /data/log/Cubelet/Cubelet-req.log | tail -50
+
+# 3) 确认加载的是 preview11
+docker image inspect sandbox-android-redroid-envd:16.0.0-arm64 \
+  --format '{{json .Config.Entrypoint}}'
+# 期望：["/usr/bin/envd-starter"]
+```
+
+**guest 内日志文件一览（仅沙箱存活时可在 VM 内查看）：**
 
 | 文件 | 写入方 | 内容 |
 |------|--------|------|
@@ -567,7 +589,7 @@ cubemastercli tpl create-from-image \
 | 步骤 | 检查 | 说明 |
 |------|------|------|
 | 1 | 宿主机网段 vs Cube CIDR | 默认 `192.168.0.0/18` 与局域网 `192.168.x.x` 重叠会导致探活超时 → [网段冲突指南](docs/zh/guide/troubleshooting/local-network-cidr-conflict.md) |
-| 2 | `grep probe /data/log/Cubelet/Cubelet-req.log` | 看探活耗时与 sandbox IP |
+| 2 | `grep -a probe /data/log/Cubelet/Cubelet-req.log` | 看探活耗时与 sandbox IP（**不是** `/data/log/cubelet/`） |
 | 3 | `envd-starter.log` | 若已有 `envd healthy` / `HTTP 204`，则 purely 探活预算太短 |
 
 **修复后重新建模板**（务必带资源与探针）：
