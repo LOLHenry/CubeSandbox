@@ -27,6 +27,8 @@ for reg in ("cn", "intl"):
         raise SystemExit(f"unexpected published image for {reg}")
 if data["template_defaults"].get("probe_port") != 49983:
     raise SystemExit("template_defaults.probe_port must be 49983")
+if data["template_defaults"].get("probe_timeout_ms", 0) < 120000:
+    raise SystemExit("template_defaults.probe_timeout_ms must be >= 120000 for Android cold boot")
 expose_ports = data["template_defaults"].get("expose_ports", [])
 for port in (5555, 49983):
     if port not in expose_ports:

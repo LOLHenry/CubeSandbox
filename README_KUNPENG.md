@@ -361,6 +361,7 @@ cubemastercli tpl create-from-image \
   --expose-port 49983 \
   --probe 49983 \
   --probe-path /health \
+  --probe-timeout-ms 120000 \
   --cpu 4000 \
   --memory 6144
 ```
@@ -441,6 +442,7 @@ cubemastercli tpl create-from-image \
   --expose-port 49983 \
   --probe 49983 \
   --probe-path /health \
+  --probe-timeout-ms 120000 \
   --cpu 4000 \
   --memory 6144
 ```
@@ -533,6 +535,41 @@ dial tcp 192.168.0.x:49983: connect: connection refused
 
 模板 FAILED 后若沙箱已销毁，优先看 **cubelet 日志**里 `envd-starter:` 前缀行（同时写 stderr）。
 
+#### 2.4.5b 模板探活失败：`context deadline exceeded`（preview11 常见）
+
+若错误从 **`connection refused`** 变为：
+
+```text
+template tpl-xxx creation failed: context deadline exceeded
+```
+
+说明 **envd 很可能已在启动**（preview11 预启生效），但 **默认探活预算 30s 对 Android/ReDroid 冷启动不够**（CubeVM 起机 + 网络就绪 + `:49983/health` 往往 >30s）。
+
+**立即重试**（加长探活到 120s）：
+
+```bash
+cubemastercli tpl create-from-image \
+  --image sandbox-android-redroid-envd:16.0.0-arm64 \
+  --writable-layer-size 10Gi \
+  --expose-port 5555 \
+  --expose-port 49983 \
+  --probe 49983 \
+  --probe-path /health \
+  --probe-timeout-ms 120000 \
+  --cpu 4000 \
+  --memory 6144
+```
+
+若当前 `cubemastercli` 尚无 `--probe-timeout-ms`，用 HTTP API 传 `container_overrides.probe.timeout_ms: 120000`（见 [自带镜像接入](docs/zh/guide/tutorials/bring-your-own-image.md)）。
+
+**同时排查**（该错误也可能是网段冲突）：
+
+| 步骤 | 检查 | 说明 |
+|------|------|------|
+| 1 | 宿主机网段 vs Cube CIDR | 默认 `192.168.0.0/18` 与局域网 `192.168.x.x` 重叠会导致探活超时 → [网段冲突指南](docs/zh/guide/troubleshooting/local-network-cidr-conflict.md) |
+| 2 | `grep probe /data/log/Cubelet/Cubelet-req.log` | 看探活耗时与 sandbox IP |
+| 3 | `envd-starter.log` | 若已有 `envd healthy` / `HTTP 204`，则 purely 探活预算太短 |
+
 **修复后重新建模板**（务必带资源与探针）：
 
 ```bash
@@ -543,6 +580,7 @@ cubemastercli tpl create-from-image \
   --expose-port 49983 \
   --probe 49983 \
   --probe-path /health \
+  --probe-timeout-ms 120000 \
   --cpu 4000 \
   --memory 6144
 ```
@@ -568,6 +606,7 @@ cubemastercli tpl create-from-image \
   --expose-port 49983 \
   --probe 49983 \
   --probe-path /health \
+  --probe-timeout-ms 120000 \
   --cpu 4000 \
   --memory 6144
 ```

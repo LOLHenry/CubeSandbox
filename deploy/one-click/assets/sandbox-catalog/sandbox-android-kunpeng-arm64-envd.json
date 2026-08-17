@@ -42,6 +42,7 @@
     "expose_ports": [5555, 49983],
     "probe_port": 49983,
     "probe_path": "/health",
+    "probe_timeout_ms": 120000,
     "resources": {
       "cpu": "4",
       "mem": "6Gi"
