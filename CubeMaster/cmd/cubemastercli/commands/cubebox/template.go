@@ -783,8 +783,9 @@ var TemplateCreateFromImageCommand = cli.Command{
 		cli.StringSliceFlag{Name: "arg", Usage: "override container CMD (args); repeat for multiple elements"},
 		cli.StringSliceFlag{Name: "env", Usage: "set environment variable, KEY=VALUE format; repeat for multiple envs"},
 		cli.StringSliceFlag{Name: "dns", Usage: "set container DNS nameserver; repeat for multiple servers"},
-		cli.IntFlag{Name: "probe", Usage: "enable HTTP GET probe on the specified port (e.g. --probe 9000); sets timeout_ms=30000, period_ms=500"},
+		cli.IntFlag{Name: "probe", Usage: "enable HTTP GET probe on the specified port (e.g. --probe 9000); sets timeout_ms=30000 (override with --probe-timeout-ms), period_ms=500"},
 		cli.StringFlag{Name: "probe-path", Value: "/health", Usage: "HTTP path for the readiness probe (default: /health); only effective when --probe is set"},
+		cli.IntFlag{Name: "probe-timeout-ms", Value: 30000, Usage: "total readiness probe budget in ms (default: 30000); Android/ReDroid cold boot often needs 120000+"},
 		cli.IntFlag{Name: "cpu", Value: 2000, Usage: "CPU millicores for the template container (default: 2000, i.e. 2 cores)"},
 		cli.IntFlag{Name: "memory", Value: 2000, Usage: "Memory for the template container in MB (default: 2000 MB)"},
 		cli.BoolTFlag{Name: "with-cube-ca", Usage: "bake the CubeEgress root CA at /etc/cube/ca/cube-root-ca.crt into the template rootfs so sandboxes trust CubeEgress's MITM. Pass --with-cube-ca=false to skip (default: true)"},
@@ -1423,6 +1424,10 @@ func parseContainerOverrides(c *cli.Context) (*types.ContainerOverrides, error) 
 		if probePath == "" {
 			probePath = "/health"
 		}
+		probeTimeoutMs := int32(c.Int("probe-timeout-ms"))
+		if probeTimeoutMs <= 0 {
+			return nil, fmt.Errorf("invalid probe-timeout-ms %d: must be > 0", probeTimeoutMs)
+		}
 		host := ""
 		overrides.Probe = &types.Probe{
 			ProbeHandler: &types.ProbeHandler{
@@ -1432,11 +1437,18 @@ func parseContainerOverrides(c *cli.Context) (*types.ContainerOverrides, error) 
 					Host: &host,
 				},
 			},
-			TimeoutMs:        30000,
+			TimeoutMs:        probeTimeoutMs,
 			PeriodMs:         500,
-			FailureThreshold: 60,
+			FailureThreshold: maxInt32(probeTimeoutMs/500, 60),
 			SuccessThreshold: 1,
 		}
 	}
 	return overrides, nil
+}
+
+func maxInt32(a, b int32) int32 {
+	if a > b {
+		return a
+	}
+	return b
 }

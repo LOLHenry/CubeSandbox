@@ -181,7 +181,23 @@ func TestRedoCommandParsesNodeScope(t *testing.T) {
 	}
 }
 
-func TestParseContainerOverridesDefaultCpuMemory(t *testing.T) {
+func TestParseContainerOverridesProbeTimeout(t *testing.T) {
+	ctx := newCreateFromImageContext(t, []string{"--probe", "49983", "--probe-timeout-ms", "120000"})
+	overrides, err := parseContainerOverrides(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if overrides == nil || overrides.Probe == nil {
+		t.Fatal("expected Probe to be set")
+	}
+	if overrides.Probe.TimeoutMs != 120000 {
+		t.Fatalf("expected TimeoutMs=120000, got %d", overrides.Probe.TimeoutMs)
+	}
+	if overrides.Probe.FailureThreshold < 120 {
+		t.Fatalf("expected FailureThreshold>=120, got %d", overrides.Probe.FailureThreshold)
+	}
+}
+
 	// When neither --cpu nor --memory is set, resources should not be set in overrides.
 	ctx := newCreateFromImageContext(t, []string{"--env", "KEY=VALUE"})
 	overrides, err := parseContainerOverrides(ctx)

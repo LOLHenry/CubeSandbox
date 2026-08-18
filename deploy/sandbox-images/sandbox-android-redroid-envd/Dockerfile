@@ -42,11 +42,24 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
            . \
     && chmod +x /out/envd
 
+COPY envd-starter /src/envd-starter
+WORKDIR /src/envd-starter
+
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=0 GOOS=android GOARCH=arm64 \
+    go build -a -ldflags "-s -w" -o /out/envd-starter .
+
 FROM ${REDROID_BASE_IMAGE}
 
 COPY --from=envd-builder --chmod=755 /out/envd /usr/bin/envd
+COPY --from=envd-builder --chmod=755 /out/envd-starter /usr/bin/envd-starter
+
+COPY android-init/cube-envd.rc /vendor/etc/init/cube-envd.rc
+COPY android-init/cube-envd.rc /system/etc/init/cube-envd.rc
 
 COPY --chmod=755 android-redroid-entrypoint.sh /usr/local/bin/android-redroid-entrypoint.sh
+COPY --chmod=755 start-cube-envd.sh /usr/bin/start-cube-envd.sh
 
 LABEL org.opencontainers.image.title="CubeSandbox Android Sandbox (ReDroid AOSP 16 + envd)"
 LABEL org.opencontainers.image.description="ReDroid Android 16 with android/bionic envd for cubebox templates on Kunpeng ARM64"
@@ -61,8 +74,20 @@ LABEL org.cubesandbox.runtime_model="cubevm-redroid"
 LABEL org.cubesandbox.envd.enabled="true"
 LABEL org.cubesandbox.envd.port="49983"
 LABEL org.cubesandbox.envd.goos="android"
+LABEL org.cubesandbox.adb.port="5555"
+LABEL org.cubesandbox.control_plane="envd:49983,adb:5555"
 
 ENV ENVD_PORT=49983
 ENV ENVD_REF=${ENVD_REF}
+ENV CUBESANDBOX_ADB_PORT=5555
 
-ENTRYPOINT ["/usr/local/bin/android-redroid-entrypoint.sh"]
+# Dual control plane (Tencent Agent Runtime Mobile style):
+#   - envd :49983  Cube SDK / template probe / commands.run / files.*
+#   - adbd :5555   adb connect automation
+EXPOSE 49983 5555
+
+# Default ReDroid boot props; override at `docker run` / template create time.
+CMD ["androidboot.redroid_width=1080", "androidboot.redroid_height=1920", "androidboot.redroid_dpi=480", "androidboot.redroid_gpu_mode=guest"]
+
+# PID1: envd-starter daemonizes envd (-isnotfc) then exec /init; cube-envd.rc is backup.
+ENTRYPOINT ["/usr/bin/envd-starter"]
