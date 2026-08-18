@@ -555,9 +555,11 @@ docker image inspect sandbox-android-redroid-envd:16.0.0-arm64 \
 | `/data/local/tmp/envd.log` | envd 进程 | envd 自身日志 |
 | `/data/local/tmp/envd-initrc.log` | init.rc 兜底 | `start-cube-envd.sh` 被 init 拉起时 |
 
-模板 FAILED 后若沙箱已销毁，优先看 **cubelet 日志**里 `envd-starter:` 前缀行（同时写 stderr）。
+| `costtime:2m0.18s` + `"timeout_ms":120000` | 120s 探活预算已用尽，**不是**探活太短；宿主机在 120s 内始终打不通 guest `:49983/health` |
+| stderr 0 字节 | 无 PID1 日志；不能证明 envd-starter 是否执行 |
 
-#### 2.4.5b 模板探活失败：`context deadline exceeded`（preview11 常见）
+**preview12 修复方向：** e2b envd 在非 Firecracker/CubeVM 环境需加 **`-no-cgroups`**（否则 cgroup 初始化失败、进程秒退，49983 永不监听）。见 upstream `packages/envd/main.go` 与 Agent Sandbox envd 示例。
+
 
 若错误从 **`connection refused`** 变为：
 
