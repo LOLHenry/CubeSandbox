@@ -1,0 +1,102 @@
+name: ReDroid Base Offline Bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to upload assets to (created if missing)'
+        required: true
+        default: 'redroid-16.0.0-arm64-offline'
+      redroid_tag:
+        description: 'Upstream ReDroid Docker tag'
+        required: false
+        default: '16.0.0_64only-latest'
+      bundle_suffix:
+        description: 'Bundle filename suffix (without -docker.tar.gz)'
+        required: false
+        default: 'redroid-16.0.0_64only-arm64'
+      upload_to_release:
+        description: 'Upload bundle to GitHub Release'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build_redroid_base_offline_bundle:
+    name: Export redroid/redroid arm64 offline bundle
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Build and export ReDroid base offline bundle
+        env:
+          RELEASE_TAG: ${{ inputs.bundle_suffix }}
+          REDROID_TAG: ${{ inputs.redroid_tag }}
+          PULL_IMAGE: "1"
+        run: |
+          chmod +x deploy/one-click/scripts/one-click/build-redroid-base-offline-bundle.sh
+          ./deploy/one-click/scripts/one-click/build-redroid-base-offline-bundle.sh
+
+      - name: Upload ReDroid base offline bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: redroid-base-offline-${{ inputs.bundle_suffix }}
+          path: |
+            deploy/one-click/dist/${{ inputs.bundle_suffix }}-docker.tar.gz
+            deploy/one-click/dist/${{ inputs.bundle_suffix }}-docker.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload ReDroid base offline bundle to Release
+        if: inputs.upload_to_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_RELEASE_TAG: ${{ inputs.release_tag }}
+          BUNDLE_SUFFIX: ${{ inputs.bundle_suffix }}
+          REDROID_TAG: ${{ inputs.redroid_tag }}
+        run: |
+          set -euo pipefail
+          bundle_path="deploy/one-click/dist/${BUNDLE_SUFFIX}-docker.tar.gz"
+          sha_path="${bundle_path}.sha256"
+          sha256="$(awk '{print $1}' "${sha_path}")"
+          bundle_name="$(basename "${bundle_path}")"
+          test -f "${bundle_path}"
+          test -f "${sha_path}"
+
+          if ! gh release view "${GH_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release create "${GH_RELEASE_TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "ReDroid ${REDROID_TAG} ARM64 offline bundle" \
+              --notes "Upstream \`redroid/redroid:${REDROID_TAG}\` exported for Kunpeng offline \`docker load\`."
+          fi
+
+          notes_file="$(mktemp)"
+          cat > "${notes_file}" <<EOF
+          ## ReDroid base image (${REDROID_TAG}, arm64)
+
+          - **Upstream**: \`redroid/redroid:${REDROID_TAG}\`
+          - **SHA256**: \`${sha256}\`
+          - **Load**: \`gunzip -c ${bundle_name} | docker load\`
+          - **Verify**: \`docker image inspect redroid:${REDROID_TAG} --format '{{.Architecture}}'\` (expect \`arm64\`)
+          EOF
+          gh release upload "${GH_RELEASE_TAG}" "${bundle_path}" "${sha_path}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber
+          gh release edit "${GH_RELEASE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --notes-file "${notes_file}"
