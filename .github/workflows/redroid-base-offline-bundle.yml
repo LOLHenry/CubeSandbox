@@ -3,6 +3,7 @@ name: ReDroid Base Offline Bundle
 on:
   push:
     tags:
+      - 'redroid-16.0.0-arm64-offline'
       - 'redroid-base-offline-*'
   workflow_dispatch:
     inputs:
