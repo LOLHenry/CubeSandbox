@@ -81,6 +81,7 @@ log "go mod vendor in packages/envd"
 (
   cd "${KIT_ROOT}/src/infra/packages/envd"
   export GOPROXY="${GOPROXY:-https://proxy.golang.org,direct}"
+  export GOWORK=off
   go mod vendor
 )
 
