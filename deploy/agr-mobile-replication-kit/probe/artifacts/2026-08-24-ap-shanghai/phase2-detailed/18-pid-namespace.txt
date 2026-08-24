@@ -1,0 +1,13 @@
+Name:	init
+Pid:	1
+NSpid:	1
+Name:	cat
+Pid:	6959
+NSpid:	6959
+Name:	adbd
+Pid:	138
+NSpid:	138
+lrwxrwxrwx 1 root root 0 2026-08-24 14:30 /proc/1/ns/pid -> pid:[4026532547]
+lrwxrwxrwx 1 root root 0 2026-08-24 14:30 /proc/138/ns/pid -> pid:[4026532547]
+pid:[4026532547]
+pid:[4026532547]

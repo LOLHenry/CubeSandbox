@@ -1,0 +1,10 @@
+PID=138
+/apex/com.android.adbd/bin/adbd --root_seclabel=u:r:su:s0 
+/apex/com.android.adbd/bin/adbd
+lrwxrwxrwx 1 root root 0 2026-08-07 11:29 /proc/138/exe -> /apex/com.android.adbd/bin/adbd
+---
+PID=3379
+app_process / com.genymobile.scrcpy.Server 1.19-ws7 web ERROR 8886 true 
+/system/bin/app_process64
+lrwxrwxrwx 1 root root 0 2026-08-07 11:31 /proc/3379/exe -> /system/bin/app_process64
+---

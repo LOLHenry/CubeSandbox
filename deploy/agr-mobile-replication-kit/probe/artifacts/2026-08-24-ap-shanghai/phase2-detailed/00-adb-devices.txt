@@ -1,0 +1,3 @@
+List of devices attached
+127.0.0.1:42871        device product:PJZ110 model:PJZ110 device:OP5D5FL1 transport_id:2
+

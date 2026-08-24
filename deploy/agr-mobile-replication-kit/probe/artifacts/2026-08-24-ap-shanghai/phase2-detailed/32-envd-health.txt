@@ -1,0 +1,2 @@
+===== EXT 49983 /health =====
+{"error":{"code":"AUTHENTICATION_FAILED","message":"Authentication failed"},"method":"GET","path":"/health","timestamp":"2026-08-24T06:28:59Z"}

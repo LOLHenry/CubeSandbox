@@ -1,0 +1,40 @@
+Create a new sandbox instance from a tool template.
+
+The referenced tool must already exist. Create one first with `agr tool create`, or pass an existing --tool-id.
+
+Use --tool-name/-t for tool name or --tool-id for tool ID.
+
+Complex API fields such as --mount-options, --metadata, and --custom-configuration accept JSON, @file, or - for stdin.
+
+Auth mode (--auth-mode):
+  DEFAULT  Use backend default (currently TOKEN)
+  TOKEN    All ports require X-Access-Token
+  PUBLIC   envd management port (49983) requires token; other ports open
+  NONE     No authentication on any port
+
+Usage:
+  agr instance create [flags]
+
+Aliases:
+  create, c
+
+Examples:
+Example - Basic usage:
+  agr instance create --tool-id sdt-xxxx
+
+Example - Common option:
+  agr instance create --tool-name my-tool
+
+Example - JSON output:
+  agr instance create -t my-tool --timeout 5m
+
+Example - Advanced usage:
+  agr instance create --tool-id sdt-xxxx --mount-options '[{"Name":"data","MountPath":"/workspace"}]'
+
+Example - Advanced usage:
+  agr instance create -t my-tool --auth-mode NONE
+
+Flags:
+      --auth-mode string              Auth mode: DEFAULT, TOKEN, NONE, PUBLIC
+                                      
+                                      Values:

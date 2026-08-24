@@ -1,0 +1,3 @@
+Error: unknown flag: --json
+Code: INVALID_USAGE
+Hint: Run 'agr --help' or 'agr schema -o json' to inspect valid commands and flags.

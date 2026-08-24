@@ -34,7 +34,9 @@ deploy/agr-mobile-replication-kit/
 │   └── catalog-agr-mobile-replica.json
 ├── probe/                    # 连接 AGR 云端做对照探测（需凭据）
 │   ├── agr-probe-mobile.sh
-│   └── agr-collect-fingerprint.sh
+│   ├── agr-collect-fingerprint.sh
+│   └── artifacts/
+│       └── 2026-08-24-ap-shanghai/   # 2026-08-24 实测原始输出
 ├── scripts/
 │   ├── 00-preflight.sh       # arch/kvm/docker/cubesandbox 检查
 │   ├── 01-build-offline-kit.sh   # 打离线编译包（联网机构建机）
@@ -47,6 +49,7 @@ deploy/agr-mobile-replication-kit/
 └── docs/
     ├── OFFLINE_KUNPENG.md    # 鲲鹏离线逐步指南
     ├── AGR_REFERENCE.md      # AGR 官方能力与端口（来自实测+文档）
+    ├── AGR_ARCHITECTURE_PROBE.md  # 2026-08-24 架构探测报告（含文本架构图）
     └── OPTIONAL_COMPONENTS.md
 ```
 

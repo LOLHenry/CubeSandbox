@@ -1,0 +1,7 @@
+===== FINGERPRINT =====
+===== PID1 =====
+===== LISTEN PORTS =====
+===== PROCESS GREP =====
+===== NETWORK =====
+===== MOUNTS (top) =====
+===== SEARCH envd/appium binaries =====

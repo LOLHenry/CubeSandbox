@@ -1,8 +1,11 @@
 # 架构：AGR Mobile 官方 vs CubeSandbox 鲲鹏复刻
 
-## 1. AGR Mobile 官方（2026-07-23 实测结论）
+## 1. AGR Mobile 官方
 
-来源：[tencent-agent-runtime-mobile-hardware-mock.md](https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md)（`agr` + ADB 实机探测，地域 `ap-shanghai`）。
+来源：
+
+- **2026-08-24 实测**（本仓库）：[`docs/AGR_ARCHITECTURE_PROBE.md`](docs/AGR_ARCHITECTURE_PROBE.md) + [`probe/artifacts/2026-08-24-ap-shanghai/`](probe/artifacts/2026-08-24-ap-shanghai/README.md)
+- **2026-07-23 历史实测**：[tencent-agent-runtime-mobile-hardware-mock.md](https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md)
 
 ### 1.1 运行时栈
 
@@ -13,31 +16,46 @@
 ┌───────────────────────────────────────────┐
 │ AGR 控制面 (ags.tencentcloudapi.com)       │
 │ 数据面: {port}-{instanceId}.tencentags.com │
+│  网关: OpenResty (x-cube-request-id)       │
 └───────────────────────────────────────────┘
         │
         ▼
 ┌───────────────────────────────────────────┐
 │ Cube Hypervisor MicroVM                    │
 │   DMI: cube-hypervisor / Cube Hypervisor   │
-│   ┌─────────────────────────────────────┐ │
-│   │ SmartRun / ReDroid Android 14 x86_64│ │
-│   │  ro.hardware.gralloc = redroid       │ │
-│   │  进程: adbd, Appium, envd, scrcpy    │ │
-│   └─────────────────────────────────────┘ │
+│   ┌─ Linux Sidecar（共享 netns）─────────┐ │
+│   │  :4723 Appium 3.1.1 (Node.js)        │ │
+│   │  :8000 ws-scrcpy Web (Express)       │ │
+│   │  :8080 Health (/healthz, /livez)     │ │
+│   │  :5556 ADB WebSocket 桥               │ │
+│   └──────────────┬────────────────────────┘ │
+│                  │ ADB / HTTP 代理          │
+│   ┌──────────────▼────────────────────────┐ │
+│   │ SmartRun / ReDroid Android 14 x86_64  │ │
+│   │  ro.hardware.gralloc = redroid        │ │
+│   │  :5555 adbd  :8886 scrcpy-server     │ │
+│   │  APK: io.appium.uiautomator2.*        │ │
+│   └───────────────────────────────────────┘ │
+│   ❌ :49983 envd — mobile 类型未暴露         │
 └───────────────────────────────────────────┘
 ```
 
-**不是** Cuttlefish、**不是** 经典 AVD goldfish；是 **Cube MicroVM + ReDroid/SmartRun**。
+**不是** Cuttlefish、**不是** 经典 AVD goldfish；是 **Cube MicroVM + Linux Sidecar + ReDroid/SmartRun**。
 
-### 1.2 实例内端口（实测监听）
+> 完整文本架构图与逐项证据见 [`docs/AGR_ARCHITECTURE_PROBE.md`](docs/AGR_ARCHITECTURE_PROBE.md)。
 
-| 端口 | 角色 |
-|------|------|
-| **5555** | adbd（`emulator-5554` 为 SDK 侧设备名） |
-| **4723** | Appium UiAutomator2 |
-| **8000 / 8886** | ws-scrcpy 屏幕流 |
-| **49983** | envd（E2B/Cube SDK：`commands.run`、`files.*`、探针 `/health`） |
-| 8080 | 平台默认 HTTP（文档） |
+### 1.2 实例内端口（2026-08-24 实测）
+
+| 端口 | 角色 | 进程层 |
+|------|------|--------|
+| **5555** | adbd | Android（PID 138） |
+| **8886** | scrcpy-server (`com.genymobile.scrcpy.Server`) | Android（PID 3379） |
+| **4723** | Appium 3.1.1 UiAutomator2 | Linux sidecar（Node.js） |
+| **8000** | ws-scrcpy Web UI | Linux sidecar（Express） |
+| **8080** | Health Agent (`/healthz`, `/livez`) | Linux sidecar |
+| **5556** | ADB WebSocket 桥（`agr mobile connect` 隧道） | Linux sidecar |
+| **49983** | envd | ❌ **mobile 类型未暴露**（HTTPS `310508`） |
+| 32001 | 未知内部服务 | ❓ 仅见监听 |
 
 典型规格（探测时）：CPU **4600m**，Memory **8768Mi**，网络 **PUBLIC**。
 
@@ -46,7 +64,7 @@
 | 通道 | 协议/工具 | 用途 |
 |------|-----------|------|
 | **ADB** | `agr instance mobile connect/adb` | 安装 APK、shell、logcat、文件 push/pull |
-| **envd** | E2B SDK + `X-Access-Token` | Agent 命令、文件、创建时 env 注入 |
+| **Instance Token** | E2B SDK `X-Access-Token`（创建时下发） | 数据面端口鉴权；**mobile 类型不暴露 envd :49983** |
 | **Appium** | `https://{sandbox.get_host(4723)}` | UI 自动化 |
 | **scrcpy** | `get_host(8000)` + WebSocket | 人工/调试投屏 |
 

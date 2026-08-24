@@ -1,0 +1,6 @@
+===== 11-curl-local =====
+/system/bin/sh: curl: inaccessible or not found
+CURL_4723_FAIL
+/system/bin/sh: curl: inaccessible or not found
+/system/bin/sh: curl: inaccessible or not found
+/system/bin/sh: curl: inaccessible or not found

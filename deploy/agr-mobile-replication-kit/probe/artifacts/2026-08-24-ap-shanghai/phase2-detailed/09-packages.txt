@@ -1,0 +1,4 @@
+===== 09-packages =====
+package:io.appium.uiautomator2.server
+package:io.appium.settings
+package:io.appium.uiautomator2.server.test

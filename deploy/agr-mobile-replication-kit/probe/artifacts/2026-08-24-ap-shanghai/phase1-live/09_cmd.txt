@@ -1,0 +1,2 @@
+system          14     1   10844696   1140 ep_poll             0 S hwservicemanager
+root           138     1   10858200   8912 ep_poll             0 S adbd

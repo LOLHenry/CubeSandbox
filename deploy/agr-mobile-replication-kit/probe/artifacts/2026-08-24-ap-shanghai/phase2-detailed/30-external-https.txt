@@ -1,0 +1,70 @@
+===== EXT 4723 =====
+HTTP/2 401 
+date: Mon, 24 Aug 2026 06:28:48 GMT
+content-type: application/json
+content-length: 138
+x-ags-request-id: 7236612a-f409-4711-8464-9e332b5b677a
+
+BODY:
+{"error":{"code":"AUTHENTICATION_FAILED","message":"Authentication failed"},"method":"GET","path":"/","timestamp":"2026-08-24T06:28:48Z"}
+
+===== EXT 8000 =====
+HTTP/2 401 
+date: Mon, 24 Aug 2026 06:28:49 GMT
+content-type: application/json
+content-length: 138
+x-ags-request-id: b33d9f97-0e7a-4733-8fac-c2e6b3acfcfb
+
+BODY:
+{"error":{"code":"AUTHENTICATION_FAILED","message":"Authentication failed"},"method":"GET","path":"/","timestamp":"2026-08-24T06:28:49Z"}
+
+===== EXT 8080 =====
+HTTP/2 401 
+date: Mon, 24 Aug 2026 06:28:50 GMT
+content-type: application/json
+content-length: 138
+x-ags-request-id: 5b836b0a-9289-4862-ac6b-0947b41cface
+
+BODY:
+{"error":{"code":"AUTHENTICATION_FAILED","message":"Authentication failed"},"method":"GET","path":"/","timestamp":"2026-08-24T06:28:50Z"}
+
+===== EXT 8886 =====
+HTTP/2 401 
+date: Mon, 24 Aug 2026 06:28:51 GMT
+content-type: application/json
+content-length: 138
+x-ags-request-id: d0d2d5bf-5075-4d94-9bd6-f340de13b5ba
+
+BODY:
+{"error":{"code":"AUTHENTICATION_FAILED","message":"Authentication failed"},"method":"GET","path":"/","timestamp":"2026-08-24T06:28:51Z"}
+
+===== EXT 49983 =====
+HTTP/2 401 
+date: Mon, 24 Aug 2026 06:28:52 GMT
+content-type: application/json
+content-length: 138
+x-ags-request-id: c777c41d-660b-4bd0-bb89-c2c366ae7cda
+
+BODY:
+{"error":{"code":"AUTHENTICATION_FAILED","message":"Authentication failed"},"method":"GET","path":"/","timestamp":"2026-08-24T06:28:52Z"}
+
+===== EXT 49999 =====
+HTTP/2 401 
+date: Mon, 24 Aug 2026 06:28:54 GMT
+content-type: application/json
+content-length: 138
+x-ags-request-id: caa64baa-6475-4590-9de5-e3638be2b864
+
+BODY:
+{"error":{"code":"AUTHENTICATION_FAILED","message":"Authentication failed"},"method":"GET","path":"/","timestamp":"2026-08-24T06:28:54Z"}
+
+===== EXT 5556 =====
+HTTP/2 401 
+date: Mon, 24 Aug 2026 06:28:56 GMT
+content-type: application/json
+content-length: 138
+x-ags-request-id: d0d61da0-6f8e-42f6-906b-dcf88b679f5a
+
+BODY:
+{"error":{"code":"AUTHENTICATION_FAILED","message":"Authentication failed"},"method":"GET","path":"/","timestamp":"2026-08-24T06:28:56Z"}
+

@@ -1,0 +1,114 @@
+===== AUTH appium-status https://4723-qjqwkxvkjvqqqkmguqai4s6rlzfhds7rb2oajex7.ap-shanghai.tencentags.com/status =====
+HTTP/2 200 
+date: Mon, 24 Aug 2026 06:29:42 GMT
+content-type: application/json; charset=utf-8
+content-length: 110
+etag: W/"6e-1ERTtAIXBRKeljn6ru0N+13pWq4"
+server: openresty
+vary: Accept-Encoding
+x-ags-request-id: c66f967f-68f8-44ed-867a-e34544aa5725
+x-cube-request-id: c66f967f-68f8-44ed-867a-e34544aa5725
+x-cube-retcode: 310200
+x-powered-by: Express
+
+BODY:
+{"value":{"ready":true,"message":"The server is ready to accept new connections","build":{"version":"3.1.1"}}}
+===== AUTH appium-wdhub https://4723-qjqwkxvkjvqqqkmguqai4s6rlzfhds7rb2oajex7.ap-shanghai.tencentags.com/wd/hub/status =====
+HTTP/2 404 
+date: Mon, 24 Aug 2026 06:29:44 GMT
+content-type: application/json; charset=utf-8
+content-length: 4403
+etag: W/"1133-CXHZHenf/m7b6xBohzrQl8/0mxU"
+server: openresty
+vary: Accept-Encoding
+x-ags-request-id: e1f25ad3-31cd-4347-a92f-e9c509cbc7a4
+x-cube-request-id: e1f25ad3-31cd-4347-a92f-e9c509cbc7a4
+x-cube-retcode: 330404
+x-powered-by: Express
+
+BODY:
+{"value":{"error":"unknown command","message":"The requested resource could not be found, or a request was received using an HTTP method that is not supported by the mapped resource.","stacktrace":"UnknownCommandError: The requested resource could not be found, or a request was received using an HTTP method that is not supported by the mapped resource.\n    at catch404Handler (/usr/lib/node_modules/appium/node_modules/@appium/base-driver/lib/express/middleware.js:158:49)\n    at Layer.handleRequest (/usr/lib/node_modules/appium/node_modules/router/lib/layer.js:152:17)\n    at next (/usr/lib/node_modules/appium/node_modules/router/lib/route.js:157:13)\n    at Route.dispatch (/usr/lib/node_modules/appium/node_modules/router/lib/route.js:117:3)\n    at handle (/usr/lib/node_modules/appium/nod
+===== AUTH scrcpy-root https://8000-qjqwkxvkjvqqqkmguqai4s6rlzfhds7rb2oajex7.ap-shanghai.tencentags.com/ =====
+HTTP/2 200 
+date: Mon, 24 Aug 2026 06:29:45 GMT
+content-type: text/html; charset=UTF-8
+content-length: 313
+accept-ranges: bytes
+cache-control: public, max-age=0
+etag: W/"139-19f5b709a30"
+last-modified: Mon, 13 Jul 2026 12:25:34 GMT
+server: openresty
+vary: Accept-Encoding
+x-ags-request-id: 6d667d21-2f4e-48c4-9015-68a0f4d47900
+x-cube-request-id: 6d667d21-2f4e-48c4-9015-68a0f4d47900
+x-cube-retcode: 310200
+x-powered-by: Express
+
+BODY:
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" name="viewport"/><title>WS scrcpy</title><script defer="defer" src="bundle.js"></script><link href="main.css" rel="stylesheet"></head><body></body></html>
+===== AUTH port8080 https://8080-qjqwkxvkjvqqqkmguqai4s6rlzfhds7rb2oajex7.ap-shanghai.tencentags.com/ =====
+HTTP/2 404 
+date: Mon, 24 Aug 2026 06:29:46 GMT
+content-type: application/json
+server: openresty
+vary: Accept-Encoding
+x-ags-request-id: ef664a16-1b9f-45b6-94e4-8f93ffc1b2a2
+x-cube-request-id: ef664a16-1b9f-45b6-94e4-8f93ffc1b2a2
+x-cube-retcode: 330404
+
+BODY:
+{
+  "error": "Not Found",
+  "endpoints": [
+    "/healthz",
+    "/livez"
+  ]
+}
+===== AUTH scrcpy8886 https://8886-qjqwkxvkjvqqqkmguqai4s6rlzfhds7rb2oajex7.ap-shanghai.tencentags.com/ =====
+HTTP/2 500 
+date: Mon, 24 Aug 2026 06:29:48 GMT
+content-type: application/json
+content-length: 116
+server: openresty
+x-ags-request-id: 3331aeb9-842b-4844-988e-8fcce3ad4ce6
+x-cube-request-id: 3331aeb9-842b-4844-988e-8fcce3ad4ce6
+x-cube-retcode: 310508
+
+BODY:
+{"code":310508,"message":"The requested sandbox endpoint is not configured. Check that the sandbox port is exposed"}
+===== AUTH envd-health https://49983-qjqwkxvkjvqqqkmguqai4s6rlzfhds7rb2oajex7.ap-shanghai.tencentags.com/health =====
+HTTP/2 500 
+date: Mon, 24 Aug 2026 06:29:49 GMT
+content-type: application/json
+content-length: 116
+server: openresty
+x-ags-request-id: de14f157-ae1c-48b8-964e-f3507537a9db
+x-cube-request-id: de14f157-ae1c-48b8-964e-f3507537a9db
+x-cube-retcode: 310508
+
+BODY:
+{"code":310508,"message":"The requested sandbox endpoint is not configured. Check that the sandbox port is exposed"}
+===== AUTH envd-root https://49983-qjqwkxvkjvqqqkmguqai4s6rlzfhds7rb2oajex7.ap-shanghai.tencentags.com/ =====
+HTTP/2 500 
+date: Mon, 24 Aug 2026 06:29:50 GMT
+content-type: application/json
+content-length: 116
+server: openresty
+x-ags-request-id: 43c8133c-f0fe-4ed4-835e-87d7f5daa7ff
+x-cube-request-id: 43c8133c-f0fe-4ed4-835e-87d7f5daa7ff
+x-cube-retcode: 310508
+
+BODY:
+{"code":310508,"message":"The requested sandbox endpoint is not configured. Check that the sandbox port is exposed"}
+===== AUTH port49999 https://49999-qjqwkxvkjvqqqkmguqai4s6rlzfhds7rb2oajex7.ap-shanghai.tencentags.com/ =====
+HTTP/2 500 
+date: Mon, 24 Aug 2026 06:29:52 GMT
+content-type: application/json
+content-length: 116
+server: openresty
+x-ags-request-id: 4ba25594-1370-4cd6-8ef3-3b2eaf12db47
+x-cube-request-id: 4ba25594-1370-4cd6-8ef3-3b2eaf12db47
+x-cube-retcode: 310508
+
+BODY:
+{"code":310508,"message":"The requested sandbox endpoint is not configured. Check that the sandbox port is exposed"}

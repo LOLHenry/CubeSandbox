@@ -1,0 +1,28 @@
+===== 04-netstat =====
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program Name
+tcp        0      0 0.0.0.0:8080            0.0.0.0:*               LISTEN      -
+tcp        0      0 127.0.0.1:5037          0.0.0.0:*               LISTEN      -
+tcp        0      0 0.0.0.0:4723            0.0.0.0:*               LISTEN      -
+tcp        0      0 127.0.0.1:5037          127.0.0.1:37314         ESTABLISHED -
+tcp        0      0 127.0.0.1:39909         127.0.0.1:5555          ESTABLISHED -
+tcp        0      0 127.0.0.1:5037          127.0.0.1:56651         ESTABLISHED -
+tcp        0      0 127.0.0.1:5037          127.0.0.1:57185         ESTABLISHED -
+tcp        0      0 127.0.0.1:37314         127.0.0.1:5037          ESTABLISHED -
+tcp        0      0 169.254.68.6:42718      202.101.48.33:443       ESTABLISHED 5117/com.google.android.gms
+tcp        0      0 127.0.0.1:56651         127.0.0.1:5037          ESTABLISHED -
+tcp        0      0 127.0.0.1:57185         127.0.0.1:5037          ESTABLISHED -
+tcp        0      0 127.0.0.1:57040         127.0.0.1:5555          ESTABLISHED -
+tcp6       0      0 [::]:32001              [::]:*                  LISTEN      -
+tcp6       0      0 [::]:8000               [::]:*                  LISTEN      -
+tcp6       0      0 [::]:5556               [::]:*                  LISTEN      -
+tcp6       0      0 [::]:5555               [::]:*                  LISTEN      138/adbd
+tcp6       0      0 [::]:8886               [::]:*                  LISTEN      3379/app_process
+tcp6       0      0 ::ffff:127.0.0.1:5555   ::ffff:127.0.0.1:39909  ESTABLISHED 138/adbd
+tcp6       0      0 ::ffff:169.254.68.:5556 ::ffff:10.131.165:46930 ESTABLISHED -
+tcp6       0      1 ::ffff:169.254.68:60910 ::ffff:172.217.116.:443 SYN_SENT    2236/com.android.vending
+tcp6       0      1 ::ffff:169.254.68:42776 ::ffff:172.217.117.:443 SYN_SENT    2236/com.android.vending
+tcp6       0      1 ::ffff:169.254.68:55392 ::ffff:172.217.114.:443 SYN_SENT    2034/com.google.android.gms.unstable
+tcp6       0      0 ::ffff:169.254.68:46746 ::ffff:180.163.151.:443 ESTABLISHED 2236/com.android.vending
+tcp6       0    145 ::ffff:127.0.0.1:5555   ::ffff:127.0.0.1:57040  ESTABLISHED 138/adbd
+tcp6       0      1 ::ffff:169.254.68:55404 ::ffff:172.217.114.:443 SYN_SENT    2236/com.android.vending

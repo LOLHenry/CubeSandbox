@@ -1,0 +1,31 @@
+{
+  "probe_date": "2026-08-24",
+  "region": "ap-shanghai",
+  "domain": "tencentags.com",
+  "agr_version": "0.6.1",
+  "tool": {
+    "tool_id": "sdt-osj4kvz6",
+    "tool_name": "mobile-arch-probe-1787551777",
+    "tool_type": "mobile",
+    "network_mode": "PUBLIC"
+  },
+  "instance": {
+    "instance_id": "qjqwkxvkjvqqqkmguqai4s6rlzfhds7rb2oajex7",
+    "status": "RUNNING",
+    "auth_mode": "DEFAULT",
+    "resources": {
+      "cpu": "4600m",
+      "memory": "8768Mi"
+    },
+    "create_time": "2026-08-24T14:09:41+08:00",
+    "expires_at": "2026-08-24T14:39:41+08:00"
+  },
+  "key_findings": {
+    "hypervisor": "Cube Hypervisor MicroVM",
+    "android": "SmartRun/ReDroid 14 x86_64",
+    "appium_version": "3.1.1",
+    "envd_port_49983": "not_configured_for_mobile",
+    "sidecar_ports": [4723, 8000, 8080, 5556],
+    "android_ports": [5555, 8886]
+  }
+}

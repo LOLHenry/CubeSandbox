@@ -1,0 +1,2 @@
+==> mobile connect
+{"SchemaVersion":"agr.v1","Command":"instance.mobile.connect","Status":"failed","Data":null,"Failure":{"Code":"ADB_NOT_FOUND","Kind":"usage","Message":"adb not found in PATH; install Android SDK Platform-Tools or set ADB_PATH","Hint":"Install Android SDK Platform-Tools or set ADB_PATH to a valid adb binary.","Retryable":false},"Warnings":[],"Meta":{"Backend":"cloud","DurationMs":4}}

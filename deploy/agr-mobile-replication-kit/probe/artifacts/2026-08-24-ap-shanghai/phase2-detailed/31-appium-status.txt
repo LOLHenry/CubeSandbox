@@ -1,0 +1,2 @@
+===== EXT 4723 /status =====
+{"error":{"code":"AUTHENTICATION_FAILED","message":"Authentication failed"},"method":"GET","path":"/status","timestamp":"2026-08-24T06:28:57Z"}

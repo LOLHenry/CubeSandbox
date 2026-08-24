@@ -1,0 +1,14 @@
+PORT=5555
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=138,fd=11))
+PORT=4723
+LISTEN      0      511    0.0.0.0:4723               0.0.0.0:*                  
+PORT=8000
+LISTEN      0      511          *:8000                     *:*                  
+PORT=8886
+LISTEN      0      50           *:8886                     *:*                   users:(("WebSocketSelect",pid=3379,fd=45))
+PORT=49983
+not_listening
+PORT=8080
+LISTEN      0      511    0.0.0.0:8080               0.0.0.0:*                  
+PORT=49999
+not_listening

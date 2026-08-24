@@ -1,0 +1,9 @@
+State       Recv-Q Send-Q Local Address:Port               Peer Address:Port              
+LISTEN      0      511    0.0.0.0:8080               0.0.0.0:*                  
+LISTEN      0      128    127.0.0.1:5037               0.0.0.0:*                  
+LISTEN      0      511    0.0.0.0:4723               0.0.0.0:*                  
+LISTEN      0      4096         *:32001                    *:*                  
+LISTEN      0      511          *:8000                     *:*                  
+LISTEN      0      4096         *:5556                     *:*                  
+LISTEN      0      4            *:5555                     *:*                   users:(("adbd",pid=138,fd=11))
+LISTEN      0      50           *:8886                     *:*                   users:(("WebSocketSelect",pid=3379,fd=45))

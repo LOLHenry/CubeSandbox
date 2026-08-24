@@ -1,0 +1,1 @@
+{"SchemaVersion":"agr.v1","Command":"api.call","Status":"failed","Data":null,"Failure":{"Code":"INTERNAL_ERROR","Kind":"error","Message":"internal error","Hint":"Run 'agr doctor'. If the problem persists, rerun with --debug and share stderr diagnostics.","Retryable":false},"Warnings":[],"Meta":{"Backend":"cloud","DurationMs":1263}}
