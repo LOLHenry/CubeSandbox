@@ -42,6 +42,10 @@ RUNNING_TIMEOUT = int(os.environ.get("AGR_RUNNING_TIMEOUT", "600"))
 PROBE_TIMEOUT = int(os.environ.get("AGR_PROBE_TIMEOUT", "300"))
 INSTANCE_TIMEOUT = os.environ.get("AGR_INSTANCE_TIMEOUT", "30m")
 ADB_PATH = os.environ.get("ADB_PATH") or shutil.which("adb") or "/tmp/platform-tools/adb"
+ADB_CONNECT_TIMEOUT = int(os.environ.get("AGR_ADB_CONNECT_TIMEOUT", "20"))
+ADB_GETPROP_TIMEOUT = int(os.environ.get("AGR_ADB_GETPROP_TIMEOUT", "3"))
+ADB_PROBE_INTERVAL = float(os.environ.get("AGR_ADB_PROBE_INTERVAL", "1.0"))
+DATA_PLANE_INTERVAL = float(os.environ.get("AGR_DATA_PLANE_INTERVAL", "2.0"))
 
 TERMINAL_STATUSES = {
     "STARTING_FAILED",
@@ -70,6 +74,7 @@ class BenchResult:
     timestamps_ms: dict[str, float | None] = field(default_factory=dict)
     status_poll_log: list[dict[str, Any]] = field(default_factory=list)
     probe_details: dict[str, Any] = field(default_factory=dict)
+    adb_probe_log: list[dict[str, Any]] = field(default_factory=list)
     gaps_ms: dict[str, float | None] = field(default_factory=dict)
 
 
@@ -291,54 +296,114 @@ def probe_scrcpy(host: str, token: str) -> tuple[bool, dict[str, Any]]:
     )
 
 
-def probe_adb(instance_id: str, t0: float) -> tuple[bool, dict[str, Any]]:
-    detail: dict[str, Any] = {"adb_path": ADB_PATH}
+def adb_env() -> dict[str, str]:
     env = os.environ.copy()
     env["ADB_PATH"] = ADB_PATH
     env["PATH"] = f"{Path(ADB_PATH).parent}:{env.get('PATH', '')}"
+    return env
+
+
+def disconnect_mobile(instance_id: str | None = None, *, all_connections: bool = False) -> dict[str, Any]:
+    """Tear down local agr ADB tunnels (client-side state survives instance delete)."""
+    args = [AGR_BIN, "instance", "mobile", "disconnect", "-o", "json", "--non-interactive"]
+    if all_connections:
+        args.append("--all")
+    elif instance_id:
+        args.append(instance_id)
+    else:
+        args.append("--all")
+    proc = subprocess.run(
+        args,
+        capture_output=True,
+        text=True,
+        env=adb_env(),
+        timeout=30,
+    )
+    detail: dict[str, Any] = {
+        "exit_code": proc.returncode,
+        "stdout": proc.stdout.strip()[:500],
+        "stderr": proc.stderr.strip()[:500],
+    }
+    if proc.stdout.strip():
+        try:
+            detail["response"] = json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            pass
+    return detail
+
+
+def connect_mobile_instance(instance_id: str) -> tuple[bool, str | None, dict[str, Any]]:
+    """Connect once; return serial from agr connect JSON (not adb devices[0])."""
+    detail: dict[str, Any] = {"adb_path": ADB_PATH, "instance_id": instance_id}
+    env = adb_env()
     try:
-        subprocess.run(
-            [AGR_BIN, "instance", "mobile", "connect", instance_id, "-o", "json", "--non-interactive"],
+        proc = subprocess.run(
+            [
+                AGR_BIN,
+                "instance",
+                "mobile",
+                "connect",
+                instance_id,
+                "-o",
+                "json",
+                "--non-interactive",
+            ],
             capture_output=True,
             text=True,
             env=env,
-            timeout=120,
+            timeout=ADB_CONNECT_TIMEOUT,
             check=True,
         )
-        detail["connect"] = "ok"
-        proc = subprocess.run(
-            [ADB_PATH, "devices"],
+        payload = json.loads(proc.stdout)
+        detail["connect_response"] = payload
+        data = payload.get("Data") or {}
+        serial = data.get("AdbAddress")
+        if not serial and data.get("Port"):
+            serial = f"127.0.0.1:{data['Port']}"
+        detail["serial"] = serial
+        if not serial:
+            detail["error"] = "connect succeeded but no AdbAddress in response"
+            return False, None, detail
+
+        state = subprocess.run(
+            [ADB_PATH, "-s", serial, "get-state"],
             capture_output=True,
             text=True,
             env=env,
-            timeout=30,
+            timeout=ADB_GETPROP_TIMEOUT,
         )
-        detail["adb_devices_stdout"] = proc.stdout.strip()
-        if proc.returncode != 0:
-            detail["adb_devices_stderr"] = proc.stderr.strip()
-            return False, detail
-        lines = [ln for ln in proc.stdout.splitlines() if "\tdevice" in ln]
-        detail["device_lines"] = lines
-        if not lines:
-            return False, detail
-        serial = lines[0].split("\t")[0]
-        detail["serial"] = serial
+        detail["adb_state_stdout"] = state.stdout.strip()
+        detail["adb_state_stderr"] = state.stderr.strip()
+        if state.returncode != 0 or state.stdout.strip() != "device":
+            detail["error"] = f"serial {serial} not in device state"
+            return False, serial, detail
+        return True, serial, detail
+    except Exception as e:
+        detail["error"] = repr(e)
+        return False, None, detail
+
+
+def probe_boot_completed(serial: str) -> tuple[bool, str | None, dict[str, Any]]:
+    detail: dict[str, Any] = {"serial": serial}
+    env = adb_env()
+    try:
         boot = subprocess.run(
             [ADB_PATH, "-s", serial, "shell", "getprop", "sys.boot_completed"],
             capture_output=True,
             text=True,
             env=env,
-            timeout=30,
+            timeout=ADB_GETPROP_TIMEOUT,
         )
-        detail["boot_completed_stdout"] = boot.stdout.strip()
-        if boot.stdout.strip() == "1":
-            result_boot = True
-        else:
-            result_boot = False
-        return True, detail
+        value = boot.stdout.strip()
+        detail["boot_completed_stdout"] = value
+        detail["returncode"] = boot.returncode
+        if boot.returncode != 0:
+            detail["stderr"] = boot.stderr.strip()
+            return False, value or None, detail
+        return value == "1", value or None, detail
     except Exception as e:
         detail["error"] = repr(e)
-        return False, detail
+        return False, None, detail
 
 
 def poll_data_plane(
@@ -357,14 +422,17 @@ def poll_data_plane(
         "t_health_ready": lambda: probe_health(hosts["health"], token),
         "t_scrcpy_ready": lambda: probe_scrcpy(hosts["scrcpy"], token),
     }
-    adb_done = False
-    android_boot_done = False
+    adb_serial: str | None = None
     deadline = time.monotonic() + PROBE_TIMEOUT
     result.probe_details["hosts"] = hosts
+    result.probe_details["adb_probe_config"] = {
+        "connect_timeout_s": ADB_CONNECT_TIMEOUT,
+        "getprop_timeout_s": ADB_GETPROP_TIMEOUT,
+        "probe_interval_s": ADB_PROBE_INTERVAL,
+        "data_plane_interval_s": DATA_PLANE_INTERVAL,
+    }
 
     while time.monotonic() < deadline:
-        pending = [k for k, v in result.timestamps_ms.items() if k.startswith("t_") and v is None]
-        # only poll incomplete service probes
         with ThreadPoolExecutor(max_workers=3) as pool:
             futures = {}
             for key, fn in probes.items():
@@ -377,43 +445,54 @@ def poll_data_plane(
                 if ok:
                     result.timestamps_ms[key] = ms_since(t0)
 
-        if result.timestamps_ms.get("t_adb_ready") is None and not adb_done:
-            ok, detail = probe_adb(instance_id, t0)
-            result.probe_details["t_adb_ready"] = detail
+        if adb_serial is None:
+            ok, serial, detail = connect_mobile_instance(instance_id)
+            result.adb_probe_log.append(
+                {
+                    "elapsed_ms": ms_since(t0),
+                    "phase": "connect",
+                    "ok": ok,
+                    "detail": detail,
+                }
+            )
+            result.probe_details["adb_connect"] = detail
+            if ok and serial:
+                adb_serial = serial
+                result.timestamps_ms["t_adb_tunnel_ready"] = ms_since(t0)
+                result.timestamps_ms["t_adb_ready"] = result.timestamps_ms[
+                    "t_adb_tunnel_ready"
+                ]
+        elif result.timestamps_ms.get("t_android_boot") is None:
+            ok, boot_val, detail = probe_boot_completed(adb_serial)
+            result.adb_probe_log.append(
+                {
+                    "elapsed_ms": ms_since(t0),
+                    "phase": "boot_completed",
+                    "ok": ok,
+                    "boot_completed": boot_val,
+                    "detail": detail,
+                }
+            )
             if ok:
-                result.timestamps_ms["t_adb_ready"] = ms_since(t0)
-                adb_done = True
-                if detail.get("boot_completed_stdout") == "1":
-                    result.timestamps_ms["t_android_boot"] = result.timestamps_ms["t_adb_ready"]
-                    android_boot_done = True
-            else:
-                # retry adb less aggressively
-                time.sleep(3)
+                now = ms_since(t0)
+                result.timestamps_ms["t_android_boot"] = now
+                result.timestamps_ms["t_adb_ready"] = now
+                result.probe_details["adb_boot"] = detail
 
-        if adb_done and not android_boot_done:
-            serial = (result.probe_details.get("t_adb_ready") or {}).get("serial")
-            if serial:
-                try:
-                    boot = subprocess.run(
-                        [ADB_PATH, "-s", serial, "shell", "getprop", "sys.boot_completed"],
-                        capture_output=True,
-                        text=True,
-                        timeout=30,
-                    )
-                    if boot.stdout.strip() == "1":
-                        result.timestamps_ms["t_android_boot"] = ms_since(t0)
-                        android_boot_done = True
-                except Exception:
-                    pass
-
-        required = ["t_appium_ready", "t_adb_ready"]
+        required = ["t_appium_ready", "t_android_boot"]
         if all(result.timestamps_ms.get(k) is not None for k in required):
             break
-        time.sleep(2)
+
+        if adb_serial is None:
+            time.sleep(ADB_PROBE_INTERVAL)
+        elif result.timestamps_ms.get("t_android_boot") is None:
+            time.sleep(ADB_PROBE_INTERVAL)
+        else:
+            time.sleep(DATA_PLANE_INTERVAL)
 
     if result.timestamps_ms.get("t_e2e_usable") is None:
         a = result.timestamps_ms.get("t_appium_ready")
-        b = result.timestamps_ms.get("t_adb_ready")
+        b = result.timestamps_ms.get("t_android_boot")
         if a is not None and b is not None:
             result.timestamps_ms["t_e2e_usable"] = max(a, b)
 
@@ -436,6 +515,13 @@ def _gap(a: float | None, b: float | None) -> float | None:
 
 
 def cleanup(result: BenchResult) -> None:
+    if result.instance_id:
+        try:
+            result.probe_details["cleanup_disconnect"] = disconnect_mobile(
+                result.instance_id
+            )
+        except Exception as e:
+            result.probe_details["cleanup_disconnect_error"] = repr(e)
     if result.instance_id and not os.environ.get("AGR_KEEP_INSTANCE"):
         try:
             run_agr(
@@ -461,6 +547,10 @@ def main() -> int:
         "adb_path": ADB_PATH,
         "running_timeout_s": RUNNING_TIMEOUT,
         "probe_timeout_s": PROBE_TIMEOUT,
+        "adb_connect_timeout_s": ADB_CONNECT_TIMEOUT,
+        "adb_getprop_timeout_s": ADB_GETPROP_TIMEOUT,
+        "adb_probe_interval_s": ADB_PROBE_INTERVAL,
+        "data_plane_interval_s": DATA_PLANE_INTERVAL,
         "hostname": os.environ.get("HOSTNAME", ""),
     }
     result.timestamps_ms = {
@@ -470,6 +560,7 @@ def main() -> int:
         "t_health_ready": None,
         "t_appium_ready": None,
         "t_scrcpy_ready": None,
+        "t_adb_tunnel_ready": None,
         "t_adb_ready": None,
         "t_android_boot": None,
         "t_e2e_usable": None,
@@ -479,6 +570,9 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     try:
+        result.probe_details["preflight_disconnect"] = disconnect_mobile(
+            all_connections=True
+        )
         agr_init()
         tool_id = ensure_tool(result)
         print(f"ToolId={tool_id} (created={result.tool_created})")

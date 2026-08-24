@@ -11,6 +11,7 @@ TOOL_ID="${AGR_TOOL_ID:-}"
 cd "${ROOT}"
 
 echo "==> Batch cold-start: runs=${RUNS} gap=${GAP_SEC}s tool=${TOOL_ID:-<new each run>}"
+agr instance mobile disconnect --all --non-interactive >/dev/null 2>&1 || true
 for i in $(seq 1 "${RUNS}"); do
   echo ""
   echo "========== Run ${i}/${RUNS} $(date -u +%Y-%m-%dT%H:%M:%SZ) =========="
@@ -40,7 +41,7 @@ dirs = sorted(dirs, key=lambda p: p.name)
 metrics = [
     "t_api_create", "t_status_running", "t_token",
     "t_health_ready", "t_appium_ready", "t_scrcpy_ready",
-    "t_adb_ready", "t_android_boot", "t_e2e_usable",
+    "t_adb_tunnel_ready", "t_adb_ready", "t_android_boot", "t_e2e_usable",
 ]
 gap_metrics = [
     "api_to_running", "running_to_token", "token_to_e2e",
