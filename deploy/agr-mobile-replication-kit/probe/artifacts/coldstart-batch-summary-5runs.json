@@ -1,202 +1,215 @@
 {
   "batch_runs_requested": 5,
   "batch_runs_collected": 5,
-  "success_count": 3,
-  "success_rate": 0.6,
+  "success_count": 5,
+  "success_rate": 1.0,
   "runs": [
     {
-      "run_id": "20260824T084929Z",
+      "run_id": "20260824T092744Z",
       "success": true,
-      "instance_id": "vyiicwzh4yxkepyrnnvsjv5tmvbmazjyjoe4f42k",
+      "instance_id": "5qtnwl2de5lv3iokv5fkxsqfaqsuzeni5dgvdaxl",
       "timestamps_ms": {
-        "t_api_create": 2311.5,
-        "t_status_running": 2311.5,
-        "t_token": 2796.0,
-        "t_health_ready": 13505.1,
-        "t_appium_ready": 4873.8,
-        "t_scrcpy_ready": 4884.7,
-        "t_adb_ready": 99427.4,
-        "t_android_boot": 99427.4,
-        "t_e2e_usable": 99427.4
+        "t_api_create": 2007.0,
+        "t_status_running": 2007.0,
+        "t_token": 2505.8,
+        "t_health_ready": 14225.9,
+        "t_appium_ready": 4318.9,
+        "t_scrcpy_ready": 6203.0,
+        "t_adb_tunnel_ready": 19914.4,
+        "t_adb_ready": 21709.3,
+        "t_android_boot": 21709.3,
+        "t_e2e_usable": 21709.3
       },
       "gaps_ms": {
         "api_to_running": 0.0,
-        "running_to_token": 484.5,
-        "token_to_e2e": 96631.4,
-        "running_to_e2e": 97115.9,
-        "total_create_to_e2e": 97115.9
+        "running_to_token": 498.8,
+        "token_to_e2e": 19203.5,
+        "running_to_e2e": 19702.3,
+        "total_create_to_e2e": 19702.3
       },
       "failure_stage": null
     },
     {
-      "run_id": "20260824T085142Z",
+      "run_id": "20260824T092839Z",
       "success": true,
-      "instance_id": "fzczkdwb6ckppxnta377ryzout7bzc7uffg2f2d5",
+      "instance_id": "udmtapufck3qrkveiostmrlx4fpzjtvgfea2h3i7",
       "timestamps_ms": {
-        "t_api_create": 1880.0,
-        "t_status_running": 1880.0,
-        "t_token": 2383.1,
-        "t_health_ready": 14038.4,
-        "t_appium_ready": 5235.6,
-        "t_scrcpy_ready": 4736.2,
-        "t_adb_ready": 219511.4,
-        "t_android_boot": 219511.4,
-        "t_e2e_usable": 219511.4
+        "t_api_create": 2011.4,
+        "t_status_running": 2011.4,
+        "t_token": 2493.9,
+        "t_health_ready": 13570.8,
+        "t_appium_ready": 5886.4,
+        "t_scrcpy_ready": 3887.0,
+        "t_adb_tunnel_ready": 18475.9,
+        "t_adb_ready": 19685.4,
+        "t_android_boot": 19685.4,
+        "t_e2e_usable": 19685.4
       },
       "gaps_ms": {
         "api_to_running": 0.0,
-        "running_to_token": 503.1,
-        "token_to_e2e": 217128.3,
-        "running_to_e2e": 217631.4,
-        "total_create_to_e2e": 217631.4
+        "running_to_token": 482.5,
+        "token_to_e2e": 17191.5,
+        "running_to_e2e": 17674.0,
+        "total_create_to_e2e": 17674.0
       },
       "failure_stage": null
     },
     {
-      "run_id": "20260824T085554Z",
+      "run_id": "20260824T092930Z",
       "success": true,
-      "instance_id": "obekzmol4gnf3qidu4w4k5csyiuf255pvom2obif",
+      "instance_id": "2cj32npxrfdv3oyjdfn3bc2x5dlnvbqhuuv3yhtv",
       "timestamps_ms": {
-        "t_api_create": 1946.4,
-        "t_status_running": 1946.4,
-        "t_token": 2430.6,
-        "t_health_ready": 13216.3,
-        "t_appium_ready": 5775.1,
-        "t_scrcpy_ready": 4584.5,
-        "t_adb_ready": 57852.8,
-        "t_android_boot": 57852.8,
-        "t_e2e_usable": 57852.8
+        "t_api_create": 3276.7,
+        "t_status_running": 3276.7,
+        "t_token": 3772.9,
+        "t_health_ready": 15194.3,
+        "t_appium_ready": 6956.3,
+        "t_scrcpy_ready": 7070.1,
+        "t_adb_tunnel_ready": 19256.8,
+        "t_adb_ready": 20478.3,
+        "t_android_boot": 20478.3,
+        "t_e2e_usable": 20478.3
       },
       "gaps_ms": {
         "api_to_running": 0.0,
-        "running_to_token": 484.2,
-        "token_to_e2e": 55422.2,
-        "running_to_e2e": 55906.4,
-        "total_create_to_e2e": 55906.4
+        "running_to_token": 496.2,
+        "token_to_e2e": 16705.4,
+        "running_to_e2e": 17201.6,
+        "total_create_to_e2e": 17201.6
       },
       "failure_stage": null
     },
     {
-      "run_id": "20260824T085724Z",
-      "success": false,
-      "instance_id": "wfkzusyga5saqhfvrkkdcprgoa5ojut7rzvgosts",
+      "run_id": "20260824T093022Z",
+      "success": true,
+      "instance_id": "2luo33dafmsqr6mdr4rbc2gtq4jsq3ntuzd6jqfq",
       "timestamps_ms": {
-        "t_api_create": 1905.8,
-        "t_status_running": 1905.8,
-        "t_token": 2405.1,
-        "t_health_ready": 14078.5,
-        "t_appium_ready": 6166.7,
-        "t_scrcpy_ready": 5259.1,
-        "t_adb_ready": null,
-        "t_android_boot": null,
-        "t_e2e_usable": null
+        "t_api_create": 1920.8,
+        "t_status_running": 1920.8,
+        "t_token": 2419.5,
+        "t_health_ready": 12748.3,
+        "t_appium_ready": 4543.4,
+        "t_scrcpy_ready": 4436.0,
+        "t_adb_tunnel_ready": 18227.2,
+        "t_adb_ready": 19455.7,
+        "t_android_boot": 19455.7,
+        "t_e2e_usable": 19455.7
       },
       "gaps_ms": {
         "api_to_running": 0.0,
-        "running_to_token": 499.3,
-        "token_to_e2e": null,
-        "running_to_e2e": null,
-        "total_create_to_e2e": null
+        "running_to_token": 498.7,
+        "token_to_e2e": 17036.2,
+        "running_to_e2e": 17534.9,
+        "total_create_to_e2e": 17534.9
       },
-      "failure_stage": "data_plane_timeout"
+      "failure_stage": null
     },
     {
-      "run_id": "20260824T090300Z",
-      "success": false,
-      "instance_id": "hyxbpnh35tff34hhhfbjcnt6z6pvwfprco4bzeag",
+      "run_id": "20260824T093115Z",
+      "success": true,
+      "instance_id": "vihsc6sswgjaqgye75ebftb32zuw55v7xr3wbrq7",
       "timestamps_ms": {
-        "t_api_create": 1575.2,
-        "t_status_running": 1575.2,
-        "t_token": 2056.1,
-        "t_health_ready": 9888.2,
-        "t_appium_ready": 3903.9,
-        "t_scrcpy_ready": 3308.2,
-        "t_adb_ready": null,
-        "t_android_boot": null,
-        "t_e2e_usable": null
+        "t_api_create": 1884.1,
+        "t_status_running": 1884.1,
+        "t_token": 2386.3,
+        "t_health_ready": 12946.3,
+        "t_appium_ready": 5247.8,
+        "t_scrcpy_ready": 3734.6,
+        "t_adb_tunnel_ready": 17203.2,
+        "t_adb_ready": 18435.8,
+        "t_android_boot": 18435.8,
+        "t_e2e_usable": 18435.8
       },
       "gaps_ms": {
         "api_to_running": 0.0,
-        "running_to_token": 480.9,
-        "token_to_e2e": null,
-        "running_to_e2e": null,
-        "total_create_to_e2e": null
+        "running_to_token": 502.2,
+        "token_to_e2e": 16049.5,
+        "running_to_e2e": 16551.7,
+        "total_create_to_e2e": 16551.7
       },
-      "failure_stage": "data_plane_timeout"
+      "failure_stage": null
     }
   ],
   "percentiles_ms": {
     "t_api_create": {
       "n": 5,
-      "min": 1575.2,
-      "p50": 1905.8,
-      "p90": 2165.5,
-      "max": 2311.5,
-      "mean": 1923.8
+      "min": 1884.1,
+      "p50": 2007.0,
+      "p90": 2770.6,
+      "max": 3276.7,
+      "mean": 2220.0
     },
     "t_status_running": {
       "n": 5,
-      "min": 1575.2,
-      "p50": 1905.8,
-      "p90": 2165.5,
-      "max": 2311.5,
-      "mean": 1923.8
+      "min": 1884.1,
+      "p50": 2007.0,
+      "p90": 2770.6,
+      "max": 3276.7,
+      "mean": 2220.0
     },
     "t_token": {
       "n": 5,
-      "min": 2056.1,
-      "p50": 2405.1,
-      "p90": 2649.8,
-      "max": 2796.0,
-      "mean": 2414.2
+      "min": 2386.3,
+      "p50": 2493.9,
+      "p90": 3266.1,
+      "max": 3772.9,
+      "mean": 2715.7
     },
     "t_health_ready": {
       "n": 5,
-      "min": 9888.2,
-      "p50": 13505.1,
-      "p90": 14062.5,
-      "max": 14078.5,
-      "mean": 12945.3
+      "min": 12748.3,
+      "p50": 13570.8,
+      "p90": 14806.9,
+      "max": 15194.3,
+      "mean": 13737.1
     },
     "t_appium_ready": {
       "n": 5,
-      "min": 3903.9,
-      "p50": 5235.6,
-      "p90": 6010.1,
-      "max": 6166.7,
-      "mean": 5191.0
+      "min": 4318.9,
+      "p50": 5247.8,
+      "p90": 6528.3,
+      "max": 6956.3,
+      "mean": 5390.6
     },
     "t_scrcpy_ready": {
       "n": 5,
-      "min": 3308.2,
-      "p50": 4736.2,
-      "p90": 5109.3,
-      "max": 5259.1,
-      "mean": 4554.5
+      "min": 3734.6,
+      "p50": 4436.0,
+      "p90": 6723.3,
+      "max": 7070.1,
+      "mean": 5066.1
+    },
+    "t_adb_tunnel_ready": {
+      "n": 5,
+      "min": 17203.2,
+      "p50": 18475.9,
+      "p90": 19651.4,
+      "max": 19914.4,
+      "mean": 18615.5
     },
     "t_adb_ready": {
-      "n": 3,
-      "min": 57852.8,
-      "p50": 99427.4,
-      "p90": 195494.6,
-      "max": 219511.4,
-      "mean": 125597.2
+      "n": 5,
+      "min": 18435.8,
+      "p50": 19685.4,
+      "p90": 21216.9,
+      "max": 21709.3,
+      "mean": 19952.9
     },
     "t_android_boot": {
-      "n": 3,
-      "min": 57852.8,
-      "p50": 99427.4,
-      "p90": 195494.6,
-      "max": 219511.4,
-      "mean": 125597.2
+      "n": 5,
+      "min": 18435.8,
+      "p50": 19685.4,
+      "p90": 21216.9,
+      "max": 21709.3,
+      "mean": 19952.9
     },
     "t_e2e_usable": {
-      "n": 3,
-      "min": 57852.8,
-      "p50": 99427.4,
-      "p90": 195494.6,
-      "max": 219511.4,
-      "mean": 125597.2
+      "n": 5,
+      "min": 18435.8,
+      "p50": 19685.4,
+      "p90": 21216.9,
+      "max": 21709.3,
+      "mean": 19952.9
     }
   },
   "gap_percentiles_ms": {
@@ -210,35 +223,35 @@
     },
     "running_to_token": {
       "n": 5,
-      "min": 480.9,
-      "p50": 484.5,
-      "p90": 501.6,
-      "max": 503.1,
-      "mean": 490.4
+      "min": 482.5,
+      "p50": 498.7,
+      "p90": 500.8,
+      "max": 502.2,
+      "mean": 495.7
     },
     "token_to_e2e": {
-      "n": 3,
-      "min": 55422.2,
-      "p50": 96631.4,
-      "p90": 193028.9,
-      "max": 217128.3,
-      "mean": 123060.6
+      "n": 5,
+      "min": 16049.5,
+      "p50": 17036.2,
+      "p90": 18398.7,
+      "max": 19203.5,
+      "mean": 17237.2
     },
     "running_to_e2e": {
-      "n": 3,
-      "min": 55906.4,
-      "p50": 97115.9,
-      "p90": 193528.3,
-      "max": 217631.4,
-      "mean": 123551.2
+      "n": 5,
+      "min": 16551.7,
+      "p50": 17534.9,
+      "p90": 18891.0,
+      "max": 19702.3,
+      "mean": 17732.9
     },
     "total_create_to_e2e": {
-      "n": 3,
-      "min": 55906.4,
-      "p50": 97115.9,
-      "p90": 193528.3,
-      "max": 217631.4,
-      "mean": 123551.2
+      "n": 5,
+      "min": 16551.7,
+      "p50": 17534.9,
+      "p90": 18891.0,
+      "max": 19702.3,
+      "mean": 17732.9
     }
   }
 }

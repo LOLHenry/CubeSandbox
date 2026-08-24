@@ -79,8 +79,8 @@
 |------|------|------|----------|
 | `instance create` ~**2s** 返回且常为 `RUNNING`（无 `STARTING` 轮询） | ✅ | [探测 06](probes/06-20260824-mobile-coldstart-bench.md) | `coldstart-batch-summary-5runs.json` |
 | Appium `:4723` ~**5s** ready（p50） | ✅ | 探测 06 | 同上 |
-| `t_e2e_usable`（max Appium/ADB）p50 **~99s**（n=3 成功） | ⚠️ | 探测 06 | 同上；ADB 探针波动大 |
-| 批量成功率 **60%**（5 次中 2 次 ADB 探活超时） | ⚠️ | 探测 06 | 探针局限（本地 adb 隧道累积） |
+| `t_e2e_usable`（max Appium/Android boot）p50 **~19.7s**（v2 探针，n=5） | ✅ | [探测 06](probes/06-20260824-mobile-coldstart-bench.md) | `coldstart-batch-summary-5runs.json` |
+| 批量成功率 **100%**（v2 探针修复 disconnect + serial + 3s getprop） | ✅ | 探测 06 | 同上 |
 
 脚本：`probe/agr-mobile-coldstart-bench.py`、`probe/agr-mobile-coldstart-batch.sh`
 

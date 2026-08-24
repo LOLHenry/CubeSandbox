@@ -1,0 +1,173 @@
+{
+  "run_id": "20260824T092839Z",
+  "timestamp_utc": "2026-08-24T09:28:39.354846+00:00",
+  "environment": {
+    "region": "ap-shanghai",
+    "domain": "tencentags.com",
+    "agr_bin": "agr",
+    "agr_version": "agr version 0.6.1\n  commit: c470fbb7e5b8a9a066920857dae29100086d4ffd\n  built:  2026-06-05T03:43:43Z",
+    "adb_path": "/tmp/platform-tools/adb",
+    "running_timeout_s": 600,
+    "probe_timeout_s": 300,
+    "adb_connect_timeout_s": 20,
+    "adb_getprop_timeout_s": 3,
+    "adb_probe_interval_s": 1.0,
+    "data_plane_interval_s": 2.0,
+    "hostname": ""
+  },
+  "tool_id": "sdt-g9nj2vc4",
+  "tool_created": false,
+  "instance_id": "udmtapufck3qrkveiostmrlx4fpzjtvgfea2h3i7",
+  "success": true,
+  "failure_stage": null,
+  "final_status": "RUNNING",
+  "timestamps_ms": {
+    "t_api_create": 2011.4,
+    "t_status_running": 2011.4,
+    "t_token": 2493.9,
+    "t_health_ready": 13570.8,
+    "t_appium_ready": 5886.4,
+    "t_scrcpy_ready": 3887.0,
+    "t_adb_tunnel_ready": 18475.9,
+    "t_adb_ready": 19685.4,
+    "t_android_boot": 19685.4,
+    "t_e2e_usable": 19685.4
+  },
+  "status_poll_log": [],
+  "probe_details": {
+    "preflight_disconnect": {
+      "exit_code": 0,
+      "stdout": "{\"SchemaVersion\":\"agr.v1\",\"Command\":\"instance.mobile.disconnect\",\"Status\":\"succeeded\",\"Data\":{\"Count\":0,\"Disconnected\":[]},\"Failure\":null,\"Warnings\":[],\"Meta\":{\"Backend\":\"cloud\",\"DurationMs\":0}}",
+      "stderr": "",
+      "response": {
+        "SchemaVersion": "agr.v1",
+        "Command": "instance.mobile.disconnect",
+        "Status": "succeeded",
+        "Data": {
+          "Count": 0,
+          "Disconnected": []
+        },
+        "Failure": null,
+        "Warnings": [],
+        "Meta": {
+          "Backend": "cloud",
+          "DurationMs": 0
+        }
+      }
+    },
+    "token_expires_at": "2026-09-08T09:28:41Z",
+    "token_prefix": "sit_t8rb8y3D...",
+    "hosts": {
+      "appium": "4723-udmtapufck3qrkveiostmrlx4fpzjtvgfea2h3i7.ap-shanghai.tencentags.com",
+      "health": "8080-udmtapufck3qrkveiostmrlx4fpzjtvgfea2h3i7.ap-shanghai.tencentags.com",
+      "scrcpy": "8000-udmtapufck3qrkveiostmrlx4fpzjtvgfea2h3i7.ap-shanghai.tencentags.com"
+    },
+    "adb_probe_config": {
+      "connect_timeout_s": 20,
+      "getprop_timeout_s": 3,
+      "probe_interval_s": 1.0,
+      "data_plane_interval_s": 2.0
+    },
+    "t_scrcpy_ready": {
+      "url": "https://8000-udmtapufck3qrkveiostmrlx4fpzjtvgfea2h3i7.ap-shanghai.tencentags.com/",
+      "status_code": 200,
+      "body_preview": "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta content=\"width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no\" name=\"viewport\"/><title>WS scrcpy</title><script defer=\"defer\" src=\"bundle.js\"></script><link href=\"main.css\" rel=\"stylesheet\"></head><body><"
+    },
+    "t_appium_ready": {
+      "url": "https://4723-udmtapufck3qrkveiostmrlx4fpzjtvgfea2h3i7.ap-shanghai.tencentags.com/status",
+      "status_code": 200,
+      "body_preview": "{\"value\":{\"ready\":true,\"message\":\"The server is ready to accept new connections\",\"build\":{\"version\":\"3.1.1\"}}}"
+    },
+    "t_health_ready": {
+      "url": "https://8080-udmtapufck3qrkveiostmrlx4fpzjtvgfea2h3i7.ap-shanghai.tencentags.com/healthz",
+      "status_code": 200,
+      "body_preview": "{\n  \"status\": \"healthy\",\n  \"timestamp\": \"2026-08-24T09:28:52.824Z\",\n  \"checks\": {\n    \"appium\": {\n      \"ok\": true,\n      \"data\": {\n        \"value\": {\n          \"ready\": true,\n          \"message\": \"The server is ready to accept new connections\",\n          \"build\": {\n            \"version\": \"3.1.1\"\n  ",
+      "path": "/healthz"
+    },
+    "adb_connect": {
+      "adb_path": "/tmp/platform-tools/adb",
+      "instance_id": "udmtapufck3qrkveiostmrlx4fpzjtvgfea2h3i7",
+      "connect_response": {
+        "SchemaVersion": "agr.v1",
+        "Command": "instance.mobile.connect",
+        "Status": "succeeded",
+        "Data": {
+          "AdbAddress": "127.0.0.1:44483",
+          "InstanceId": "udmtapufck3qrkveiostmrlx4fpzjtvgfea2h3i7",
+          "LogPath": "/home/ubuntu/.agr/tunnel-udmtapufck3qrkveiostmrlx4fpzjtvgfea2h3i7.log",
+          "Pid": 21305,
+          "Port": 44483
+        },
+        "Failure": null,
+        "Warnings": [],
+        "Meta": {
+          "Backend": "cloud",
+          "DurationMs": 4897
+        }
+      },
+      "serial": "127.0.0.1:44483",
+      "adb_state_stdout": "device",
+      "adb_state_stderr": ""
+    },
+    "adb_boot": {
+      "serial": "127.0.0.1:44483",
+      "boot_completed_stdout": "1",
+      "returncode": 0
+    },
+    "cleanup_disconnect": {
+      "exit_code": 0,
+      "stdout": "disconnected 127.0.0.1:44483\n{\"SchemaVersion\":\"agr.v1\",\"Command\":\"instance.mobile.disconnect\",\"Status\":\"succeeded\",\"Data\":{\"InstanceId\":\"udmtapufck3qrkveiostmrlx4fpzjtvgfea2h3i7\"},\"Failure\":null,\"Warnings\":[],\"Meta\":{\"Backend\":\"cloud\",\"DurationMs\":102}}",
+      "stderr": ""
+    }
+  },
+  "adb_probe_log": [
+    {
+      "elapsed_ms": 18475.8,
+      "phase": "connect",
+      "ok": true,
+      "detail": {
+        "adb_path": "/tmp/platform-tools/adb",
+        "instance_id": "udmtapufck3qrkveiostmrlx4fpzjtvgfea2h3i7",
+        "connect_response": {
+          "SchemaVersion": "agr.v1",
+          "Command": "instance.mobile.connect",
+          "Status": "succeeded",
+          "Data": {
+            "AdbAddress": "127.0.0.1:44483",
+            "InstanceId": "udmtapufck3qrkveiostmrlx4fpzjtvgfea2h3i7",
+            "LogPath": "/home/ubuntu/.agr/tunnel-udmtapufck3qrkveiostmrlx4fpzjtvgfea2h3i7.log",
+            "Pid": 21305,
+            "Port": 44483
+          },
+          "Failure": null,
+          "Warnings": [],
+          "Meta": {
+            "Backend": "cloud",
+            "DurationMs": 4897
+          }
+        },
+        "serial": "127.0.0.1:44483",
+        "adb_state_stdout": "device",
+        "adb_state_stderr": ""
+      }
+    },
+    {
+      "elapsed_ms": 19685.4,
+      "phase": "boot_completed",
+      "ok": true,
+      "boot_completed": "1",
+      "detail": {
+        "serial": "127.0.0.1:44483",
+        "boot_completed_stdout": "1",
+        "returncode": 0
+      }
+    }
+  ],
+  "gaps_ms": {
+    "api_to_running": 0.0,
+    "running_to_token": 482.5,
+    "token_to_e2e": 17191.5,
+    "running_to_e2e": 17674.0,
+    "total_create_to_e2e": 17674.0
+  }
+}
