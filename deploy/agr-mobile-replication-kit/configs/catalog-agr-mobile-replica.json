@@ -1,0 +1,45 @@
+{
+  "id": "agr-mobile-replica-kunpeng-arm64",
+  "display_name": "AGR Mobile Replica (Kunpeng ARM64)",
+  "display_name_zh": "AGR Mobile 复刻（鲲鹏 ARM64 · ReDroid + envd + ADB）",
+  "description": "Self-hosted CubeSandbox replica of Tencent AGR Mobile dual control plane (envd :49983 + ADB :5555) on ReDroid Android 16.",
+  "description_zh": "在 CubeSandbox 上复刻腾讯云 AGR Mobile 双控制面（envd :49983 + ADB :5555），基于 ReDroid Android 16。",
+  "category": "android",
+  "official": false,
+  "release_status": "preview",
+  "replicates": "tencent-agr-mobile",
+  "instance_type": "cubebox",
+  "runtime_model": "cubevm-redroid",
+  "platform": {
+    "arch": "arm64",
+    "host_profile": "kunpeng920",
+    "kvm_required": true
+  },
+  "workload": {
+    "engine": "redroid",
+    "android_version": "16",
+    "android_api_level": 36,
+    "envd": { "enabled": true, "port": 49983, "health_path": "/health", "goos": "android" },
+    "adb": { "port": 5555 },
+    "local_tag": "sandbox-android-redroid-envd:16.0.0-arm64"
+  },
+  "template_defaults": {
+    "writable_layer_size": "10Gi",
+    "expose_ports": [5555, 49983],
+    "probe_port": 49983,
+    "probe_path": "/health",
+    "resources": { "cpu": "4", "mem": "6Gi" }
+  },
+  "agr_official_reference": {
+    "probe_date": "2026-07-23",
+    "region": "ap-shanghai",
+    "base_stack": "Cube Hypervisor + SmartRun ReDroid Android 14 x86_64",
+    "doc": "https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md"
+  },
+  "implementation_notes": [
+    "Not Tencent official; fork/community replication kit.",
+    "CubeSandbox upstream has no published instance_type=android yet.",
+    "Use tpl create-from-image with --probe 49983 and --expose-port 5555.",
+    "envd must be GOOS=android; Linux envd from cubesandbox-base will not run."
+  ]
+}

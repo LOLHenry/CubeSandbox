@@ -1,0 +1,61 @@
+{
+  "kit_id": "agr-mobile-replication-kit",
+  "kit_version": "1.0.0",
+  "target_platform": "kunpeng-arm64",
+  "description": "Offline package to replicate AGR Mobile dual-channel (envd+ADB) on CubeSandbox",
+  "agr_reference_probe_date": "2026-07-23",
+  "agr_reference_region": "ap-shanghai",
+  "agr_reference_doc": "https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md",
+  "components": {
+    "cubesandbox": {
+      "recommended_release": "v0.6.0",
+      "instance_type_current": "cubebox",
+      "instance_type_target": "android"
+    },
+    "redroid": {
+      "upstream": "redroid/redroid:16.0.0_64only-latest",
+      "local_tag": "sandbox-android-redroid-envd:16.0.0-arm64"
+    },
+    "envd": {
+      "upstream_repo": "https://github.com/e2b-dev/infra.git",
+      "ref": "2026.16",
+      "goos": "android",
+      "goarch": "arm64",
+      "port": 49983,
+      "health_path": "/health"
+    },
+    "adb": {
+      "port": 5555
+    },
+    "go": {
+      "version": "1.25.4",
+      "os": "linux",
+      "arch": "arm64"
+    },
+    "agr_cli": {
+      "version": "0.6.1",
+      "note": "For cloud probe only; bundled optionally in unified tarball"
+    },
+    "template_defaults": {
+      "cpu": "4000",
+      "memory_mib": 6144,
+      "writable_layer": "10Gi",
+      "expose_ports": [5555, 49983],
+      "probe_port": 49983,
+      "probe_path": "/health"
+    }
+  },
+  "agr_official_ports_observed": {
+    "5555": "adbd",
+    "4723": "appium",
+    "8000": "scrcpy_http",
+    "8886": "scrcpy_adb_proxy",
+    "49983": "envd",
+    "8080": "platform_default"
+  },
+  "build_scripts": {
+    "unified_tarball": "scripts/build-unified-tarball.sh",
+    "offline_kit": "deploy/sandbox-images/sandbox-android-redroid-envd/offline-build-kit/build-offline-kit.sh",
+    "image_dockerfile": "deploy/sandbox-images/sandbox-android-redroid-envd/offline-build-kit/Dockerfile.inject"
+  }
+}

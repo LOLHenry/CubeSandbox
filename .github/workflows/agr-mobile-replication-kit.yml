@@ -1,0 +1,30 @@
+name: AGR Mobile Replication Kit
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'cursor/agr-mobile-replication-kit-*'
+    paths:
+      - 'deploy/agr-mobile-replication-kit/**'
+      - 'deploy/sandbox-images/sandbox-android-redroid-envd/**'
+
+jobs:
+  build-unified-kit:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preflight
+        run: ./deploy/agr-mobile-replication-kit/scripts/00-preflight.sh
+
+      - name: Build unified offline tarball
+        run: ./deploy/agr-mobile-replication-kit/scripts/build-unified-tarball.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agr-mobile-replication-kit-kunpeng-arm64
+          path: |
+            deploy/agr-mobile-replication-kit/dist/agr-mobile-replication-kit-kunpeng-arm64.tar.gz
+            deploy/agr-mobile-replication-kit/dist/agr-mobile-replication-kit-kunpeng-arm64.tar.gz.sha256
