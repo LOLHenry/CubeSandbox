@@ -78,4 +78,4 @@
 | 腾讯 sidecar OCI 镜像名 / Dockerfile | ❓ 未公开 |
 | Sidecar 启动机制（systemd/s6/自定义） | ❓ 未公开 |
 | `:32001` 端口用途 | ❓ 仅见监听 |
-| AGR mobile 多容器 cubebox 完整 spec JSON | ❓ 平台内部 |
+| AGR mobile 多容器 cubebox 完整 spec JSON | ❓ 平台内部；用户不可配 → [`OFFICIAL_MULTI_CONTAINER.md`](../OFFICIAL_MULTI_CONTAINER.md) |

@@ -87,4 +87,4 @@
 | [`../AGR_REFERENCE.md`](../AGR_REFERENCE.md) | 操作速查（凭据、端口、SDK 示例）；汇总最新结论 |
 | [`../OPTIONAL_COMPONENTS.md`](../OPTIONAL_COMPONENTS.md) | 鲲鹏复刻可选组件（Appium/scrcpy） |
 | [`../OFFLINE_KUNPENG.md`](../OFFLINE_KUNPENG.md) | 鲲鹏离线部署指南 |
-| [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) | AGR 官方 vs CubeSandbox 鲲鹏复刻对照 |
+| [`OFFICIAL_MULTI_CONTAINER.md`](../OFFICIAL_MULTI_CONTAINER.md) | AGR 官方多容器支持边界与自建 Cube 操作步骤 |

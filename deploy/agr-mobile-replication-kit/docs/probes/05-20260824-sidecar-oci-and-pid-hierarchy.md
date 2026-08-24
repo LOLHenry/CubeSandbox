@@ -106,6 +106,8 @@
 
 **结论（⚠️ 推断）：** 腾讯侧 likely 用**内部多容器模板**编排 sidecar + Android；**不是**用户侧 `create-from-image` 单镜像流程。
 
+**官方支持边界（✅ 文档）：** AGR 租户**不能**为 `mobile` 配置多容器/sidecar 镜像；详见 [`OFFICIAL_MULTI_CONTAINER.md`](../OFFICIAL_MULTI_CONTAINER.md)。
+
 ---
 
 ## 5. ReDroid 与 PID 1（补充）
