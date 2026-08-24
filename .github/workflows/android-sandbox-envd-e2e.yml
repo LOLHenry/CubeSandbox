@@ -1,0 +1,133 @@
+name: Android Sandbox Envd E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Bundle/release suffix (e.g. envd-preview12)'
+        required: true
+        default: 'envd-preview12'
+      build_image:
+        description: 'Build image on GHA arm64 before E2E'
+        required: false
+        default: true
+        type: boolean
+      skip_build_job:
+        description: 'Skip GHA build; E2E loads existing local image on runner only'
+        required: false
+        default: false
+        type: boolean
+  push:
+    tags:
+      - 'android-kunpeng-envd-*'
+
+permissions:
+  contents: read
+
+jobs:
+  build_bundle:
+    name: Build Android envd bundle (arm64)
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.skip_build_job != true) }}
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: params
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            ref="${GITHUB_REF_NAME}"
+            release_tag="${ref#android-kunpeng-envd-}"
+          else
+            release_tag="${{ inputs.release_tag }}"
+          fi
+          echo "release_tag=${release_tag}" >> "${GITHUB_OUTPUT}"
+
+      - uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Build offline bundle
+        env:
+          RELEASE_TAG: ${{ steps.params.outputs.release_tag }}
+          BUILD_IMAGE: "1"
+        run: ./deploy/one-click/scripts/one-click/build-android-sandbox-envd-offline-bundle.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-envd-bundle-${{ steps.params.outputs.release_tag }}
+          path: |
+            deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-envd-docker-${{ steps.params.outputs.release_tag }}.tar.gz
+            deploy/one-click/dist/cube-sandbox-android-kunpeng-arm64-envd-docker-${{ steps.params.outputs.release_tag }}.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  e2e_template_ready:
+    name: E2E template READY (Kunpeng self-hosted)
+    needs: [build_bundle]
+    if: ${{ always() && (needs.build_bundle.result == 'success' || needs.build_bundle.result == 'skipped') }}
+    runs-on: [self-hosted, linux, arm64, kvm, cubesandbox]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: params
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            ref="${GITHUB_REF_NAME}"
+            release_tag="${ref#android-kunpeng-envd-}"
+          else
+            release_tag="${{ inputs.release_tag }}"
+          fi
+          echo "release_tag=${release_tag}" >> "${GITHUB_OUTPUT}"
+
+      - name: Download bundle artifact
+        if: ${{ needs.build_bundle.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: android-envd-bundle-${{ steps.params.outputs.release_tag }}
+          path: /tmp/android-envd-bundle
+
+      - name: Preflight KVM + CubeSandbox
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          docker info >/dev/null
+          command -v cubemastercli
+          ls -la /data/cubelet 2>/dev/null || echo "WARN: /data/cubelet missing"
+          ls -la /data/log/Cubelet 2>/dev/null || echo "WARN: /data/log/Cubelet missing"
+
+      - name: Run E2E template create
+        env:
+          BUNDLE_TAR: /tmp/android-envd-bundle/cube-sandbox-android-kunpeng-arm64-envd-docker-${{ steps.params.outputs.release_tag }}.tar.gz
+          CUBEMASTER_ADDR: ${{ vars.CUBEMASTER_ADDR || '127.0.0.1:8089' }}
+          PROBE_TIMEOUT_MS: "120000"
+          ARTIFACT_DIR: /tmp/android-envd-e2e-${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          chmod +x deploy/sandbox-images/sandbox-android-redroid-envd/e2e-template-ready.sh
+          if [[ "${{ needs.build_bundle.result }}" == "skipped" ]]; then
+            echo "skip_build_job: using local docker image only"
+            BUILD_IMAGE=0 deploy/sandbox-images/sandbox-android-redroid-envd/e2e-template-ready.sh
+          else
+            test -f "${BUNDLE_TAR}"
+            deploy/sandbox-images/sandbox-android-redroid-envd/e2e-template-ready.sh
+          fi
+
+      - name: Upload E2E diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-envd-e2e-diagnostics-${{ github.run_id }}
+          path: /tmp/android-envd-e2e-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14

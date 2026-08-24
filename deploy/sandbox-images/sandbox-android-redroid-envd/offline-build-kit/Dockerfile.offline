@@ -1,0 +1,50 @@
+# syntax=docker/dockerfile:1.7
+# Offline build: expects build context = extracted offline kit directory.
+#   docker build -f Dockerfile.offline -t sandbox-android-redroid-envd:16.0.0-arm64 .
+#
+# Prerequisites on host:
+#   gunzip -c images/redroid-16.0.0_64only-latest-arm64-docker.tar.gz | docker load
+
+ARG REDROID_BASE_IMAGE=redroid:16.0.0_64only-latest
+ARG GO_VERSION=1.25.4
+
+FROM golang:${GO_VERSION}-bookworm AS envd-builder
+
+WORKDIR /src/infra/packages/envd
+COPY src/infra/packages/envd /src/infra/packages/envd
+COPY src/infra/packages/shared /src/infra/packages/shared
+COPY src/infra.commit /src/infra.commit
+
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    commit_sha="$(cat /src/infra.commit | cut -c1-12)" \
+    && echo "Building vendored envd GOOS=android from commit ${commit_sha}" \
+    && CGO_ENABLED=0 GOOS=android GOARCH=arm64 \
+       go build -mod=vendor -a \
+           -ldflags "-X=main.commitSHA=${commit_sha} -s -w" \
+           -o /out/envd \
+           . \
+    && chmod +x /out/envd
+
+COPY src/envd-starter /src/envd-starter
+WORKDIR /src/envd-starter
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=android GOARCH=arm64 \
+    go build -a -ldflags "-s -w" -o /out/envd-starter .
+
+FROM ${REDROID_BASE_IMAGE}
+
+COPY --from=envd-builder --chmod=755 /out/envd /usr/bin/envd
+COPY --from=envd-builder --chmod=755 /out/envd-starter /usr/bin/envd-starter
+
+COPY src/android-init/cube-envd.rc /vendor/etc/init/cube-envd.rc
+COPY src/android-init/cube-envd.rc /system/etc/init/cube-envd.rc
+COPY --chmod=755 src/android-redroid-entrypoint.sh /usr/local/bin/android-redroid-entrypoint.sh
+COPY --chmod=755 src/start-cube-envd.sh /usr/bin/start-cube-envd.sh
+
+ENV ENVD_PORT=49983
+ENV CUBESANDBOX_ADB_PORT=5555
+
+EXPOSE 49983 5555
+
+CMD ["androidboot.redroid_width=1080", "androidboot.redroid_height=1920", "androidboot.redroid_dpi=480", "androidboot.redroid_gpu_mode=guest"]
+ENTRYPOINT ["/usr/bin/envd-starter"]

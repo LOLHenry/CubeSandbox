@@ -316,25 +316,41 @@ cube-sandbox-android-kunpeng-arm64-docker-v0.6.0.tar.gz.sha256
 
 | 资产 | 说明 |
 |------|------|
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz` | ReDroid + **GOOS=android** envd（修复 :49983 探活） |
-| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz.sha256` | 校验文件 |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview11.tar.gz` | **推荐**：preview10 + 全链路诊断日志（`envd-starter.log`、health 探针） |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview10.tar.gz` | `envd-starter` 预启 envd（`-isnotfc`）再 `exec /init` |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview9.tar.gz` | 仅 init.rc 启 envd，探活仍 refused |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview8.tar.gz` | `envd-starter`→`/init` + `cube-envd.rc` `on init`（无预启 envd） |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview7.tar.gz` | shell 入口，CubeVM 探活仍 refused（与 preview3 同类） |
+| `cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview7.tar.gz.sha256` | 校验文件 |
+
+**各版 ENTRYPOINT 对照（鲲鹏实测 + 你反馈）：**
+
+| 包 | ENTRYPOINT | 模板创建 | 宿主机 `docker run` |
+|----|------------|----------|---------------------|
+| preview2 | `android-redroid-entrypoint.sh`（shebang） | ✅ 你说成功过 | 不适用（CubeVM） |
+| preview3/6 | `/usr/bin/envd-starter`（无 `-isnotfc`） | ❌ 49983 refused | 不适用 |
+| preview5 | `["/system/bin/sh", script]` | 未验证 | ❌ ExitCode 255 |
+| preview8/9 | `envd-starter` 仅 exec `/init`，靠 init.rc | ❌ refused（preview9 实测） | 勿测 |
+| **preview12** | envd `-isnotfc -no-cgroups -verbose`（CubeVM/Android cgroup 修复） | **待验证** | 勿测 |
+| preview10 | `envd-starter` 预启 envd `-isnotfc` + exec `/init` | 待验证 | 勿测 |
+| preview7 | shell 脚本 | ❌ refused | 勿测 |
+
+> **本地 `docker run` 不能验证 ReDroid**（需 CubeVM）；只以 `tpl create-from-image` 为准。
 
 Release 页面：https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-envd-preview
 
-> **health 探活**：请使用 **`envd-preview2`** 包（envd 为 Android/bionic 构建）。旧 `envd-preview` 内为 GOOS=linux envd，探活会 **connection refused**。
+> **双通道**：对齐腾讯云 Agent Runtime Mobile 方案——**envd :49983**（Cube SDK / 探活 / `commands.run`）+ **adbd :5555**（`adb connect` 自动化）。模板必须 **同时** `--expose-port 5555` 与 `--expose-port 49983`；从集群外访问还需 `network-agent --host-proxy-bind-ip=0.0.0.0`（见 §2.4.6）。
 
-包 sha256（**envd-preview2**，2026-08-14 CI 构建）：
-
-```text
-a71d1d827ac4029578b11786cd267b6360512b1e687f36f9ef62262c24ea747a
-```
-
-鲲鹏目标机加载：
+包（**envd-preview7**）：
 
 ```bash
-sha256sum -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz.sha256
-gunzip -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview2.tar.gz | docker load
+sha256sum -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview7.tar.gz.sha256
+gunzip -c cube-sandbox-android-kunpeng-arm64-envd-docker-envd-preview7.tar.gz | docker load
+docker image inspect sandbox-android-redroid-envd:16.0.0-arm64 --format '{{json .Config.Entrypoint}}'
+# 期望：["/usr/local/bin/android-redroid-entrypoint.sh"]  （不是 /system/bin/sh，不是 envd-starter）
+```
 
+```bash
 docker image inspect sandbox-android-redroid-envd:16.0.0-arm64 --format '{{.Architecture}}'
 # 期望：arm64
 
@@ -342,8 +358,10 @@ cubemastercli tpl create-from-image \
   --image sandbox-android-redroid-envd:16.0.0-arm64 \
   --writable-layer-size 10Gi \
   --expose-port 5555 \
+  --expose-port 49983 \
   --probe 49983 \
   --probe-path /health \
+  --probe-timeout-ms 120000 \
   --cpu 4000 \
   --memory 6144
 ```
@@ -421,8 +439,10 @@ cubemastercli tpl create-from-image \
   --image sandbox-android-redroid-envd:16.0.0-arm64 \
   --writable-layer-size 10Gi \
   --expose-port 5555 \
+  --expose-port 49983 \
   --probe 49983 \
   --probe-path /health \
+  --probe-timeout-ms 120000 \
   --cpu 4000 \
   --memory 6144
 ```
@@ -453,14 +473,15 @@ ReDroid 自带 Android `init` 入口，不能简单 `ENTRYPOINT cube-entrypoint.
 # 或加载离线包 §2.4.1
 ```
 
-`android-redroid-entrypoint.sh` 核心逻辑：
+生产入口（**preview10 = preview3 预启机制 + `-isnotfc`**）：
 
-```bash
-#!/system/bin/sh
-set -eu
-/usr/bin/envd -port 49983 >>/data/local/tmp/envd.log 2>&1 &
-exec /init "$@"    # ReDroid 原入口
+```dockerfile
+ENTRYPOINT ["/usr/bin/envd-starter"]
+# envd-starter: envd -isnotfc -port 49983 &  →  exec /init
+# cube-envd.rc 作兜底（init 阶段再启一次）
 ```
+
+**不要**改成 `ENTRYPOINT ["/system/bin/sh", ...]`（preview5）。preview8/9 仅依赖 init.rc 在探活窗口内往往来不及监听 49983。
 
 构建并验证 envd（在 **鲲鹏 aarch64** 上执行）：
 
@@ -496,11 +517,82 @@ dial tcp 192.168.0.x:49983: connect: connection refused
 
 | 步骤 | 命令 / 检查 | 说明 |
 |------|-------------|------|
-| 1 | `file /usr/bin/envd`（容器内） | 必须是 **Android** ELF（`interpreter /system/bin/linker64`）。若是 `statically linked` 且 `GOOS=linux`，说明用了错误离线包，需 **重新构建/加载 §2.4.1 envd 包** |
-| 2 | `cat /data/local/tmp/envd.log` | envd 启动失败原因（权限、端口占用等） |
-| 3 | `ps -A \| grep envd` | 无进程 → entrypoint 未执行或 envd 秒退 |
-| 4 | `tpl create-from-image` 加 `--cpu 4000 --memory 6144` | 默认 2GiB 时 Android 可能起不来，但 **49983 refused 通常是 envd 二进制不对** |
-| 5 | 模板构建日志 | `ls /data/log/template/<template_id>/` 或 `cubemastercli tpl image-job <job_id>` |
+| 1 | `file /usr/bin/envd`（容器内） | 必须是 **Android** ELF（`interpreter /system/bin/linker64`） |
+| 2 | **`cubecli logs --tpl <template-id>`** | **宿主机**上读模板构建 PID1 的 stderr（含 `envd-starter:` 行） |
+| 3 | `cat /data/log/template/<template-id>_0/stderr` | 同上，原始文件 |
+| 4 | `grep -a probe /data/log/Cubelet/Cubelet-req.log` | Cubelet 探活记录（注意 **Cubelet** 大写 C） |
+| 5 | `grep -a <template-id> /data/log/CubeShim/cube-shim-req.log` | Guest 内核启动（`Linux version` 等） |
+
+**不要**在宿主机上 `cat /data/local/tmp/envd-starter.log`——那是 **ReDroid 虚拟机内部**路径，模板 FAILED 后沙箱销毁，文件随之消失。只有构建进行中或成功快照前才有机会在 guest 内读到。
+
+**宿主机取证（以你这次 job 为例）：**
+
+```bash
+TEMPLATE_ID=tpl-e094cf5a2ba14afca438d9d3
+
+# 1) 模板构建容器 stderr（envd-starter 写这里）
+cubecli logs --tpl --all --stderr "${TEMPLATE_ID}"
+
+# 或直接读文件
+ls -la "/data/log/template/${TEMPLATE_ID}_0/"
+tail -200 "/data/log/template/${TEMPLATE_ID}_0/stderr"
+
+# 2) Cubelet 探活 / 创建失败原因
+grep -a "${TEMPLATE_ID}\|probe \[" /data/log/Cubelet/Cubelet-req.log | tail -50
+
+# 3) 确认加载的是 preview11
+docker image inspect sandbox-android-redroid-envd:16.0.0-arm64 \
+  --format '{{json .Config.Entrypoint}}'
+# 期望：["/usr/bin/envd-starter"]
+```
+
+**guest 内日志文件一览（仅沙箱存活时可在 VM 内查看）：**
+
+| 文件 | 写入方 | 内容 |
+|------|--------|------|
+| `/data/local/tmp/envd-starter.log` | `envd-starter`（PID1） | 配置、envd 启动重试、`:49983/health` 探针、exec `/init` |
+| `/tmp/envd-starter.log` | 同上（早期兜底） | `/data` 未挂载时的备份 |
+| `/data/local/tmp/envd.log` | envd 进程 | envd 自身日志 |
+| `/data/local/tmp/envd-initrc.log` | init.rc 兜底 | `start-cube-envd.sh` 被 init 拉起时 |
+
+| `costtime:2m0.18s` + `"timeout_ms":120000` | 120s 探活预算已用尽，**不是**探活太短；宿主机在 120s 内始终打不通 guest `:49983/health` |
+| stderr 0 字节 | 无 PID1 日志；不能证明 envd-starter 是否执行 |
+
+**preview12 修复方向：** e2b envd 在非 Firecracker/CubeVM 环境需加 **`-no-cgroups`**（否则 cgroup 初始化失败、进程秒退，49983 永不监听）。见 upstream `packages/envd/main.go` 与 Agent Sandbox envd 示例。
+
+
+若错误从 **`connection refused`** 变为：
+
+```text
+template tpl-xxx creation failed: context deadline exceeded
+```
+
+说明 **envd 很可能已在启动**（preview11 预启生效），但 **默认探活预算 30s 对 Android/ReDroid 冷启动不够**（CubeVM 起机 + 网络就绪 + `:49983/health` 往往 >30s）。
+
+**立即重试**（加长探活到 120s）：
+
+```bash
+cubemastercli tpl create-from-image \
+  --image sandbox-android-redroid-envd:16.0.0-arm64 \
+  --writable-layer-size 10Gi \
+  --expose-port 5555 \
+  --expose-port 49983 \
+  --probe 49983 \
+  --probe-path /health \
+  --probe-timeout-ms 120000 \
+  --cpu 4000 \
+  --memory 6144
+```
+
+若当前 `cubemastercli` 尚无 `--probe-timeout-ms`，用 HTTP API 传 `container_overrides.probe.timeout_ms: 120000`（见 [自带镜像接入](docs/zh/guide/tutorials/bring-your-own-image.md)）。
+
+**同时排查**（该错误也可能是网段冲突）：
+
+| 步骤 | 检查 | 说明 |
+|------|------|------|
+| 1 | 宿主机网段 vs Cube CIDR | 默认 `192.168.0.0/18` 与局域网 `192.168.x.x` 重叠会导致探活超时 → [网段冲突指南](docs/zh/guide/troubleshooting/local-network-cidr-conflict.md) |
+| 2 | `grep -a probe /data/log/Cubelet/Cubelet-req.log` | 看探活耗时与 sandbox IP（**不是** `/data/log/cubelet/`） |
+| 3 | `envd-starter.log` | 若已有 `envd healthy` / `HTTP 204`，则 purely 探活预算太短 |
 
 **修复后重新建模板**（务必带资源与探针）：
 
@@ -509,13 +601,83 @@ cubemastercli tpl create-from-image \
   --image sandbox-android-redroid-envd:16.0.0-arm64 \
   --writable-layer-size 10Gi \
   --expose-port 5555 \
+  --expose-port 49983 \
   --probe 49983 \
   --probe-path /health \
+  --probe-timeout-ms 120000 \
   --cpu 4000 \
   --memory 6144
 ```
 
 旧模板 `tpl-a433b11ce5c748fc8184fc6a` 可删除后重建：`cubemastercli tpl delete tpl-a433b11ce5c748fc8184fc6a`（若 CLI 支持）或控制台清理 FAILED 模板。
+
+#### 2.4.6 外部打通 envd + ADB 双通道
+
+参考 [腾讯云 Agent Runtime Mobile 试验](https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md)：Android 沙箱采用 **双控制面**——与商用 Mobile 沙箱一致。
+
+| 通道 | 容器端口 | 用途 |
+|------|----------|------|
+| **envd** | `49983` | 模板探活 `GET /health`、Cube SDK `commands.run` / `files.*` |
+| **ADB (adbd)** | `5555` | `adb connect <host>:<port>` 自动化、UI 探测、`getprop` 等 |
+
+**1. 模板必须暴露两个端口**（`--probe` 仍指向 envd，ADB 不参与探活）：
+
+```bash
+cubemastercli tpl create-from-image \
+  --image sandbox-android-redroid-envd:16.0.0-arm64 \
+  --writable-layer-size 10Gi \
+  --expose-port 5555 \
+  --expose-port 49983 \
+  --probe 49983 \
+  --probe-path /health \
+  --probe-timeout-ms 120000 \
+  --cpu 4000 \
+  --memory 6144
+```
+
+**2. network-agent 绑定到所有网卡**（默认 `127.0.0.1` 仅本机可连映射端口）：
+
+```bash
+# 编辑 /usr/local/services/cubetoolbox/scripts/systemd/network-agent-start.sh
+# 在 exec 行前增加 --host-proxy-bind-ip=0.0.0.0，例如：
+exec "${NETWORK_AGENT_BIN}" \
+  --cubelet-config "${CUBELET_CONFIG}" \
+  --state-dir "${NETWORK_AGENT_STATE_DIR}" \
+  --host-proxy-bind-ip=0.0.0.0
+
+sudo systemctl restart cube-sandbox-network-agent.service
+```
+
+**3. 防火墙**：放行 network-agent 分配的 **host_port**（非固定 5555/49983；每个沙箱动态映射）。
+
+**4. 创建沙箱后查映射端口**：
+
+```bash
+cubemastercli info -s <sandbox_id>
+# 在 port_mappings 中找 container_port=5555 / 49983 对应的 host_port
+```
+
+**5. 从外部验证**：
+
+```bash
+# envd 探活（host_port 替换为映射值）
+curl -s -o /dev/null -w "%{http_code}\n" "http://<节点IP>:<envd_host_port>/health"
+# 期望 204
+
+# ADB（需本机安装 platform-tools）
+adb connect <节点IP>:<adb_host_port>
+adb -s <节点IP>:<adb_host_port> shell getprop ro.hardware.gralloc
+# 期望包含 redroid
+```
+
+**6. 本地镜像自检**（鲲鹏 aarch64 上，privileged + 发布端口）：
+
+```bash
+./deploy/sandbox-images/sandbox-android-redroid-envd/verify-envd-health.sh
+# 依次检查 envd ELF、:49983/health、:5555 adbd；可选 adb connect
+```
+
+常见 **ADB `PORT_REFUSED`**：模板只暴露了 `49983` 未暴露 `5555`、内存不足（<6GiB）、Android 尚未 boot_completed、或 `host-proxy-bind-ip` 仍为 `127.0.0.1` 却从其他机器访问。
 
 ---
 

@@ -1,0 +1,146 @@
+name: Android Envd Offline Build Kit
+
+on:
+  push:
+    tags:
+      - 'android-envd-offline-build-kit'
+      - 'android-envd-offline-build-kit-*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'GitHub Release tag for upload'
+        required: true
+        default: 'android-envd-offline-build-kit'
+      kit_suffix:
+        description: 'Tarball directory name suffix'
+        required: false
+        default: 'android-envd-offline-build-kit'
+      include_redroid:
+        description: 'Bundle ReDroid docker image'
+        required: false
+        default: true
+        type: boolean
+      include_golang_image:
+        description: 'Bundle golang docker builder image'
+        required: false
+        default: true
+        type: boolean
+      upload_to_release:
+        description: 'Upload to GitHub Release'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build_offline_kit:
+    name: Build android envd offline build kit (arm64)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve parameters
+        id: params
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            gh_release="${GITHUB_REF_NAME}"
+            kit_suffix="${GITHUB_REF_NAME}"
+            include_redroid="1"
+            include_golang="1"
+            upload="true"
+          else
+            gh_release="${{ inputs.release_tag }}"
+            kit_suffix="${{ inputs.kit_suffix }}"
+            include_redroid="${{ inputs.include_redroid == true && '1' || '0' }}"
+            include_golang="${{ inputs.include_golang_image == true && '1' || '0' }}"
+            upload="${{ inputs.upload_to_release == true && '1' || '0' }}"
+          fi
+          echo "gh_release=${gh_release}" >> "${GITHUB_OUTPUT}"
+          echo "kit_suffix=${kit_suffix}" >> "${GITHUB_OUTPUT}"
+          echo "include_redroid=${include_redroid}" >> "${GITHUB_OUTPUT}"
+          echo "include_golang=${include_golang}" >> "${GITHUB_OUTPUT}"
+          echo "upload_to_release=${upload}" >> "${GITHUB_OUTPUT}"
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Build offline kit
+        env:
+          RELEASE_TAG: ${{ steps.params.outputs.kit_suffix }}
+          INCLUDE_REDROID: ${{ steps.params.outputs.include_redroid }}
+          INCLUDE_GOLANG_IMAGE: ${{ steps.params.outputs.include_golang }}
+        run: |
+          chmod +x deploy/sandbox-images/sandbox-android-redroid-envd/offline-build-kit/build-offline-kit.sh
+          ./deploy/sandbox-images/sandbox-android-redroid-envd/offline-build-kit/build-offline-kit.sh
+
+      - name: Upload kit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.params.outputs.kit_suffix }}
+          path: |
+            deploy/one-click/dist/${{ steps.params.outputs.kit_suffix }}.tar.gz
+            deploy/one-click/dist/${{ steps.params.outputs.kit_suffix }}.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload kit to GitHub Release
+        if: steps.params.outputs.upload_to_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_RELEASE_TAG: ${{ steps.params.outputs.gh_release }}
+          KIT_SUFFIX: ${{ steps.params.outputs.kit_suffix }}
+        run: |
+          set -euo pipefail
+          bundle="deploy/one-click/dist/${KIT_SUFFIX}.tar.gz"
+          sha="${bundle}.sha256"
+          bundle_name="$(basename "${bundle}")"
+          sha256="$(awk '{print $1}' "${sha}")"
+          test -f "${bundle}"
+          test -f "${sha}"
+
+          if ! gh release view "${GH_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release create "${GH_RELEASE_TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "Android envd offline build kit (Kunpeng ARM64)" \
+              --notes "Offline kit: Go toolchain + e2b envd vendored source + envd-starter + ReDroid/golang docker images."
+          fi
+
+          notes_file="$(mktemp)"
+          cat > "${notes_file}" <<EOF
+          ## Android envd offline build kit (Kunpeng ARM64)
+
+          Self-contained tarball for **offline** envd compilation (\`GOOS=android\`) and \`sandbox-android-redroid-envd\` image build.
+
+          ### Download
+          - **Kit**: \`${bundle_name}\`
+          - **SHA256**: \`${sha256}\`
+
+          ### On Kunpeng (euler)
+          \`\`\`bash
+          tar xzf ${bundle_name}
+          cd ${KIT_SUFFIX}
+          ./scripts/01-install-go.sh
+          export PATH=/usr/local/go/bin:\$PATH
+          ./scripts/03-build-docker-image.sh
+          ./scripts/04-verify.sh
+          \`\`\`
+
+          See \`README.md\` inside the tarball for details.
+          EOF
+
+          gh release upload "${GH_RELEASE_TAG}" "${bundle}" "${sha}" \
+            --repo "${GITHUB_REPOSITORY}" --clobber
+          gh release edit "${GH_RELEASE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" --notes-file "${notes_file}"
