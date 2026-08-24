@@ -1,6 +1,9 @@
-# AGR Mobile 架构探测报告（2026-08-24 实测）
+# 探测 02 — AGR Mobile 架构分层与数据面（2026-08-24）
 
-> 原始探测输出见 [`../probe/artifacts/2026-08-24-ap-shanghai/`](../probe/artifacts/2026-08-24-ap-shanghai/README.md)。
+> **序号 02 / 共 02** · 本仓库正文报告。  
+> 前序报告：[`01-20260723-mobile-hardware-mock.md`](01-20260723-mobile-hardware-mock.md)（外部仓库，底座与硬件面）  
+> 索引：[`README.md`](README.md)  
+> 原始探测输出：[`../../probe/artifacts/02-20260824-ap-shanghai/`](../../probe/artifacts/02-20260824-ap-shanghai/README.md)
 
 ## 探测概要
 
@@ -24,7 +27,7 @@
 | ✅ ADB实测 | `agr instance mobile adb` 可复现 |
 | ✅ HTTPS实测 | 数据面 HTTPS + `X-Access-Token` 可复现 |
 | ✅ CLI实测 | `agr` CLI 日志/输出可复现 |
-| 📗 历史实测 | 2026-07-23 [LOLHenry 报告](https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md) |
+| 📗 前序实测 | 探测 01 — [01-20260723-mobile-hardware-mock.md](01-20260723-mobile-hardware-mock.md) |
 | ❓ 未证实 | 有间接证据，进程级细节未能从 ADB 命名空间内确认 |
 | ❌ 实测否定 | 本次探测确认不存在或未配置 |
 
@@ -183,7 +186,7 @@
 | 分辨率 | 720×1280 @ 60fps | `phase2/21-display-props.txt` |
 | 容器 rootfs | `overlay2` + `cubebox-*` | `phase2/05-mounts.txt` |
 
-与 📗 2026-07-23 历史报告 §3.1 结论一致：**Cube Hypervisor MicroVM + SmartRun/ReDroid Android 14 x86_64**，非 Cuttlefish、非经典 AVD。
+与探测 01 §3.1 结论一致：**Cube Hypervisor MicroVM + SmartRun/ReDroid Android 14 x86_64**，非 Cuttlefish、非经典 AVD。
 
 ---
 
@@ -202,9 +205,9 @@
 
 ---
 
-## 与 2026-07-23 历史报告的修正
+## 与探测 01 的修正
 
-| 项 | 历史报告 | 本次 2026-08-24 实测 |
+| 项 | 探测 01（2026-07-23） | 探测 02（本次） |
 |----|----------|----------------------|
 | 底座 | Cube VM + Redroid 14 | ✅ 一致 |
 | `:4723` Appium | 实例内监听 | ✅ 一致；进一步确认 sidecar 为 Node.js |

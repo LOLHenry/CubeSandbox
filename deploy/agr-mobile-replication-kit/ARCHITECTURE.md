@@ -2,10 +2,10 @@
 
 ## 1. AGR Mobile 官方
 
-来源：
+来源（按时间顺序，见 [`docs/probes/README.md`](docs/probes/README.md)）：
 
-- **2026-08-24 实测**（本仓库）：[`docs/AGR_ARCHITECTURE_PROBE.md`](docs/AGR_ARCHITECTURE_PROBE.md) + [`probe/artifacts/2026-08-24-ap-shanghai/`](probe/artifacts/2026-08-24-ap-shanghai/README.md)
-- **2026-07-23 历史实测**：[tencent-agent-runtime-mobile-hardware-mock.md](https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md)
+- **探测 01**（2026-07-23）：[`docs/probes/01-20260723-mobile-hardware-mock.md`](docs/probes/01-20260723-mobile-hardware-mock.md) → 外部仓库正文
+- **探测 02**（2026-08-24）：[`docs/probes/02-20260824-mobile-architecture.md`](docs/probes/02-20260824-mobile-architecture.md) + [`probe/artifacts/02-20260824-ap-shanghai/`](probe/artifacts/02-20260824-ap-shanghai/README.md)
 
 ### 1.1 运行时栈
 
@@ -42,7 +42,7 @@
 
 **不是** Cuttlefish、**不是** 经典 AVD goldfish；是 **Cube MicroVM + Linux Sidecar + ReDroid/SmartRun**。
 
-> 完整文本架构图与逐项证据见 [`docs/AGR_ARCHITECTURE_PROBE.md`](docs/AGR_ARCHITECTURE_PROBE.md)。
+> 完整文本架构图与逐项证据见 [`docs/probes/02-20260824-mobile-architecture.md`](docs/probes/02-20260824-mobile-architecture.md)。
 
 ### 1.2 实例内端口（2026-08-24 实测）
 

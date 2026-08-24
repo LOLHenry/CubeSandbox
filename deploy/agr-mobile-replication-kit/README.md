@@ -3,7 +3,8 @@
 在 **离线鲲鹏 ARM64** 服务器上，复刻腾讯云 [Agent Runtime Mobile](https://cloud.tencent.com/document/product/1814/132412) 沙箱的**可控子集**（双控制面：envd + ADB），运行于自托管 [CubeSandbox](https://github.com/TencentCloud/CubeSandbox)。
 
 > **边界说明**
-> - 本包基于 **你方 2026-07-23 AGR 实测报告**（[`tencent-agent-runtime-mobile-hardware-mock.md`](https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md)）与 CubeSandbox 开源能力设计。
+> - 本包基于 AGR 实测报告 **01（2026-07-23）** 与 **02（2026-08-24）** 设计，索引见 [`docs/probes/README.md`](docs/probes/README.md)。
+> - 探测 01 正文在外部仓库：[`01-20260723-mobile-hardware-mock.md`](docs/probes/01-20260723-mobile-hardware-mock.md)。
 > - **不是**腾讯云官方发布物；AGR 云端镜像（SmartRun x86_64 Android 14）与鲲鹏目标镜像（ReDroid arm64 Android 16）**底座不同**，见 `ARCHITECTURE.md`。
 > - CubeSandbox **官方 upstream** 尚无 `instance_type=android` 运行时；当前复刻路径为 **`cubebox` + envd 探活 + ADB 暴露**。
 
@@ -36,7 +37,7 @@ deploy/agr-mobile-replication-kit/
 │   ├── agr-probe-mobile.sh
 │   ├── agr-collect-fingerprint.sh
 │   └── artifacts/
-│       └── 2026-08-24-ap-shanghai/   # 2026-08-24 实测原始输出
+│       └── 02-20260824-ap-shanghai/   # 探测 02 原始输出（探测 01 在外部仓库）
 ├── scripts/
 │   ├── 00-preflight.sh       # arch/kvm/docker/cubesandbox 检查
 │   ├── 01-build-offline-kit.sh   # 打离线编译包（联网机构建机）
@@ -47,9 +48,12 @@ deploy/agr-mobile-replication-kit/
 │   ├── 06-run-sandbox-test.sh# 起沙箱 + envd/adb 冒烟
 │   └── build-unified-tarball.sh  # 一键打完整离线 tar.gz
 └── docs/
+    ├── probes/               # 实测报告（按序号与时间命名）
+    │   ├── README.md         # 报告索引与时间线
+    │   ├── 01-20260723-mobile-hardware-mock.md   # 探测 01 索引（正文在外部仓库）
+    │   └── 02-20260824-mobile-architecture.md  # 探测 02 正文
     ├── OFFLINE_KUNPENG.md    # 鲲鹏离线逐步指南
-    ├── AGR_REFERENCE.md      # AGR 官方能力与端口（来自实测+文档）
-    ├── AGR_ARCHITECTURE_PROBE.md  # 2026-08-24 架构探测报告（含文本架构图）
+    ├── AGR_REFERENCE.md      # AGR 操作速查（汇总最新结论）
     └── OPTIONAL_COMPONENTS.md
 ```
 
@@ -122,6 +126,8 @@ export AGR_REGION=ap-shanghai
 
 ## 6. 相关链接
 
-- AGR 实测报告：[LOLHenry/android-cuttlefish 试验文档](https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md)
+- AGR 实测报告索引：[`docs/probes/README.md`](docs/probes/README.md)
+- 探测 01（2026-07-23）：[外部正文](https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md) · [本仓库索引](docs/probes/01-20260723-mobile-hardware-mock.md)
+- 探测 02（2026-08-24）：[`docs/probes/02-20260824-mobile-architecture.md`](docs/probes/02-20260824-mobile-architecture.md)
 - AGR 官方：[Mobile 沙箱（ADB）](https://cloud.tencent.com/document/product/1814/132412)、[手机操作 SDK](https://cloud.tencent.com/document/product/1814/127484)
 - CubeSandbox：[自带镜像接入 envd](https://github.com/TencentCloud/CubeSandbox/blob/master/docs/zh/guide/tutorials/bring-your-own-image.md)

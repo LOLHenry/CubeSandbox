@@ -1,10 +1,15 @@
-# AGR 官方参考（实测 + 文档）
+# AGR 官方参考（速查）
 
-## 2026-08-24 架构探测（本仓库）
+> 实测报告按时间顺序见 [`probes/README.md`](probes/README.md)。
 
-- 报告：[`AGR_ARCHITECTURE_PROBE.md`](AGR_ARCHITECTURE_PROBE.md)
-- 原始产物：[`../probe/artifacts/2026-08-24-ap-shanghai/`](../probe/artifacts/2026-08-24-ap-shanghai/README.md)
-- 关键结论：Cube VM + Linux sidecar（Appium/ws-scrcpy/Health/ADB桥）+ ReDroid Android 14；**mobile 类型不暴露 envd :49983**
+## 实测报告时间线
+
+| 序号 | 报告 | 日期 | 位置 |
+|------|------|------|------|
+| 01 | [mobile-hardware-mock](probes/01-20260723-mobile-hardware-mock.md) | 2026-07-23 | 外部仓库索引 |
+| 02 | [mobile-architecture](probes/02-20260824-mobile-architecture.md) | 2026-08-24 | 本仓库 + [`probe/artifacts/02-20260824-ap-shanghai/`](../probe/artifacts/02-20260824-ap-shanghai/README.md) |
+
+**端口与架构以探测 02 为准。**
 
 ## 凭据与接入
 
@@ -60,4 +65,5 @@ token = sandbox._envd_access_token
 
 ## 完整实测报告
 
-https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md
+- 探测 01（2026-07-23）：[外部仓库正文](https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md) · [本仓库索引](probes/01-20260723-mobile-hardware-mock.md)
+- 探测 02（2026-08-24）：[本仓库正文](probes/02-20260824-mobile-architecture.md)

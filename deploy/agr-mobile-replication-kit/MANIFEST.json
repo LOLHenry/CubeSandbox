@@ -3,9 +3,25 @@
   "kit_version": "1.0.0",
   "target_platform": "kunpeng-arm64",
   "description": "Offline package to replicate AGR Mobile dual-channel (envd+ADB) on CubeSandbox",
-  "agr_reference_probe_date": "2026-07-23",
+  "agr_probes": [
+    {
+      "sequence": "01",
+      "date": "2026-07-23",
+      "topic": "mobile-hardware-mock",
+      "doc": "docs/probes/01-20260723-mobile-hardware-mock.md",
+      "external_doc": "https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md"
+    },
+    {
+      "sequence": "02",
+      "date": "2026-08-24",
+      "topic": "mobile-architecture",
+      "doc": "docs/probes/02-20260824-mobile-architecture.md",
+      "artifacts": "probe/artifacts/02-20260824-ap-shanghai/"
+    }
+  ],
+  "agr_reference_probe_date": "2026-08-24",
   "agr_reference_region": "ap-shanghai",
-  "agr_reference_doc": "https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md",
+  "agr_reference_doc": "docs/probes/README.md",
   "components": {
     "cubesandbox": {
       "recommended_release": "v0.6.0",
@@ -46,12 +62,14 @@
     }
   },
   "agr_official_ports_observed": {
-    "5555": "adbd",
-    "4723": "appium",
-    "8000": "scrcpy_http",
-    "8886": "scrcpy_adb_proxy",
-    "49983": "envd",
-    "8080": "platform_default"
+    "5555": "adbd_android",
+    "4723": "appium_sidecar",
+    "8000": "ws_scrcpy_web_sidecar",
+    "8886": "scrcpy_server_android",
+    "5556": "adb_websocket_bridge_sidecar",
+    "8080": "health_agent_sidecar",
+    "49983": "envd_not_exposed_on_mobile",
+    "source_probe": "02-20260824"
   },
   "build_scripts": {
     "unified_tarball": "scripts/build-unified-tarball.sh",
