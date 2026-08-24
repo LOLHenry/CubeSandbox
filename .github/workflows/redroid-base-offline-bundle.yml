@@ -1,6 +1,9 @@
 name: ReDroid Base Offline Bundle
 
 on:
+  push:
+    tags:
+      - 'redroid-base-offline-*'
   workflow_dispatch:
     inputs:
       release_tag:
@@ -32,6 +35,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Resolve build parameters
+        id: params
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            release_tag="${GITHUB_REF_NAME}"
+            redroid_tag="16.0.0_64only-latest"
+            bundle_suffix="redroid-16.0.0_64only-arm64"
+            upload="true"
+          else
+            release_tag="${{ inputs.release_tag }}"
+            redroid_tag="${{ inputs.redroid_tag }}"
+            bundle_suffix="${{ inputs.bundle_suffix }}"
+            upload="${{ inputs.upload_to_release }}"
+          fi
+          echo "release_tag=${release_tag}" >> "${GITHUB_OUTPUT}"
+          echo "redroid_tag=${redroid_tag}" >> "${GITHUB_OUTPUT}"
+          echo "bundle_suffix=${bundle_suffix}" >> "${GITHUB_OUTPUT}"
+          echo "upload_to_release=${upload}" >> "${GITHUB_OUTPUT}"
+
       - name: Free disk space
         uses: jlumbroso/free-disk-space@main
         with:
@@ -45,8 +68,8 @@ jobs:
 
       - name: Build and export ReDroid base offline bundle
         env:
-          RELEASE_TAG: ${{ inputs.bundle_suffix }}
-          REDROID_TAG: ${{ inputs.redroid_tag }}
+          RELEASE_TAG: ${{ steps.params.outputs.bundle_suffix }}
+          REDROID_TAG: ${{ steps.params.outputs.redroid_tag }}
           PULL_IMAGE: "1"
         run: |
           chmod +x deploy/one-click/scripts/one-click/build-redroid-base-offline-bundle.sh
@@ -55,20 +78,20 @@ jobs:
       - name: Upload ReDroid base offline bundle artifact
         uses: actions/upload-artifact@v4
         with:
-          name: redroid-base-offline-${{ inputs.bundle_suffix }}
+          name: redroid-base-offline-${{ steps.params.outputs.bundle_suffix }}
           path: |
-            deploy/one-click/dist/${{ inputs.bundle_suffix }}-docker.tar.gz
-            deploy/one-click/dist/${{ inputs.bundle_suffix }}-docker.tar.gz.sha256
+            deploy/one-click/dist/${{ steps.params.outputs.bundle_suffix }}-docker.tar.gz
+            deploy/one-click/dist/${{ steps.params.outputs.bundle_suffix }}-docker.tar.gz.sha256
           if-no-files-found: error
           retention-days: 30
 
       - name: Upload ReDroid base offline bundle to Release
-        if: inputs.upload_to_release == 'true'
+        if: steps.params.outputs.upload_to_release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_RELEASE_TAG: ${{ inputs.release_tag }}
-          BUNDLE_SUFFIX: ${{ inputs.bundle_suffix }}
-          REDROID_TAG: ${{ inputs.redroid_tag }}
+          GH_RELEASE_TAG: ${{ steps.params.outputs.release_tag }}
+          BUNDLE_SUFFIX: ${{ steps.params.outputs.bundle_suffix }}
+          REDROID_TAG: ${{ steps.params.outputs.redroid_tag }}
         run: |
           set -euo pipefail
           bundle_path="deploy/one-click/dist/${BUNDLE_SUFFIX}-docker.tar.gz"
