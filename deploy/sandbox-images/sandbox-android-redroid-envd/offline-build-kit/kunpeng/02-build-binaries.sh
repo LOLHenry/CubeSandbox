@@ -16,6 +16,7 @@ mkdir -p "${OUT_DIR}"
 
 echo "==> Building envd (android/arm64, vendored)"
 cd "${KIT_ROOT}/src/infra/packages/envd"
+export GOWORK=off
 CGO_ENABLED=0 GOOS=android GOARCH=arm64 \
   go build -mod=vendor -a \
     -ldflags "-X=main.commitSHA=${COMMIT_SHA} -s -w" \
