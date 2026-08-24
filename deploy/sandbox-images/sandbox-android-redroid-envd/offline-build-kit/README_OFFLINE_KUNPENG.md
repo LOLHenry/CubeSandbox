@@ -32,8 +32,7 @@ export PATH=/usr/local/go/bin:$PATH
 ./scripts/02-build-binaries.sh
 ls -lh out/envd out/envd-starter
 
-# 2b. 打完整 Docker 镜像（需 docker + 已 load ReDroid）
-#     若包内带 images/redroid-*.tar.gz 会自动 load
+# 2b. 打完整 Docker 镜像（默认 inject：宿主机 Go + Dockerfile.inject，完全离线）
 ./scripts/03-build-docker-image.sh
 
 # 3. 校验镜像
