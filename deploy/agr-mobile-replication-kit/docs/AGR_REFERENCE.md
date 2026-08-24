@@ -10,8 +10,9 @@
 | 02 | [mobile-architecture](probes/02-20260824-mobile-architecture.md) | 2026-08-24 | 本仓库 + [`probe/artifacts/02-20260824-ap-shanghai/`](../probe/artifacts/02-20260824-ap-shanghai/README.md) |
 | 03 | [e2b-envd-semantics](probes/03-20260824-e2b-envd-semantics.md) | 2026-08-24 | 本仓库 + [`probe/artifacts/03-20260824-e2b-envd-semantics/`](../probe/artifacts/03-20260824-e2b-envd-semantics/README.md) |
 | 04 | [e2b-envd-process](probes/04-20260824-e2b-envd-process.md) | 2026-08-24 | 本仓库 + [`probe/artifacts/04-20260824-e2b-envd-process/`](../probe/artifacts/04-20260824-e2b-envd-process/README.md) |
+| 05 | [sidecar-oci-pid](probes/05-20260824-sidecar-oci-and-pid-hierarchy.md) | 2026-08-24 | 本仓库（推断 + 源码） |
 
-**端口与架构以探测 02 为准；envd 可用性以探测 03/04 定论。**
+**结论总索引：** [`FINDINGS.md`](FINDINGS.md) · 端口与架构以探测 02 为准；envd 以 03/04 定论；OCI/PID 以 05 归档。
 
 ## 凭据与接入
 

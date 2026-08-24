@@ -12,6 +12,7 @@
 | `02` | 第二轮架构深挖（sidecar 层、HTTPS 数据面、envd 暴露性） |
 | `03` | E2B SDK envd 语义验证（`commands.run` / `files.write` 定论） |
 | `04` | E2B SDK envd 进程可观测性（`get_info` / `is_running` / `ps` 等） |
+| `05` | Sidecar OCI 打包、PID 层级、网络与复刻实施（推断 + 源码） |
 
 产物目录与报告序号对齐：`probe/artifacts/{序号}-{YYYYMMDD}-{地域}/`。
 
@@ -25,13 +26,18 @@
 | **02** | [`02-20260824-mobile-architecture.md`](02-20260824-mobile-architecture.md) | 2026-08-24 | **本仓库** | mobile 架构分层（sidecar vs Android）；HTTPS 数据面；envd 暴露性修正 |
 | **03** | [`03-20260824-e2b-envd-semantics.md`](03-20260824-e2b-envd-semantics.md) | 2026-08-24 | **本仓库** | E2B SDK envd 语义：**不可用**（无隐藏通道） |
 | **04** | [`04-20260824-e2b-envd-process.md`](04-20260824-e2b-envd-process.md) | 2026-08-24 | **本仓库** | E2B SDK **无法观测 envd 进程**；`envd_version` 仅为控制面元数据 |
+| **05** | [`05-20260824-sidecar-oci-and-pid-hierarchy.md`](05-20260824-sidecar-oci-and-pid-hierarchy.md) | 2026-08-24 | **本仓库** | Sidecar OCI 多容器打包推测；PID 层级；eth0/netns；鲲鹏复刻路线 |
+
+**结论总索引：** [`../FINDINGS.md`](../FINDINGS.md)（按主题查结论 → 报告 → 原始产物）
 
 ### 阅读建议
 
 1. **先读 01**：建立「Cube VM + Redroid/SmartRun Android 14」底座认知，了解硬件 mock 边界。
 2. **再读 02**：在 01 基础上补全 sidecar 层、三条数据通路、端口进程归属；**以 02 为准**修正 01 中关于 envd `:49983` 的表述。
 3. **读 03**：用 E2B SDK 最终定论 — mobile **不提供** `commands.run` / `files.write` 等 envd 语义。
-4. **读 04**：扩展 SDK 接口（`get_info`、`is_running`、`pty`、`ps`）— **仍无法判断 envd 进程是否存在**；`envd_version` 不可当作进程证据。
+4. **读 04**：扩展 SDK 接口 — **仍无法判断 envd 进程是否存在**。
+5. **读 05**：Sidecar OCI 打包、PID 层级、网络命名空间、鲲鹏复刻实施路线。
+6. **查索引**：[`FINDINGS.md`](../FINDINGS.md) 按主题定位结论与证据文件。
 
 ### 02 对 01 的主要修正
 
@@ -61,12 +67,23 @@
 | `pty.create()` | 未测 | ❌ `310508` |
 | 能否判断 envd 进程存在 | 语义不可用 | **SDK 无观测能力**（与 02 ADB 侧「无 envd 进程」一致） |
 
+### 05 归档（架构推断与补充）
+
+| 主题 | 主要文档 | 证据类型 |
+|------|----------|----------|
+| Android PID 1 = init，≠ sidecar | 05 §1；02 §PID 视角 | ✅ ADB 实测 |
+| PID 1 不独占 eth0；共享 netns | 05 §2；02 §Sidecar | ✅ netstat/ns 实测 |
+| VM PID 1 = cube-agent | 05 §3 | ✅ `agent/README.md` |
+| Sidecar 独立 OCI + 多容器 cubebox | 05 §4 | ⚠️ 推断 + 挂载标记 |
+| 鲲鹏复刻路线 A/B | 05 §6；`OPTIONAL_COMPONENTS.md` | 设计文档 |
+
 ---
 
 ## 相关文档（非探测报告）
 
 | 文件 | 用途 |
 |------|------|
+| [`FINDINGS.md`](../FINDINGS.md) | **结论总索引**（主题 → 报告 → 原始产物） |
 | [`../AGR_REFERENCE.md`](../AGR_REFERENCE.md) | 操作速查（凭据、端口、SDK 示例）；汇总最新结论 |
 | [`../OPTIONAL_COMPONENTS.md`](../OPTIONAL_COMPONENTS.md) | 鲲鹏复刻可选组件（Appium/scrcpy） |
 | [`../OFFLINE_KUNPENG.md`](../OFFLINE_KUNPENG.md) | 鲲鹏离线部署指南 |
