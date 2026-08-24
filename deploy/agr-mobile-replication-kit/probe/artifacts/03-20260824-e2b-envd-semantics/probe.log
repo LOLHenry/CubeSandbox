@@ -1,0 +1,33 @@
+
+=== sandbox.create ===
+{
+  "sandbox_id": "iumkhf6jlju2f4vpb46yjhfkakfb2l3gkovsrhfk",
+  "template": "mobile-arch-probe-1787551777",
+  "envd_access_token_present": true,
+  "host_49983": "49983-iumkhf6jlju2f4vpb46yjhfkakfb2l3gkovsrhfk.ap-shanghai.tencentags.com",
+  "host_4723": "4723-iumkhf6jlju2f4vpb46yjhfkakfb2l3gkovsrhfk.ap-shanghai.tencentags.com"
+}
+
+=== commands.run ===
+{
+  "error": "SandboxException('Code.UNKNOWN: The requested sandbox endpoint is not configured. Check that the sandbox port is exposed')",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/e2b/sandbox_sync/commands/command.py\", line 319, in _start\n    start_event = events.__next__()\n                  ^^^^^^^^^^^^^^^^^\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/connectrpc/_client_sync.py\", line 385, in _send_request_bidi_stream\n    with self._http_client.stream(\n         ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/e2b/envd/client_sync/__init__.py\", line 53, in execute_sync\n    raise error\nconnectrpc.errors.ConnectError: The requested sandbox endpoint is not configured. Check that the sandbox port is exposed\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/tmp/e2b-mobile-envd-probe.py\", line 58, in main\n    result = sandbox.commands.run(\"echo hi\", timeout=30)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/e2b/sandbox_sync/commands/command.py\", line 267, in run\n    proc = self._start(\n           ^^^^^^^^^^^^\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/e2b/sandbox_sync/commands/command.py\", line 339, in _start\n    raise handle_rpc_exception_with_health(e, self._check_health)\ne2b.exceptions.SandboxException: Code.UNKNOWN: The requested sandbox endpoint is not configured. Check that the sandbox port is exposed\n"
+}
+
+=== files.write_read ===
+{
+  "error": "SandboxException('500: The requested sandbox endpoint is not configured. Check that the sandbox port is exposed')",
+  "traceback": "Traceback (most recent call last):\n  File \"/tmp/e2b-mobile-envd-probe.py\", line 79, in main\n    sandbox.files.write(path, content)\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/e2b/sandbox_sync/filesystem/filesystem.py\", line 282, in write\n    result = self.write_files(\n             ^^^^^^^^^^^^^^^^^\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/e2b/sandbox_sync/filesystem/filesystem.py\", line 434, in write_files\n    raise err\ne2b.exceptions.SandboxException: 500: The requested sandbox endpoint is not configured. Check that the sandbox port is exposed\n"
+}
+
+=== sandbox.is_running ===
+{
+  "error": "SandboxException('500: The requested sandbox endpoint is not configured. Check that the sandbox port is exposed')"
+}
+
+=== sandbox.kill ===
+{
+  "sandbox_id": "iumkhf6jlju2f4vpb46yjhfkakfb2l3gkovsrhfk"
+}
+
+Wrote /tmp/e2b-mobile-envd-probe-result.json

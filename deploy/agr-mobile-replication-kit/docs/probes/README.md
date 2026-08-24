@@ -26,6 +26,7 @@
 
 1. **先读 01**：建立「Cube VM + Redroid/SmartRun Android 14」底座认知，了解硬件 mock 边界。
 2. **再读 02**：在 01 基础上补全 sidecar 层、三条数据通路、端口进程归属；**以 02 为准**修正 01 中关于 envd `:49983` 的表述。
+3. **读 03**：用 E2B SDK 最终定论 — mobile **不提供** `commands.run` / `files.write` 等 envd 语义。
 
 ### 02 对 01 的主要修正
 
