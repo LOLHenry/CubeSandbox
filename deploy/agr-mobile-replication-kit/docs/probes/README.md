@@ -13,8 +13,9 @@
 | `03` | E2B SDK envd 语义验证（`commands.run` / `files.write` 定论） |
 | `04` | E2B SDK envd 进程可观测性（`get_info` / `is_running` / `ps` 等） |
 | `05` | Sidecar OCI 打包、PID 层级、网络与复刻实施（推断 + 源码） |
+| `06` | Mobile 冷启动时延基准（控制面 + 数据面探活，5 次批量） |
 
-产物目录与报告序号对齐：`probe/artifacts/{序号}-{YYYYMMDD}-{地域}/`。
+产物目录与报告序号对齐：`probe/artifacts/{序号}-{YYYYMMDD}-{地域}/`；性能探测见 `probe/artifacts/coldstart-*`。
 
 ---
 
@@ -27,6 +28,7 @@
 | **03** | [`03-20260824-e2b-envd-semantics.md`](03-20260824-e2b-envd-semantics.md) | 2026-08-24 | **本仓库** | E2B SDK envd 语义：**不可用**（无隐藏通道） |
 | **04** | [`04-20260824-e2b-envd-process.md`](04-20260824-e2b-envd-process.md) | 2026-08-24 | **本仓库** | E2B SDK **无法观测 envd 进程**；`envd_version` 仅为控制面元数据 |
 | **05** | [`05-20260824-sidecar-oci-and-pid-hierarchy.md`](05-20260824-sidecar-oci-and-pid-hierarchy.md) | 2026-08-24 | **本仓库** | Sidecar OCI 多容器打包推测；PID 层级；eth0/netns；鲲鹏复刻路线 |
+| **06** | [`06-20260824-mobile-coldstart-bench.md`](06-20260824-mobile-coldstart-bench.md) | 2026-08-24 | **本仓库** | Mobile 冷启动时延（5 次批量）；脚本 + JSON 产物 |
 
 **结论总索引：** [`../FINDINGS.md`](../FINDINGS.md)（按主题查结论 → 报告 → 原始产物）
 
@@ -37,7 +39,8 @@
 3. **读 03**：用 E2B SDK 最终定论 — mobile **不提供** `commands.run` / `files.write` 等 envd 语义。
 4. **读 04**：扩展 SDK 接口 — **仍无法判断 envd 进程是否存在**。
 5. **读 05**：Sidecar OCI 打包、PID 层级、网络命名空间、鲲鹏复刻实施路线。
-6. **查索引**：[`FINDINGS.md`](../FINDINGS.md) 按主题定位结论与证据文件。
+6. **读 06**：冷启动时延基准（控制面 ~2s RUNNING；Appium ~5s；ADB/e2e 波动大）。
+7. **查索引**：[`FINDINGS.md`](../FINDINGS.md) 按主题定位结论与证据文件。
 
 ### 02 对 01 的主要修正
 
@@ -88,3 +91,4 @@
 | [`../OPTIONAL_COMPONENTS.md`](../OPTIONAL_COMPONENTS.md) | 鲲鹏复刻可选组件（Appium/scrcpy） |
 | [`../OFFLINE_KUNPENG.md`](../OFFLINE_KUNPENG.md) | 鲲鹏离线部署指南 |
 | [`OFFICIAL_MULTI_CONTAINER.md`](../OFFICIAL_MULTI_CONTAINER.md) | AGR 官方多容器支持边界与自建 Cube 操作步骤 |
+| [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) | AGR 官方 vs CubeSandbox 鲲鹏复刻对照 |

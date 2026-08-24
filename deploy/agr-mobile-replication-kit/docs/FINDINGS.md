@@ -52,6 +52,7 @@
 | 鲲鹏复刻 = **单镜像** Android+envd，无 sidecar | ✅ | [`ARCHITECTURE.md`](../ARCHITECTURE.md) §2 | `deploy/sandbox-images/sandbox-android-redroid-envd/Dockerfile` |
 | MicroVM 来宾 PID 1 = **cube-agent** | ✅ | 探测 05 | `agent/README.md` |
 | ReDroid 在其 PID ns 内须为 PID 1（`exec /init`） | ⚠️ | 探测 05 §ReDroid init | 官方 ENTRYPOINT；[redroid-doc#758](https://github.com/remote-android/redroid-doc/issues/758)；本仓库 `envd-starter` |
+| **AGR 租户不能为 `mobile` 配置多容器/sidecar** | 📘/❌ | [`OFFICIAL_MULTI_CONTAINER.md`](OFFICIAL_MULTI_CONTAINER.md) | [工具类型说明](https://cloud.tencent.com/document/product/1814/132209)；[CreateSandboxTool API](https://cloud.tencent.com/document/product/1814/124812) |
 
 ---
 
@@ -64,9 +65,24 @@
 | [`probes/03-...`](probes/03-20260824-e2b-envd-semantics.md) | E2B SDK envd 语义不可用 |
 | [`probes/04-...`](probes/04-20260824-e2b-envd-process.md) | E2B SDK 无法观测 envd 进程 |
 | [`probes/05-...`](probes/05-20260824-sidecar-oci-and-pid-hierarchy.md) | Sidecar OCI 打包推测、PID 层级、网络、复刻实施要点 |
+| [`probes/06-...`](probes/06-20260824-mobile-coldstart-bench.md) | Mobile 冷启动时延基准（5 次批量 + 脚本） |
 | [`ARCHITECTURE.md`](../ARCHITECTURE.md) | AGR 官方 vs 鲲鹏复刻对照 |
 | [`AGR_REFERENCE.md`](AGR_REFERENCE.md) | 操作速查与端口表 |
 | [`OPTIONAL_COMPONENTS.md`](OPTIONAL_COMPONENTS.md) | 复刻侧可选 Appium/scrcpy（单镜像路线） |
+| [`OFFICIAL_MULTI_CONTAINER.md`](OFFICIAL_MULTI_CONTAINER.md) | **AGR 官方多容器支持边界**；自建 Cube 多容器步骤 |
+
+---
+
+## 7. 冷启动性能（探测 06）
+
+| 结论 | 等级 | 正文 | 原始证据 |
+|------|------|------|----------|
+| `instance create` ~**2s** 返回且常为 `RUNNING`（无 `STARTING` 轮询） | ✅ | [探测 06](probes/06-20260824-mobile-coldstart-bench.md) | `coldstart-batch-summary-5runs.json` |
+| Appium `:4723` ~**5s** ready（p50） | ✅ | 探测 06 | 同上 |
+| `t_e2e_usable`（max Appium/ADB）p50 **~99s**（n=3 成功） | ⚠️ | 探测 06 | 同上；ADB 探针波动大 |
+| 批量成功率 **60%**（5 次中 2 次 ADB 探活超时） | ⚠️ | 探测 06 | 探针局限（本地 adb 隧道累积） |
+
+脚本：`probe/agr-mobile-coldstart-bench.py`、`probe/agr-mobile-coldstart-batch.sh`
 
 ---
 

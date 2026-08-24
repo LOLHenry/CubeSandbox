@@ -3,7 +3,7 @@
 在 **离线鲲鹏 ARM64** 服务器上，复刻腾讯云 [Agent Runtime Mobile](https://cloud.tencent.com/document/product/1814/132412) 沙箱的**可控子集**（双控制面：envd + ADB），运行于自托管 [CubeSandbox](https://github.com/TencentCloud/CubeSandbox)。
 
 > **边界说明**
-> - 本包基于 AGR 实测报告 **01（2026-07-23）** 与 **02（2026-08-24）** 设计，索引见 [`docs/probes/README.md`](docs/probes/README.md)。
+> - 本包基于 AGR 实测报告 **01–06** 设计，索引见 [`docs/probes/README.md`](docs/probes/README.md)；**结论总索引** [`docs/FINDINGS.md`](docs/FINDINGS.md)。
 > - 探测 01 正文在外部仓库：[`01-20260723-mobile-hardware-mock.md`](docs/probes/01-20260723-mobile-hardware-mock.md)。
 > - **不是**腾讯云官方发布物；AGR 云端镜像（SmartRun x86_64 Android 14）与鲲鹏目标镜像（ReDroid arm64 Android 16）**底座不同**，见 `ARCHITECTURE.md`。
 > - CubeSandbox **官方 upstream** 尚无 `instance_type=android` 运行时；当前复刻路径为 **`cubebox` + envd 探活 + ADB 暴露**。
@@ -35,9 +35,12 @@ deploy/agr-mobile-replication-kit/
 │   └── catalog-agr-mobile-replica.json
 ├── probe/                    # 连接 AGR 云端做对照探测（需凭据）
 │   ├── agr-probe-mobile.sh
+│   ├── agr-mobile-coldstart-bench.py   # 冷启动单次基准
+│   ├── agr-mobile-coldstart-batch.sh   # 批量 + 汇总
 │   ├── agr-collect-fingerprint.sh
 │   └── artifacts/
-│       └── 02-20260824-ap-shanghai/   # 探测 02 原始输出（探测 01 在外部仓库）
+│       ├── 02-20260824-ap-shanghai/   # 探测 02 原始输出
+│       └── coldstart-20260824-ap-shanghai/  # 探测 06 冷启动 JSON
 ├── scripts/
 │   ├── 00-preflight.sh       # arch/kvm/docker/cubesandbox 检查
 │   ├── 01-build-offline-kit.sh   # 打离线编译包（联网机构建机）
