@@ -11,6 +11,7 @@
 | `01` | 首轮 broad 探测（硬件 mock、android-world、底座指纹） |
 | `02` | 第二轮架构深挖（sidecar 层、HTTPS 数据面、envd 暴露性） |
 | `03` | E2B SDK envd 语义验证（`commands.run` / `files.write` 定论） |
+| `04` | E2B SDK envd 进程可观测性（`get_info` / `is_running` / `ps` 等） |
 
 产物目录与报告序号对齐：`probe/artifacts/{序号}-{YYYYMMDD}-{地域}/`。
 
@@ -23,12 +24,14 @@
 | **01** | [`01-20260723-mobile-hardware-mock.md`](01-20260723-mobile-hardware-mock.md) | 2026-07-23 | 外部仓库 [LOLHenry/android-cuttlefish](https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md) | mobile + android-world 底座指纹；WiFi/GPS/BT/Camera 硬件面探测 |
 | **02** | [`02-20260824-mobile-architecture.md`](02-20260824-mobile-architecture.md) | 2026-08-24 | **本仓库** | mobile 架构分层（sidecar vs Android）；HTTPS 数据面；envd 暴露性修正 |
 | **03** | [`03-20260824-e2b-envd-semantics.md`](03-20260824-e2b-envd-semantics.md) | 2026-08-24 | **本仓库** | E2B SDK envd 语义：**不可用**（无隐藏通道） |
+| **04** | [`04-20260824-e2b-envd-process.md`](04-20260824-e2b-envd-process.md) | 2026-08-24 | **本仓库** | E2B SDK **无法观测 envd 进程**；`envd_version` 仅为控制面元数据 |
 
 ### 阅读建议
 
 1. **先读 01**：建立「Cube VM + Redroid/SmartRun Android 14」底座认知，了解硬件 mock 边界。
 2. **再读 02**：在 01 基础上补全 sidecar 层、三条数据通路、端口进程归属；**以 02 为准**修正 01 中关于 envd `:49983` 的表述。
 3. **读 03**：用 E2B SDK 最终定论 — mobile **不提供** `commands.run` / `files.write` 等 envd 语义。
+4. **读 04**：扩展 SDK 接口（`get_info`、`is_running`、`pty`、`ps`）— **仍无法判断 envd 进程是否存在**；`envd_version` 不可当作进程证据。
 
 ### 02 对 01 的主要修正
 
@@ -47,6 +50,16 @@
 | `commands.run` | 未测 | ❌ 不可用 |
 | `files.write` | 未测 | ❌ 不可用 |
 | 同实例 Appium | ✅ HTTPS 200 | ✅ 对照实验仍 200 |
+
+### 04 对 03 的补充（进程视角）
+
+| 项 | 03 | 04 |
+|----|-----|-----|
+| `get_info().envd_version` | 未强调 | ✅ 返回 `0.2.10`（**控制面元数据，非进程证明**） |
+| `is_running()` / `:49983/health` | 未单独测 | ❌ `310508` |
+| `commands.run("ps…envd")` | 未测 | ❌ `310508`，**无法列 envd 进程** |
+| `pty.create()` | 未测 | ❌ `310508` |
+| 能否判断 envd 进程存在 | 语义不可用 | **SDK 无观测能力**（与 02 ADB 侧「无 envd 进程」一致） |
 
 ---
 

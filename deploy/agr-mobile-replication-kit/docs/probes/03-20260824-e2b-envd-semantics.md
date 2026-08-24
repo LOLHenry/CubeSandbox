@@ -12,6 +12,8 @@
 
 这不是「Redroid 内看不到」的问题，而是 **E2B SDK 走 `:49983` envd 通道时，平台未配置该端点**。同一实例上 Appium `:4723` 正常工作。
 
+探测 04 进一步覆盖 `get_info().envd_version`、`is_running()`、`pty.create()`、`commands.run("ps…envd")` 等接口，结论见 [`04-20260824-e2b-envd-process.md`](04-20260824-e2b-envd-process.md)：**SDK 无法观测 envd 进程**；控制面 `envd_version` 仅为元数据。
+
 | SDK 调用 | 结果 | 错误 |
 |----------|------|------|
 | `Sandbox.create(template=...)` | ✅ 成功 | — |

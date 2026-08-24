@@ -9,8 +9,9 @@
 | 01 | [mobile-hardware-mock](probes/01-20260723-mobile-hardware-mock.md) | 2026-07-23 | 外部仓库索引 |
 | 02 | [mobile-architecture](probes/02-20260824-mobile-architecture.md) | 2026-08-24 | 本仓库 + [`probe/artifacts/02-20260824-ap-shanghai/`](../probe/artifacts/02-20260824-ap-shanghai/README.md) |
 | 03 | [e2b-envd-semantics](probes/03-20260824-e2b-envd-semantics.md) | 2026-08-24 | 本仓库 + [`probe/artifacts/03-20260824-e2b-envd-semantics/`](../probe/artifacts/03-20260824-e2b-envd-semantics/README.md) |
+| 04 | [e2b-envd-process](probes/04-20260824-e2b-envd-process.md) | 2026-08-24 | 本仓库 + [`probe/artifacts/04-20260824-e2b-envd-process/`](../probe/artifacts/04-20260824-e2b-envd-process/README.md) |
 
-**端口与架构以探测 02 为准；envd 可用性以探测 03 定论。**
+**端口与架构以探测 02 为准；envd 可用性以探测 03/04 定论。**
 
 ## 凭据与接入
 
