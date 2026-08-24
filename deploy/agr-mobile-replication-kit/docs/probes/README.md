@@ -10,6 +10,7 @@
 |------|------|
 | `01` | 首轮 broad 探测（硬件 mock、android-world、底座指纹） |
 | `02` | 第二轮架构深挖（sidecar 层、HTTPS 数据面、envd 暴露性） |
+| `03` | E2B SDK envd 语义验证（`commands.run` / `files.write` 定论） |
 
 产物目录与报告序号对齐：`probe/artifacts/{序号}-{YYYYMMDD}-{地域}/`。
 
@@ -21,6 +22,7 @@
 |------|------|------|----------|------|
 | **01** | [`01-20260723-mobile-hardware-mock.md`](01-20260723-mobile-hardware-mock.md) | 2026-07-23 | 外部仓库 [LOLHenry/android-cuttlefish](https://github.com/LOLHenry/android-cuttlefish/blob/main/docs/experiments/tencent-agent-runtime-mobile-hardware-mock.md) | mobile + android-world 底座指纹；WiFi/GPS/BT/Camera 硬件面探测 |
 | **02** | [`02-20260824-mobile-architecture.md`](02-20260824-mobile-architecture.md) | 2026-08-24 | **本仓库** | mobile 架构分层（sidecar vs Android）；HTTPS 数据面；envd 暴露性修正 |
+| **03** | [`03-20260824-e2b-envd-semantics.md`](03-20260824-e2b-envd-semantics.md) | 2026-08-24 | **本仓库** | E2B SDK envd 语义：**不可用**（无隐藏通道） |
 
 ### 阅读建议
 
@@ -36,6 +38,15 @@
 | Appium `:4723` | 实例内监听 | ✅ 确认为 **Linux sidecar**（Node.js），非 Android 进程 |
 | `:8000` / `:8886` | 均标为 scrcpy 相关 | ✅ 分层：8000=sidecar Web，8886=Android scrcpy-server |
 | 架构图 | 单层「进程: adbd, Appium, envd, scrcpy」 | ✅ 分为 **Sidecar 层 + Android 层** |
+
+### 03 对 02 的补充（定论）
+
+| 项 | 02（curl/ADB） | 03（E2B SDK） |
+|----|----------------|---------------|
+| envd 是否隐藏可用 | 推断「未暴露」 | ✅ **SDK 直接报错 310508，无隐藏通道** |
+| `commands.run` | 未测 | ❌ 不可用 |
+| `files.write` | 未测 | ❌ 不可用 |
+| 同实例 Appium | ✅ HTTPS 200 | ✅ 对照实验仍 200 |
 
 ---
 
