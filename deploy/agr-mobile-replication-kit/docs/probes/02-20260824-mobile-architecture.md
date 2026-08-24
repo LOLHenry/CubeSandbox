@@ -205,6 +205,102 @@
 
 ---
 
+## 结构示意（PID 视角）
+
+> 实例：`qjqwkxvkjvqqqkmguqai4s6rlzfhds7rb2oajex7`（2026-08-24 单次快照）。**PID 随重启变化**，但命名空间分层关系稳定。
+
+### PID 1 与 `pid:[4026532547]` 的区别
+
+| 符号 | 含义 | 类比 |
+|------|------|------|
+| **PID 1** | 进程在**自己 PID 命名空间内的编号** | 班级里的「1 号学生」 |
+| **pid:[4026532547]** | 该进程所属 **PID 命名空间的 inode ID**（`readlink /proc/<pid>/ns/pid`） | 「班级编号」 |
+
+二者不是同一类 ID：`4026532547` **不是**比 1 更大的进程号。实测 `init`(PID 1) 与 `adbd`(PID 138) 的 `ns/pid` 均为 `pid:[4026532547]`（`phase2/18-pid-namespace.txt`），说明它们在同一 Android 命名空间内。
+
+**ReDroid 没有名为 `redroid` 的单独进程**；通常说「ReDroid 从 PID 1 起来」指 `init second_stage`（cmdline 含 `androidboot.redroid_*`）。
+
+### 端口 ↔ PID 映射（ADB 可见部分）
+
+| 端口 | 服务 | PID（Android 视图） | netstat | inode→PID |
+|------|------|---------------------|---------|-----------|
+| **5555** | adbd | **138** | `138/adbd` | ✅ 138 |
+| **8886** | scrcpy-server | **3379** | `3379/app_process` | ✅ 3379 |
+| **4723** | Appium | **—** | PID `-` | ❌ 无匹配 |
+| **8000** | ws-scrcpy Web | **—** | PID `-` | ❌ 无匹配 |
+| **8080** | Health Agent | **—** | PID `-` | ❌ 无匹配 |
+| **5556** | ADB WebSocket 桥 | **—** | PID `-` | ❌ 无匹配 |
+| **32001** | 未知 | **—** | PID `-` | ❌ 无匹配 |
+| **49983** | envd | **无监听** | — | — |
+
+依据：`phase2/04-netstat.txt`、`phase2/15-inode-pid-map.txt`、`phase1-live/14_cmd.txt`。
+
+### Android / ReDroid 层关键进程（实测 PID 快照）
+
+| 角色 | PID | 进程 | 依据 |
+|------|-----|------|------|
+| Android 根（ReDroid 入口） | **1** | `init` (`init second_stage`) | `phase1-live/08_cmd.txt` |
+| vendor init | 3 | `init` (subcontext) | 同上 |
+| 系统服务 | 253 | `system_server` | 同上 |
+| 图形 | 124 | `surfaceflinger` | 同上 |
+| Zygote | 158 | `zygote64` | 同上 |
+| 网络 | 174 | `netd` | 同上 |
+| **adbd (:5555)** | **138** | `/apex/.../adbd` | `phase1-live/15_cmd.txt` |
+| **scrcpy (:8886)** | **3379** | `app_process` → `com.genymobile.scrcpy.Server` | 同上 |
+| scrcpy 启动壳 | 3375 | `sh -c CLASSPATH=.../scrcpy-server.jar ...` | `phase1-live/08_cmd.txt` |
+| SmartRun radio | 148 | `smartrun-radio-stub` | 同上 |
+| 桌面 | 2721 | `com.android.launcher3` | 同上 |
+
+完整进程列表见 `phase1-live/08_cmd.txt`（约 90 行）。Appium UiAutomator2 APK（`io.appium.uiautomator2.server`）探测时**未作为常驻 daemon**；仅在 Appium 建 session 后拉起，PID 不固定。
+
+### 命名空间关系
+
+| 进程 | PID | `ns/pid` | `ns/net` |
+|------|-----|----------|----------|
+| init | 1 | `pid:[4026532547]` | `net:[4026531840]` |
+| adbd | 138 | `pid:[4026532547]` | `net:[4026531840]` |
+| scrcpy | 3379 | （同 Android ns） | `net:[4026531840]` |
+| Sidecar（Appium 等） | **不可见** | **另一 PID ns**（inode 未实测） | 共享 `net:[4026531840]` |
+
+Sidecar 与 Android **共享网络命名空间**（故 `netstat` 能看到 4723/8000/5556），但 **不在同一 PID 命名空间**（故 `ps` / `/proc/*/fd` 找不到 sidecar 进程的 PID）。
+
+### 结构示意（文本）
+
+```
+Cube Hypervisor MicroVM
+│
+├── Linux Sidecar 层
+│   PID 命名空间：pid:[????????]（ADB 不可见，inode 未实测）
+│   ┌─────────────────────────────────────────┐
+│   │  PID ?   node (Appium)        :4723      │
+│   │  PID ?   ws-scrcpy (Express)  :8000      │
+│   │  PID ?   health agent         :8080      │
+│   │  PID ?   ADB WebSocket 桥     :5556      │
+│   └──────────────────┬──────────────────────┘
+│                      │ 共享 net:[4026531840]
+│                      ▼
+├── Android / ReDroid 层
+│   PID 命名空间：pid:[4026532547]
+│   ┌─────────────────────────────────────────┐
+│   │  PID 1     init            ← ReDroid 根  │
+│   │  PID 138   adbd            ← :5555        │
+│   │  PID 253   system_server                 │
+│   │  PID 3379  app_process     ← scrcpy :8886 │
+│   │  PID 2721  com.android.launcher3         │
+│   │  ...                                     │
+│   └─────────────────────────────────────────┘
+│
+└── 数据面网关（OpenResty）按端口转发，与 PID 无关
+```
+
+### 为何 netstat 里 PID 显示 `-`
+
+Linux 的 `netstat`/`ss` 在显示监听 socket 时，若 socket 属主进程在**当前 PID 命名空间不可见**（跨 namespace），则 PID 列显示 `-`。这正是 sidecar 端口（4723/8000/8080/5556）在 `adb shell` 内的表现；而 adbd(138)、scrcpy(3379) 同属 Android ns，故可显示具体 PID。
+
+`127.0.0.1:5037` 为**客户端侧** `adb` server（`agr mobile connect` 隧道建立后出现），不属于 ReDroid 进程树。
+
+---
+
 ## 与探测 01 的修正
 
 | 项 | 探测 01（2026-07-23） | 探测 02（本次） |
