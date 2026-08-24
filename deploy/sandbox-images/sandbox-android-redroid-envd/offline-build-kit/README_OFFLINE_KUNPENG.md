@@ -52,8 +52,8 @@ RUN_SMOKE=1 ./scripts/04-verify.sh
 **Q: `go mod vendor` 为什么在鲲鹏上不用再跑？**  
 A: 有网机器打包时已 vendor，鲲鹏上 `GOPROXY=off` 直接 `go build -mod=vendor`。
 
-**Q: 没有 golang Docker 镜像怎么办？**  
-A: `03-build-docker-image.sh` 会自动走「先 `02-build-binaries.sh` 再 inject 进 ReDroid」路径。
+**Q: `docker/dockerfile:1.7` TLS / 证书错误？**  
+A: 不要用 `Dockerfile.offline`。默认 `BUILD_MODE=inject`（`03-build-docker-image.sh`）用宿主机 Go + `Dockerfile.inject`，不访问 docker.io。
 
 **Q: envd 必须是 Android ELF？**  
 A: 是。`file out/envd` 应含 `interpreter /system/bin/linker64`，不能是 `statically linked`（那是 GOOS=linux）。

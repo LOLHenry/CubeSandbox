@@ -68,8 +68,8 @@ fi
 log "cloning ${INFRA_REPO} @ ${ENVD_REF}"
 git clone --depth 1 --branch "${ENVD_REF}" "${INFRA_REPO}" "${KIT_ROOT}/src/infra"
 
-if ! command -v go >/dev/null 2>&1; then
-  log "local go not found; using downloaded toolchain for go mod vendor"
+if ! command -v go >/dev/null 2>&1 || ! go version | grep -q "go${GO_VERSION} "; then
+  log "using bundled Go ${GO_VERSION} toolchain for go mod vendor"
   rm -rf /tmp/go-toolchain-offline-kit
   mkdir -p /tmp/go-toolchain-offline-kit
   tar -C /tmp/go-toolchain-offline-kit -xzf "${KIT_ROOT}/go/${GO_TARBALL}"
@@ -97,6 +97,7 @@ cp -a "${ENVD_IMAGE_DIR}/start-cube-envd.sh" "${KIT_ROOT}/src/"
 cp -a "${ENVD_IMAGE_DIR}/lib" "${KIT_ROOT}/src/lib"
 cp -a "${ENVD_IMAGE_DIR}/verify-envd-health.sh" "${KIT_ROOT}/src/"
 cp -a "${SCRIPT_DIR}/Dockerfile.offline" "${KIT_ROOT}/"
+cp -a "${SCRIPT_DIR}/Dockerfile.inject" "${KIT_ROOT}/"
 cp -a "${SCRIPT_DIR}/kunpeng/"*.sh "${KIT_ROOT}/scripts/"
 chmod +x "${KIT_ROOT}/scripts/"*.sh
 cp -a "${SCRIPT_DIR}/README_OFFLINE_KUNPENG.md" "${KIT_ROOT}/README.md"

@@ -1,0 +1,20 @@
+# Offline inject: copies host-built envd binaries into ReDroid base.
+# No network, no golang builder image, no BuildKit syntax frontend.
+# Prerequisites: ./scripts/02-build-binaries.sh && redroid:16.0.0_64only-latest loaded
+
+ARG REDROID_BASE_IMAGE=redroid:16.0.0_64only-latest
+FROM ${REDROID_BASE_IMAGE}
+
+COPY out/envd /usr/bin/envd
+COPY out/envd-starter /usr/bin/envd-starter
+COPY src/android-init/cube-envd.rc /vendor/etc/init/cube-envd.rc
+COPY src/android-init/cube-envd.rc /system/etc/init/cube-envd.rc
+COPY src/start-cube-envd.sh /usr/bin/start-cube-envd.sh
+
+ENV ENVD_PORT=49983
+ENV CUBESANDBOX_ADB_PORT=5555
+
+EXPOSE 49983 5555
+
+CMD ["androidboot.redroid_width=1080", "androidboot.redroid_height=1920", "androidboot.redroid_dpi=480", "androidboot.redroid_gpu_mode=guest"]
+ENTRYPOINT ["/usr/bin/envd-starter"]
