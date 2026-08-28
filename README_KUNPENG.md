@@ -1560,3 +1560,4 @@ grep -a -E 'start vm|vm ready|agent is ready|Create sandbox|timeout' \
 | Android 沙箱离线包（ReDroid AOSP 16 / preview） | https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-preview |
 | Android 沙箱离线包（ReDroid + envd / preview） | https://github.com/LOLHenry/CubeSandbox/releases/tag/android-kunpeng-arm64-envd-preview |
 | e2b 离线 Python wheels（aarch64 / cp312） | https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-python-wheels-py312-aarch64 |
+| Guest 内核离线编译包（linux-6.6.119 + bison/flex） | https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-guest-kernel-build-offline-aarch64 |
