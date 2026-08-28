@@ -10,6 +10,8 @@
 | `cube-python-wheels-py312-aarch64.tar.gz` | 29 个 wheel，解压后为 `quickstart-pkgs/` |
 | `install-e2b-offline.sh` | 鲲鹏上一键安装脚本 |
 
+另见 [`guest-kernel-build/README.md`](guest-kernel-build/README.md)：**Android guest 内核**离线编译包（`linux-6.6.119` + openEuler bison/flex RPM）。
+
 > 大文件不在 git 中；请从 GitHub Release 下载，或在本机按 `README_KUNPENG.md` §3.6.1-A1/A2 自建。
 
 ## 下载（联网 PC → 拷到鲲鹏）

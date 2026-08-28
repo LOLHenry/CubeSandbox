@@ -1,0 +1,98 @@
+name: Guest Kernel Build Offline Bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag suffix for bundle filename (empty = no suffix)'
+        required: false
+        default: ''
+      kernel_version:
+        description: 'Linux stable version (default 6.6.119)'
+        required: false
+        default: '6.6.119'
+      upload_to_release:
+        description: 'Upload bundle to GitHub Release'
+        required: false
+        default: true
+        type: boolean
+      release_name:
+        description: 'GitHub Release tag name'
+        required: false
+        default: 'cube-guest-kernel-build-offline-aarch64'
+
+permissions:
+  contents: write
+
+jobs:
+  build_guest_kernel_offline_bundle:
+    name: Build guest kernel offline bundle (aarch64 deps)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve build parameters
+        id: params
+        run: |
+          set -euo pipefail
+          release_tag="${{ inputs.release_tag }}"
+          kernel_version="${{ inputs.kernel_version }}"
+          if [[ -z "${kernel_version}" ]]; then
+            kernel_version="6.6.119"
+          fi
+          if [[ -n "${release_tag}" ]]; then
+            bundle_name="cube-guest-kernel-build-offline-aarch64-${release_tag}.tar.gz"
+          else
+            bundle_name="cube-guest-kernel-build-offline-aarch64.tar.gz"
+          fi
+          echo "release_tag=${release_tag}" >> "$GITHUB_OUTPUT"
+          echo "kernel_version=${kernel_version}" >> "$GITHUB_OUTPUT"
+          echo "bundle_name=${bundle_name}" >> "$GITHUB_OUTPUT"
+          echo "bundle_path=deploy/one-click/dist/${bundle_name}" >> "$GITHUB_OUTPUT"
+
+      - name: Build offline bundle
+        env:
+          RELEASE_TAG: ${{ steps.params.outputs.release_tag }}
+          KERNEL_VERSION: ${{ steps.params.outputs.kernel_version }}
+        run: |
+          set -euo pipefail
+          chmod +x deploy/one-click/scripts/one-click/build-guest-kernel-offline-bundle.sh
+          ./deploy/one-click/scripts/one-click/build-guest-kernel-offline-bundle.sh
+          ls -lh deploy/one-click/dist/
+
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: guest-kernel-build-offline-aarch64
+          path: |
+            ${{ steps.params.outputs.bundle_path }}
+            ${{ steps.params.outputs.bundle_path }}.sha256
+
+      - name: Upload bundle to GitHub Release
+        if: inputs.upload_to_release != false
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          release_name="${{ inputs.release_name }}"
+          if [[ -z "${release_name}" ]]; then
+            release_name="cube-guest-kernel-build-offline-aarch64"
+          fi
+          bundle_path="${{ steps.params.outputs.bundle_path }}"
+          sha_path="${bundle_path}.sha256"
+          kernel_version="${{ steps.params.outputs.kernel_version }}"
+          sha256="$(awk '{print $1}' "${sha_path}")"
+
+          if ! gh release view "${release_name}" >/dev/null 2>&1; then
+            gh release create "${release_name}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "Cube guest kernel build offline bundle (aarch64)" \
+              --notes "Offline bundle for building Android guest kernel on Kunpeng (Linux ${kernel_version} source + openEuler bison/flex RPMs)."
+          fi
+
+          gh release upload "${release_name}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber \
+            "${bundle_path}" \
+            "${sha_path}"

@@ -517,6 +517,39 @@ cubemastercli tpl create-from-image \
 
 旧模板 `tpl-a433b11ce5c748fc8184fc6a` 可删除后重建：`cubemastercli tpl delete tpl-a433b11ce5c748fc8184fc6a`（若 CLI 支持）或控制台清理 FAILED 模板。
 
+#### 2.4.6 Guest 内核离线编译包（Android Binder · 黄区）
+
+在鲲鹏黄区**自编译 Android guest 内核**（`CONFIG_ANDROID_BINDER_IPC`，配置见 `configs/kernel-oc9.aarch64.config`）时，需要：
+
+| 组件 | 说明 | 约大小 |
+|------|------|--------|
+| `linux-6.6.119.tar.xz` | 与 in-tree 配置匹配的 stable 内核源码 | ~140MB |
+| `bison` + `flex` | openEuler 22.03 SP4 **aarch64** RPM | ~5MB |
+
+**Release 下载（联网 PC → scp 到黄区）：**
+
+https://github.com/LOLHenry/CubeSandbox/releases/tag/cube-guest-kernel-build-offline-aarch64
+
+```bash
+wget https://github.com/LOLHenry/CubeSandbox/releases/download/cube-guest-kernel-build-offline-aarch64/cube-guest-kernel-build-offline-aarch64.tar.gz
+wget https://github.com/LOLHenry/CubeSandbox/releases/download/cube-guest-kernel-build-offline-aarch64/cube-guest-kernel-build-offline-aarch64.tar.gz.sha256
+sha256sum -c cube-guest-kernel-build-offline-aarch64.tar.gz.sha256
+scp cube-guest-kernel-build-offline-aarch64.tar.gz* root@<鲲鹏IP>:~/offline-pkgs/
+```
+
+详细步骤：[`offline-pkgs/guest-kernel-build/README.md`](offline-pkgs/guest-kernel-build/README.md)。
+
+**官方源（自建包）：**
+
+- 内核：https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.119.tar.xz
+- bison/flex：https://repo.openeuler.org/openEuler-22.03-LTS-SP4/everything/aarch64/Packages/
+
+```bash
+./deploy/one-click/scripts/one-click/build-guest-kernel-offline-bundle.sh
+```
+
+CI：Actions → **Guest Kernel Build Offline Bundle** → `workflow_dispatch`。
+
 ---
 
 ## 3. 启动后：如何调用接口创建 / 使用沙箱
