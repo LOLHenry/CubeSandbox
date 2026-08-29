@@ -44,6 +44,39 @@ fn validate_log_path_component(id: &str) -> CResult<()> {
     Ok(())
 }
 
+/// Android/ReDroid passes `androidboot.*` kernel cmdline args via OCI process args.
+/// Init log-forwarding creates inherited FIFO pipes; zygote aborts at forkSystemServer
+/// with "Unsupported st_mode for FD N: FIFO" if those pipes survive into the zygote.
+fn should_enable_container_log_forwarding(spec: &oci::Spec) -> bool {
+    let anno = spec.get_annotations();
+    if anno
+        .get(common::ANNO_CONTAINER_LOG_FORWARDING)
+        .map(|v| v.eq_ignore_ascii_case("false"))
+        .unwrap_or(false)
+    {
+        return false;
+    }
+
+    let args = spec.get_process().get_args();
+
+    if args.iter().any(|a| a.starts_with("androidboot.")) {
+        return false;
+    }
+
+    if let Some(entry) = args.first() {
+        let is_init = entry.ends_with("/init") || entry == "init";
+        if is_init
+            && args.iter().any(|a| {
+                a.contains("redroid") || a.contains("androidboot.hardware=redroid")
+            })
+        {
+            return false;
+        }
+    }
+
+    true
+}
+
 #[derive(Clone)]
 pub struct Container {
     sandbox_id: String,
@@ -382,9 +415,17 @@ impl Container {
         // The agent reads this annotation in do_create_container and sets
         // p.log_forwarding = true causes open_io() to create init log pipes only
         // (exec processes are unaffected; they use the pre-log-forwarding path).
+        //
+        // Android/ReDroid: disable log forwarding to avoid inherited FIFO pipes that
+        // make zygote abort at forkSystemServer.
+        let enable_log_forwarding = should_enable_container_log_forwarding(&spec);
         spec.mut_annotations().insert(
             common::ANNO_CONTAINER_LOG_FORWARDING.to_string(),
-            "true".to_string(),
+            if enable_log_forwarding {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            },
         );
 
         Ok(spec)

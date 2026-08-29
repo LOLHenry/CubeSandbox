@@ -1,0 +1,7 @@
+name=cube-shim-android-log-forwarding-fix-aarch64
+date=2026-08-29
+git_commit=5db8b26974752bec74d21ff88900472300ac1a77
+git_short=5db8b269
+target=aarch64-unknown-linux-gnu
+profile=release
+fix=disable log_forwarding for androidboot/redroid OCI args
