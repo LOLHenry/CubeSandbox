@@ -19,26 +19,23 @@
 
 ## Cloud Agent 最大化指南（无裸金属）
 
-### 名词
+### 环境天花板（实测结论）
 
-- **M1**：在 Linux 上用 Docker 直接跑 ReDroid，adb 验证 Android 能 boot（脚本 `01` / `06`）。
-- **TCG**（QEMU Tiny Code Generator）：**纯软件 CPU 模拟**。Cloud Agent 宿主机无嵌套 KVM，dev-env 虚机只能用 `USE_TCG=1`，比真机慢 10–100 倍，但**能跑**，只是要更长超时。
-
-### 已验证的 Cloud Agent 修复
-
-| 问题 | 原因 | 修复 |
+| 路径 | 结果 | 原因 |
 |------|------|------|
-| `ctr-image import` ~60s 失败 | `cubecli` 全局默认 `--timeout 60s` | `CUBECLI_TIMEOUT=30m`（实测 import ~4.5min，docker load ~1.8min） |
-| 模板 PULLING 去 docker.io | CubeMaster 默认 **native export** 走公网 registry | `CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` + guest 内 `docker load` + tag |
-| M3 CREATING_TEMPLATE 失败 | CubeVM 在 TCG 下启动后立即 shutdown | 与 M1 同类：Android 微虚机 boot 问题，待进一步排查 |
+| 宿主机直接 one-click | ❌ | 容器内 **systemd 不是 PID 1**，无法启动 unit |
+| 外层 VM `USE_TCG=0`（KVM） | ❌ | 嵌套 KVM 虚机 SSH 不通 |
+| 外层 VM `USE_TCG=1`（TCG）+ M0/M2/M3 artifact | ✅ | 控制面 + 镜像解包可用 |
+| 内层 CubeVM（M3 CREATING_TEMPLATE） | ❌ | **VmExit::Reset**（alpine 也失败，非 Android 专属） |
+| M1 ReDroid docker | ❌ | `init: Failed to initialize property area` |
+
+**结论**：Cloud Agent 上可稳定交付 **M0 + M2 + M3 前半段（artifact READY）**；完整 **CubeVM 沙箱 / ReDroid boot** 需要真实 KVM 宿主机（非嵌套 TCG）。
+
+一键跑最大可用路径：
 
 ```bash
-# 复用 guest 里已有的 /tmp/m3-image.tar，跳过重新 scp
-SKIP_SCP=1 CUBECLI_TIMEOUT=30m JOB_TIMEOUT_SEC=3600 \
-  bash deploy/x86-redroid-integration/scripts/08-guest-e2e-template.sh
+bash deploy/x86-redroid-integration/scripts/10-cloud-agent-maximum.sh
 ```
-
-M3 在 Cloud Agent 上已实测走过：`PULLING → UNPACKING → BUILDING → DISTRIBUTING → CREATING_TEMPLATE`，在 **CREATING_TEMPLATE** 因 `VmShutdown` 失败（CubeVM 起不来 ReDroid 沙箱）。
 
 ## 推荐路径：dev-env KVM 虚机
 
