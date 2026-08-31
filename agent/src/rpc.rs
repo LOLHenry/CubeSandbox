@@ -268,6 +268,11 @@ impl AgentService {
             .get(ANNO_CONTAINER_LOG_FORWARDING)
             .map(|v| v.eq_ignore_ascii_case("true"))
             .unwrap_or(false);
+        // Defense in depth: never create log pipes for Android/ReDroid even if
+        // an older shim still injects log_forwarding=true.
+        if cube::utils::is_android_workload(&p.oci.args) {
+            p.log_forwarding = false;
+        }
         p.open_io(&sl!(), None).map_err(|e| anyhow!(e))?;
         ctr.start(p).await?;
         s.update_shared_pidns(&ctr)?;

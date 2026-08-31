@@ -12,6 +12,24 @@ pub const ANNO_APP_SNAPSHOT_CONTAINER_ID: &str = "cube.appsnapshot.container.id"
 /// not created and the original behaviour is preserved.
 pub const ANNO_CONTAINER_LOG_FORWARDING: &str = "cube.container.log_forwarding";
 
+/// True when OCI process args indicate an Android/ReDroid init workload.
+/// Used to disable log forwarding and sanitize inherited fds before exec.
+pub fn is_android_workload(args: &[String]) -> bool {
+    if args.iter().any(|a| a.starts_with("androidboot.")) {
+        return true;
+    }
+
+    let Some(entry) = args.first() else {
+        return false;
+    };
+
+    let is_init = entry.ends_with("/init") || entry == "init";
+    is_init
+        && args.iter().any(|a| {
+            a.contains("redroid") || a.contains("androidboot.hardware=redroid")
+        })
+}
+
 #[derive(Debug)]
 pub struct CPath {
     pub path: PathBuf,
@@ -45,6 +63,20 @@ impl CPath {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn android_workload_detection() {
+        assert!(is_android_workload(&[
+            "androidboot.redroid_width=1080".to_string(),
+            "androidboot.redroid_height=1920".to_string(),
+        ]));
+        assert!(is_android_workload(&[
+            "/init".to_string(),
+            "androidboot.hardware=redroid".to_string(),
+        ]));
+        assert!(!is_android_workload(&["/bin/sh".to_string(), "-c".to_string(), "true".to_string()]));
+        assert!(!is_android_workload(&["/init".to_string()]));
+    }
 
     #[test]
     fn cpath() {

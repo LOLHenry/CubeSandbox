@@ -1407,6 +1407,42 @@ curl -sS -o /dev/null -w "%{http_code}\n" "http://<鲲鹏IP>:12088/"
 | `getaddrinfo failed` / `49999-*.cube.app` 解析失败 | 客户端不在集群 DNS 域内；**在鲲鹏本机跑 SDK / OpenClaw**（§3.6），不要从 Windows 远程当执行端 |
 | `install.sh` 长时间无输出 | 多半在等 systemd；另开终端看 `systemctl list-jobs`。若已 `install complete`，不要反复全量安装，直接做模板 |
 | 创建沙箱报 `ttrpc ... Receive packet timeout` / WebUI（12088）与 Python 同错 | 多为卡死 shim 或 network-agent 状态异常；见 §5.2 快速修复 |
+| ReDroid `zygote=restarting`，dmesg `Unsupported st_mode for FD N: FIFO` | shim + guest **cube-agent** 热修；见 §5.3 |
+
+### 5.3 ReDroid zygote 崩溃 / `Unsupported st_mode ... FIFO`（Android 预览）
+
+**现象（`cube-runtime login` 后）：**
+
+```bash
+getprop init.svc.zygote          # restarting
+# zygote64 / system_server 进程为空；adbd 可能有 PID 但 5555 不监听
+dmesg | grep -i 'Unsupported st_mode'
+# JNI FatalError called: (system_server) Unsupported st_mode for FD 17: FIFO
+```
+
+**原因：** CubeShim 为 init 开启日志转发时，agent 会向 Android `init` 继承 pipe/FIFO fd；
+此外 agent 的 **exec.fifo 同步 fd** 等 fd≥3 在 `exec("/init")` 前未关闭，zygote fork
+`system_server` 时 ART 直接 abort。
+
+**修复（两步，缺一不可）：**
+
+1. **宿主机 shim**（禁用 Android 的 `log_forwarding`）  
+   见 Release `cube-shim-android-log-forwarding-fix-aarch64`，安装后  
+   `sudo systemctl restart cube-sandbox-cubelet.service`
+
+2. **Guest cube-agent**（关闭继承 fd）  
+   见 Release `cube-agent-android-fd-sanitize-fix-aarch64`，用  
+   `install-guest-image.sh` 替换 `cube-guest-image-cpu.img` 内 `/sbin/init`，再重启 cubelet。
+
+**验证：**
+
+```bash
+getprop init.svc.zygote      # running
+getprop sys.boot_completed   # 1
+adb connect <节点IP>:<映射端口>
+```
+
+必须 **新建沙箱**；已运行的 VM 仍用旧 guest agent。
 
 ### 5.1 DNS / dnsmasq 修复（单机常见）
 

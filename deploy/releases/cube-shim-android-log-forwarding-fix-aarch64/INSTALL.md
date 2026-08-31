@@ -19,6 +19,11 @@ Zygote aborts when forking `system_server` if unexpected FIFOs remain open.
 This build disables init log forwarding for Android/ReDroid workloads (OCI args containing
 `androidboot.*` or `/init` + `redroid`).
 
+> **Important:** If you still see `Unsupported st_mode for FD N: FIFO` after installing
+> only this shim, you also need the **guest cube-agent** hotfix
+> (`deploy/releases/cube-agent-android-fd-sanitize-fix-aarch64/`). The agent leaves
+> exec.fifo and other inherited fds open across `exec("/init")`; Android requires both fixes.
+
 ## Contents
 
 | File | Description |
