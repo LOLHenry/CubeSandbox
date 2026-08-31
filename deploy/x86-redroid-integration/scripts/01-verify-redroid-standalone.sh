@@ -10,10 +10,14 @@ log() { printf '[m1-redroid] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
 command -v docker >/dev/null || die "missing docker"
 command -v adb >/dev/null || die "missing adb"
-grep -q binder /proc/filesystems || die "binder missing — use dev-env VM or modprobe binder_linux"
-if command -v modprobe >/dev/null 2>&1; then
-  modprobe binder_linux devices="binder,hwbinder,vndbinder" 2>/dev/null || true
+# Built-in binder (CONFIG_ANDROID_BINDER_IPC=y) uses /dev/binder*; module path uses /proc/filesystems
+if [[ ! -e /dev/binder ]]; then
+  grep -q binder /proc/filesystems || die "binder missing — use dev-env VM or modprobe binder_linux"
+  if command -v modprobe >/dev/null 2>&1; then
+    modprobe binder_linux devices="binder,hwbinder,vndbinder" 2>/dev/null || true
+  fi
 fi
+chmod 666 /dev/binder /dev/hwbinder /dev/vndbinder 2>/dev/null || sudo chmod 666 /dev/binder /dev/hwbinder /dev/vndbinder 2>/dev/null || true
 docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true
 log "pull ${REDROID_IMAGE}"
 docker pull --platform linux/amd64 "${REDROID_IMAGE}"

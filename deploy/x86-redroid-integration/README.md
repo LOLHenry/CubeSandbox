@@ -12,10 +12,10 @@
 
 | 阶段 | 目标 | 状态 |
 |------|------|------|
-| M0 | CubeSandbox x86 one-click 安装 + smoke | **完成**（dev-env VM 内 v0.7，`quickcheck OK`） |
-| M1 | ReDroid docker + adb（guest 内需 binder 模块） | 进行中 |
-| M2 | amd64 ReDroid+envd 镜像 | 待开始 |
-| M3 | CubeVM 模板 E2E（tpl → READY → adb） | 待开始 |
+| M0 | CubeSandbox x86 one-click 安装 + smoke | **完成** |
+| M1 | ReDroid docker + adb（guest 内） | **受阻**（嵌套 TCG+QEMU 下 ReDroid init 失败；裸金属/KVM 可试） |
+| M2 | amd64 ReDroid+envd 镜像 | **完成**（`sandbox-android-redroid-envd:16.0.0-amd64`） |
+| M3 | CubeVM 模板 E2E（tpl → READY → adb） | 进行中 |
 
 ## 推荐路径：dev-env KVM 虚机
 
@@ -39,8 +39,11 @@ USE_TCG=1 VM_MEMORY_MB=8192 bash deploy/x86-redroid-integration/scripts/03-dev-e
 | `02-dev-env-m0-bootstrap.sh` | M0 旧路径（prepare_image + run_vm） |
 | `03-dev-env-provision-and-install.sh` | **M0 主路径**：OVMF/TCG VM + guest provision + one-click |
 | `04-guest-oneclick-install.sh` | 在已 provision 的 guest 内单独跑 one-click |
-| `05-guest-install-binder-modules.sh` | M1 前置：编译安装 redroid-modules（binder/ashmem） |
-| `run-dev-vm-ovmf.sh` | 启动 OVMF VM（KVM 优先，TCG 回退） |
+| `05-guest-install-binder-modules.sh` | M1 可选：编译 redroid-modules（OpenCloudOS 已内置 binder） |
+| `05b-guest-load-ashmem.sh` | M1 前置：编译加载 ashmem_linux（OpenCloudOS 6.6） |
+| `06-guest-verify-redroid.sh` | M1：guest 内 ReDroid + adb 验证 |
+| `07-build-amd64-redroid-envd.sh` | M2：构建 amd64 envd 镜像（需 NDK+CGO） |
+| `08-guest-e2e-template.sh` | M3：导入镜像 + template from-image E2E |
 
 ## M1 ReDroid 前置
 

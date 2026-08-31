@@ -1,0 +1,99 @@
+# syntax=docker/dockerfile:1.7
+# SPDX-License-Identifier: Apache-2.0
+# CubeSandbox Android workload image with envd for x86_64.
+
+ARG REDROID_BASE_IMAGE=sandbox-android-redroid:16.0.0-amd64
+ARG ENVD_REF=2026.16
+ARG GO_VERSION=1.25.4
+ARG ENVD_UPSTREAM_REPO=https://github.com/e2b-dev/infra.git
+ARG GOARCH=amd64
+ARG ANDROID_API=21
+ARG NDK_VERSION=r26d
+
+FROM golang:${GO_VERSION}-bookworm AS envd-builder
+
+ARG ENVD_REF
+ARG ENVD_UPSTREAM_REPO
+ARG GOARCH
+ARG ANDROID_API
+ARG NDK_VERSION
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# android/amd64 requires CGO + NDK; arm64 can use CGO_ENABLED=0
+RUN curl -fsSL -o /tmp/ndk.zip \
+      "https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip" \
+    && unzip -q /tmp/ndk.zip -d /opt \
+    && mv /opt/android-ndk-${NDK_VERSION} /opt/android-ndk \
+    && rm /tmp/ndk.zip
+
+ENV ANDROID_NDK_HOME=/opt/android-ndk
+ENV PATH="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
+
+WORKDIR /src
+
+RUN git clone --depth 1 --branch "${ENVD_REF}" "${ENVD_UPSTREAM_REPO}" infra
+
+WORKDIR /src/infra/packages/envd
+
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    commit_sha="$(git -C /src/infra rev-parse --short HEAD)" \
+    && echo "Building envd for android/${GOARCH} from ${ENVD_UPSTREAM_REPO}@${ENVD_REF} (commit=${commit_sha})" \
+    && if [ "${GOARCH}" = "amd64" ]; then \
+         export CGO_ENABLED=1 CC=x86_64-linux-android${ANDROID_API}-clang; \
+       else \
+         export CGO_ENABLED=0; \
+       fi \
+    && GOOS=android GOARCH="${GOARCH}" \
+       go build -a \
+           -ldflags "-X=main.commitSHA=${commit_sha} -s -w" \
+           -o /out/envd \
+           . \
+    && chmod +x /out/envd
+
+COPY envd-starter /src/envd-starter
+WORKDIR /src/envd-starter
+
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    if [ "${GOARCH}" = "amd64" ]; then \
+      export CGO_ENABLED=1 CC=x86_64-linux-android${ANDROID_API}-clang; \
+    else \
+      export CGO_ENABLED=0; \
+    fi \
+    && GOOS=android GOARCH="${GOARCH}" \
+    go build -a -ldflags "-s -w" -o /out/envd-starter .
+
+FROM ${REDROID_BASE_IMAGE}
+
+COPY --from=envd-builder --chmod=755 /out/envd /usr/bin/envd
+COPY --from=envd-builder --chmod=755 /out/envd-starter /usr/bin/envd-starter
+
+COPY android-init/cube-envd.rc /vendor/etc/init/cube-envd.rc
+COPY android-init/cube-envd.rc /system/etc/init/cube-envd.rc
+
+COPY --chmod=755 android-redroid-entrypoint.sh /usr/local/bin/android-redroid-entrypoint.sh
+COPY --chmod=755 start-cube-envd.sh /usr/bin/start-cube-envd.sh
+
+LABEL org.opencontainers.image.title="CubeSandbox Android Sandbox (ReDroid AOSP 16 + envd)"
+LABEL org.opencontainers.image.description="ReDroid Android 16 with android/bionic envd for cubebox templates on x86_64"
+LABEL org.cubesandbox.sandbox.id="sandbox-android-x86-amd64-envd"
+LABEL org.cubesandbox.sandbox.platform="x86-amd64"
+LABEL org.cubesandbox.instance_type="cubebox"
+LABEL org.cubesandbox.envd.enabled="true"
+LABEL org.cubesandbox.envd.port="49983"
+LABEL org.cubesandbox.envd.goos="android"
+LABEL org.cubesandbox.adb.port="5555"
+
+ENV ENVD_PORT=49983
+ENV ENVD_REF=${ENVD_REF}
+ENV CUBESANDBOX_ADB_PORT=5555
+
+EXPOSE 49983 5555
+
+CMD ["androidboot.redroid_width=1080", "androidboot.redroid_height=1920", "androidboot.redroid_dpi=480", "androidboot.redroid_gpu_mode=guest"]
+
+ENTRYPOINT ["/usr/bin/envd-starter"]
