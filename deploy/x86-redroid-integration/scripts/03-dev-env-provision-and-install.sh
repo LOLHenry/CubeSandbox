@@ -10,7 +10,7 @@ INTERNAL="${DEV_ENV}/internal"
 SSH_PORT="${SSH_PORT:-10022}"
 VM_USER="${VM_USER:-opencloudos}"
 VM_PASSWORD="${VM_PASSWORD:-opencloudos}"
-VM_MEMORY_MB="${VM_MEMORY_MB:-4096}"
+VM_MEMORY_MB="${VM_MEMORY_MB:-8192}"
 USE_TCG="${USE_TCG:-1}"
 MARKER="${WORK_DIR}/.guest-provisioned"
 
