@@ -1,0 +1,87 @@
+name: cube-agent Android FD sanitize release (aarch64)
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Git branch to build
+        required: false
+        default: cursor/android-agent-fd-sanitize-2c8e
+      release_tag:
+        description: GitHub Release tag (created/updated)
+        required: false
+        default: cube-agent-android-fd-sanitize-fix-aarch64
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build cube-agent and publish tarball (arm64)
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential musl-tools pkg-config libseccomp-dev gperf wget
+
+      - name: Install Rust 1.89
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.89 --profile minimal
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          rustup target add aarch64-unknown-linux-musl
+
+      - name: Build static libseccomp (musl)
+        run: |
+          set -euo pipefail
+          ver=2.5.5
+          tmp="$(mktemp -d)"
+          wget -q "https://github.com/seccomp/libseccomp/releases/download/v${ver}/libseccomp-${ver}.tar.gz" -O "${tmp}/libseccomp.tgz"
+          tar -xzf "${tmp}/libseccomp.tgz" -C "${tmp}" --strip-components=1
+          cd "${tmp}"
+          CC=musl-gcc ./configure --host=aarch64-linux-musl \
+            --disable-shared --enable-static --prefix=/usr/local/lib64/libseccomp
+          make -j"$(nproc)"
+          sudo make install
+
+      - name: Build cube-agent
+        env:
+          CUBE_VERSION: 0.0.0-dev
+          CUBE_COMMIT: ${{ github.sha }}
+          CUBE_BUILD_TIME: ${{ github.event.head_commit.timestamp }}
+        run: |
+          set -euo pipefail
+          export CUBE_BUILD_TIME="${CUBE_BUILD_TIME:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}"
+          cd agent
+          make MUSL=yes BUILD_TYPE=release -j"$(nproc)"
+          file target/aarch64-unknown-linux-musl/release/cube-agent
+          readelf -h target/aarch64-unknown-linux-musl/release/cube-agent | grep -E 'Machine|Class'
+
+      - name: Package release tarball
+        run: |
+          chmod +x deploy/releases/cube-agent-android-fd-sanitize-fix-aarch64/package.sh
+          ./deploy/releases/cube-agent-android-fd-sanitize-fix-aarch64/package.sh
+
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${{ inputs.release_tag }}"
+          short="$(git rev-parse --short HEAD)"
+          tarball="deploy/releases/cube-agent-android-fd-sanitize-fix-aarch64/cube-agent-android-fd-sanitize-fix-aarch64-${short}.tar.gz"
+          shafile="${tarball}.sha256"
+          test -f "${tarball}"
+          test -f "${shafile}"
+          if ! gh release view "${tag}" >/dev/null 2>&1; then
+            gh release create "${tag}" --title "cube-agent Android ReDroid FD sanitize fix (aarch64)" \
+              --notes "Hotfix guest cube-agent for ReDroid FIFO boot failure. See deploy/releases/cube-agent-android-fd-sanitize-fix-aarch64/INSTALL.md"
+          fi
+          gh release upload "${tag}" "${tarball}" "${shafile}" --clobber

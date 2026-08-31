@@ -22,6 +22,7 @@ use cgroups::freezer::FreezerState;
 use cube::rootfs::{
     ANNO_PROPAGATION_CONTAINER_UMNTS, ANNO_PROPAGATION_EXEC_MNTS, ENV_CONTAINER_PID,
 };
+use cube::utils::is_android_workload;
 use libc::pid_t;
 use oci::{ContainerState, LinuxDevice, LinuxIdMapping};
 use oci::{Hook, Linux, LinuxNamespace, LinuxResources, Spec};
@@ -709,6 +710,13 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
         unistd::close(fifofd)?;
         let buf: &mut [u8] = &mut [0];
         unistd::read(fd, buf)?;
+        let _ = unistd::close(fd);
+    }
+
+    // Android/ReDroid: close inherited pipe/FIFO fds (e.g. exec.fifo sync fd,
+    // agent leaks) before exec. Log-forwarding pipes live on stdio (0-2).
+    if init && is_android_workload(&args) {
+        close_extra_fds(3)?;
     }
 
     // With NoNewPrivileges, we should set seccomp as close to
@@ -1163,6 +1171,20 @@ where
             })
             .next()
     })
+}
+
+/// Close all open file descriptors >= `min_fd` before exec.
+fn close_extra_fds(min_fd: RawFd) -> Result<()> {
+    let fds: Vec<RawFd> = fs::read_dir("/proc/self/fd")
+        .context("read /proc/self/fd")?
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| entry.file_name().to_str()?.parse::<RawFd>().ok())
+        .filter(|&fd| fd >= min_fd)
+        .collect();
+    for fd in fds {
+        let _ = unistd::close(fd);
+    }
+    Ok(())
 }
 
 fn do_exec(args: &[String]) -> ! {
