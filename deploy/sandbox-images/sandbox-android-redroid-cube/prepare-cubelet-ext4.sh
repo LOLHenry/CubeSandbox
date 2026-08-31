@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0
 #
-# Register sandbox-android-redroid-cube:16.0.0-arm64 as a cubebox ext4 rootfs
-# on all Cubelet nodes. Required before:
-#   cubemastercli multirun --norm examples/redroid-cold-fd-sanitize.json
-#
-# multirun with storage_media=ext4 does NOT pull from Docker directly; Cubelet
-# expects the pmem/ext4 artifact under cubebox_os_image (built via create-from-image).
+# Build & distribute ext4 from sandbox-android-redroid-cube Docker image via
+# cubemastercli tpl create-from-image. Then generate multirun JSON keyed by
+# artifact_id (rfs-...), NOT the Docker tag.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,6 +13,7 @@ CPU="${CPU:-4000}"
 MEMORY="${MEMORY:-6144}"
 EXPOSE_PORT="${EXPOSE_PORT:-5555}"
 NATIVE_ENV="${NATIVE_ENV:-/usr/local/services/cubetoolbox/.one-click.env}"
+TOOLBOX="${CUBE_TOOLBOX:-/usr/local/services/cubetoolbox}"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
@@ -29,29 +27,13 @@ fi
 
 ARCH="$(docker image inspect "${IMAGE}" --format '{{.Architecture}}')"
 [[ "${ARCH}" == "arm64" ]] || die "${IMAGE} is ${ARCH}, need arm64"
+echo "==> Docker OK: arch=${ARCH} entrypoint=$(docker image inspect "${IMAGE}" --format '{{json .Config.Entrypoint}}')"
 
-EP="$(docker image inspect "${IMAGE}" --format '{{json .Config.Entrypoint}}')"
-echo "==> Docker OK: arch=${ARCH} entrypoint=${EP}"
-
-if [[ -f "${NATIVE_ENV}" ]]; then
-  if grep -q '^CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=' "${NATIVE_ENV}"; then
-    if ! grep -q '^CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false' "${NATIVE_ENV}"; then
-      echo "WARN: set CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false in ${NATIVE_ENV} for local Docker images (README_KUNPENG §2.0)"
-    fi
-  else
-    echo "WARN: append CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false to ${NATIVE_ENV} for offline/local Docker (README_KUNPENG §2.0)"
-  fi
-fi
-
-PMEM="/usr/local/services/cubetoolbox/cubebox_os_image/cubebox/${IMAGE}/${IMAGE}.ext4"
-if [[ -f "${PMEM}" ]]; then
-  echo "==> ext4 already present: ${PMEM}"
-  ls -lh "${PMEM}"
-  exit 0
+if [[ -f "${NATIVE_ENV}" ]] && ! grep -q '^CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false' "${NATIVE_ENV}" 2>/dev/null; then
+  echo "WARN: set CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false in ${NATIVE_ENV} (README_KUNPENG §2.0)"
 fi
 
 echo "==> Building & distributing ext4 via cubemastercli tpl create-from-image"
-echo "    (no envd probe — this image is FIFO-only validation)"
 
 JOB_OUT="$(mktemp)"
 set +e
@@ -68,21 +50,27 @@ set -e
 
 JOB_ID="$(sed -n 's/^job_id:[[:space:]]*//p' "${JOB_OUT}" | head -1)"
 TPL_ID="$(sed -n 's/^template_id:[[:space:]]*//p' "${JOB_OUT}" | head -1)"
+ARTIFACT_ID="$(sed -n 's/^artifact_id:[[:space:]]*//p' "${JOB_OUT}" | head -1)"
 rm -f "${JOB_OUT}"
 
-[[ -n "${JOB_ID}" ]] || die "could not parse job_id from create-from-image output"
-echo "==> Watching job ${JOB_ID} (template ${TPL_ID:-unknown})"
+[[ -n "${JOB_ID}" ]] || die "could not parse job_id"
+echo "==> Watching job ${JOB_ID} (template ${TPL_ID:-?} artifact ${ARTIFACT_ID:-?})"
 cubemastercli tpl watch --job-id "${JOB_ID}"
 
+[[ -n "${ARTIFACT_ID}" ]] || ARTIFACT_ID="$(cubemastercli tpl image-job --job-id "${JOB_ID}" 2>/dev/null | sed -n 's/^artifact_id:[[:space:]]*//p' | head -1 || true)"
+[[ -n "${ARTIFACT_ID}" ]] || die "could not determine artifact_id; use: cubemastercli tpl image-job --job-id ${JOB_ID}"
+
+PMEM="${TOOLBOX}/cubebox_os_image/${ARTIFACT_ID}/${ARTIFACT_ID}.ext4"
 if [[ -f "${PMEM}" ]]; then
-  echo "OK: ext4 ready at ${PMEM}"
+  echo "OK: ext4 at ${PMEM}"
   ls -lh "${PMEM}"
 else
-  echo "WARN: ${PMEM} not found on this node yet."
-  echo "      Multi-node clusters: wait for distribution or check cubemastercli tpl info ${TPL_ID:-<template-id>}"
+  echo "WARN: ${PMEM} missing; try: find ${TOOLBOX}/cubebox_os_image -name '*.ext4'"
 fi
 
+chmod +x "${SCRIPT_DIR}/generate-cold-multirun-json.sh"
+"${SCRIPT_DIR}/generate-cold-multirun-json.sh" "${ARTIFACT_ID}"
+
 echo ""
-echo "Next:"
-echo "  cubemastercli multirun --norm examples/redroid-cold-fd-sanitize.json"
-echo "  (JSON must keep storage_media=ext4; do NOT set cube.master.appsnapshot.template.id)"
+echo "Do NOT use examples/redroid-cold-fd-sanitize.json directly (Docker tag != artifact id)."
+echo "Use the generated JSON from generate-cold-multirun-json.sh above."

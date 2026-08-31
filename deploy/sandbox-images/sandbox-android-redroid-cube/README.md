@@ -88,12 +88,16 @@ cubemastercli destroy <旧-sandbox-id>
 
 ## 第五步：冷启动（不用 tpl / AppSnapshot）
 
-**前置：** 必须先 `./prepare-cubelet-ext4.sh`（或手动 `tpl create-from-image`），把 Docker 镜像转为 Cubelet 上的 ext4 根文件系统。否则 multirun 会报 `pmem file ...ext4 not exist` / `annotations are empty`。
+**前置：** 必须先 `tpl create-from-image`（或 `./prepare-cubelet-ext4.sh`），并把 multirun JSON 里的 `image` 改成 job 输出的 **`artifact_id`（`rfs-...`）**，不能继续用 Docker tag。示例 JSON 里的 `sandbox-android-redroid-cube:16.0.0-arm64` 只是源镜像名。
 
 ```bash
-cp deploy/sandbox-images/sandbox-android-redroid-cube/examples/redroid-cold-fd-sanitize.json /tmp/redroid-cold.json
+# 例：artifact_id=rfs-cbaa3e6bb0fdfe4e91e06fe8
+ART=rfs-cbaa3e6bb0fdfe4e91e06fe8
+ls -lh /usr/local/services/cubetoolbox/cubebox_os_image/${ART}/${ART}.ext4
 
-# 确认 JSON 里 image 与本地 tag 一致
+sed "s|sandbox-android-redroid-cube:16.0.0-arm64|${ART}|" \
+  examples/redroid-cold-fd-sanitize.json > /tmp/redroid-cold.json
+
 cubemastercli multirun --norm /tmp/redroid-cold.json
 ```
 
@@ -148,7 +152,7 @@ adb shell getprop init.svc.zygote
 | 仍有 `Unsupported st_mode ... FIFO` | 可能还有 fd 未清干净，或 stdio 以外路径；贴 log + dmesg |
 | 冷启动 OK，tpl restore 仍 GIC 失败 | FIFO 与 GIC 是两条线，继续查快照/KVM |
 | multirun 失败 | 查 CPU/内存≥4C/6GiB、镜像 arm64、cubelet 日志 |
-| `pmem file ...ext4 not exist` / `annotations are empty` | 只做了 `docker build`，未跑 `prepare-cubelet-ext4.sh`（`tpl create-from-image` 分发 ext4） |
+| `pmem file ...ext4 not exist` / `annotations are empty` | ① 未跑 `create-from-image`；② **更常见**：JSON 里写了 Docker tag，但 ext4 实际在 `rfs-...` artifact 路径下，需改 JSON 的 `image` 字段 |
 
 ---
 

@@ -61,10 +61,33 @@ pmem file ...ext4 not exist and download failed: image spec annotations are empt
 # 等待 distribution READY 后再 multirun
 ```
 
-检查 ext4 是否就绪：
+检查 ext4 是否就绪（路径是 **artifact_id**，不是 Docker tag）：
 
 ```bash
-ls -lh /usr/local/services/cubetoolbox/cubebox_os_image/cubebox/sandbox-android-redroid-cube:16.0.0-arm64/*.ext4
+# 你的 job 输出: artifact_id=rfs-cbaa3e6bb0fdfe4e91e06fe8
+ART=rfs-cbaa3e6bb0fdfe4e91e06fe8
+ls -lh /usr/local/services/cubetoolbox/cubebox_os_image/${ART}/${ART}.ext4
+
+# 或列出全部
+find /usr/local/services/cubetoolbox/cubebox_os_image -name '*.ext4'
+```
+
+**multirun 必须使用 artifact id**（`rfs-...`），不能写 Docker 镜像名：
+
+```bash
+# 快速改 JSON（把 artifact id 换成你的）
+ART=rfs-cbaa3e6bb0fdfe4e91e06fe8
+sed "s|sandbox-android-redroid-cube:16.0.0-arm64|${ART}|" \
+  examples/redroid-cold-fd-sanitize.json > /tmp/redroid-cold.json
+
+cubemastercli multirun --norm /tmp/redroid-cold.json
+```
+
+或使用脚本（新版 release 含 `generate-cold-multirun-json.sh`）：
+
+```bash
+./generate-cold-multirun-json.sh rfs-cbaa3e6bb0fdfe4e91e06fe8
+cubemastercli multirun --norm examples/redroid-cold-fd-sanitize-rfs-cbaa3e6bb0fdfe4e91e06fe8.json
 ```
 
 导出离线 docker 包（可选，拷到其他节点）：
