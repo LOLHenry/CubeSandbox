@@ -63,8 +63,8 @@ if [[ ! -f "${MARKER}" ]]; then
   pkill -9 -f qemu-system-x86 2>/dev/null || true
   rm -f "${WORK_DIR}/qemu.pid"
   log "rebooting VM for one-click install"
-  "${REPO_ROOT}/deploy/x86-redroid-integration/scripts/run-dev-vm-ovmf.sh"
-  for _ in $(seq 1 60); do ssh_g 'true' >/dev/null 2>&1 && break; sleep 5; done
+  USE_TCG="${USE_TCG}" VM_MEMORY_MB="${VM_MEMORY_MB}" "${REPO_ROOT}/deploy/x86-redroid-integration/scripts/run-dev-vm-ovmf.sh"
+  for _ in $(seq 1 120); do ssh_g 'true' >/dev/null 2>&1 && break; sleep 5; done
 fi
 
 log "installing one-click inside guest (CUBE_PVM_ENABLE=0)"
