@@ -27,9 +27,11 @@ cp -a "${RELEASE_DIR}/INSTALL.md" \
   "${RELEASE_DIR}/Dockerfile.inject" \
   "${RELEASE_DIR}/build-docker-image.sh" \
   "${RELEASE_DIR}/build-offline-docker-bundle.sh" \
+  "${RELEASE_DIR}/prepare-cubelet-ext4.sh" \
   "${STAGE}/${PKG_NAME}/"
 chmod +x "${STAGE}/${PKG_NAME}/build-docker-image.sh" \
          "${STAGE}/${PKG_NAME}/build-offline-docker-bundle.sh" \
+         "${STAGE}/${PKG_NAME}/prepare-cubelet-ext4.sh" \
          "${STAGE}/${PKG_NAME}/bin/fd-sanitize-starter"
 
 cp -a "${ROOT_DIR}/deploy/sandbox-images/sandbox-android-redroid-cube/examples/redroid-cold-fd-sanitize.json" \

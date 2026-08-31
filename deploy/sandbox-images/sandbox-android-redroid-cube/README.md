@@ -88,6 +88,8 @@ cubemastercli destroy <旧-sandbox-id>
 
 ## 第五步：冷启动（不用 tpl / AppSnapshot）
 
+**前置：** 必须先 `./prepare-cubelet-ext4.sh`（或手动 `tpl create-from-image`），把 Docker 镜像转为 Cubelet 上的 ext4 根文件系统。否则 multirun 会报 `pmem file ...ext4 not exist` / `annotations are empty`。
+
 ```bash
 cp deploy/sandbox-images/sandbox-android-redroid-cube/examples/redroid-cold-fd-sanitize.json /tmp/redroid-cold.json
 
@@ -146,6 +148,7 @@ adb shell getprop init.svc.zygote
 | 仍有 `Unsupported st_mode ... FIFO` | 可能还有 fd 未清干净，或 stdio 以外路径；贴 log + dmesg |
 | 冷启动 OK，tpl restore 仍 GIC 失败 | FIFO 与 GIC 是两条线，继续查快照/KVM |
 | multirun 失败 | 查 CPU/内存≥4C/6GiB、镜像 arm64、cubelet 日志 |
+| `pmem file ...ext4 not exist` / `annotations are empty` | 只做了 `docker build`，未跑 `prepare-cubelet-ext4.sh`（`tpl create-from-image` 分发 ext4） |
 
 ---
 

@@ -29,7 +29,7 @@ cd sandbox-android-redroid-cube-aarch64-*
 docker image inspect redroid:16.0.0_64only-latest --format '{{.Architecture}}'
 # 或: sandbox-android-redroid:16.0.0-arm64
 
-chmod +x build-docker-image.sh build-offline-docker-bundle.sh
+chmod +x build-docker-image.sh build-offline-docker-bundle.sh prepare-cubelet-ext4.sh
 ./build-docker-image.sh
 ```
 
@@ -37,6 +37,34 @@ chmod +x build-docker-image.sh build-offline-docker-bundle.sh
 
 ```text
 sandbox-android-redroid-cube:16.0.0-arm64
+```
+
+### 必做：注册 Cubelet ext4 根文件系统（multirun 前）
+
+`multirun` 示例 JSON 使用 `storage_media: ext4`。**仅 `docker build` 不够** — Cubelet 需要本机已有 ext4/pmem 文件：
+
+```text
+/usr/local/services/cubetoolbox/cubebox_os_image/cubebox/sandbox-android-redroid-cube:16.0.0-arm64/...ext4
+```
+
+若未注册，会报错：
+
+```text
+pmem file ...ext4 not exist and download failed: image spec annotations are empty
+```
+
+在 **已 load/build Docker 镜像** 的节点执行（离线环境需 `CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false`，见 README_KUNPENG §2.0）：
+
+```bash
+./prepare-cubelet-ext4.sh
+# 等价于 cubemastercli tpl create-from-image --image ... --cpu 4000 --memory 6144（无 envd probe）
+# 等待 distribution READY 后再 multirun
+```
+
+检查 ext4 是否就绪：
+
+```bash
+ls -lh /usr/local/services/cubetoolbox/cubebox_os_image/cubebox/sandbox-android-redroid-cube:16.0.0-arm64/*.ext4
 ```
 
 导出离线 docker 包（可选，拷到其他节点）：
