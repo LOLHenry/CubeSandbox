@@ -40,6 +40,16 @@ build as well.
 | `install-guest-image.sh` | Replace `/sbin/init` inside `cube-guest-image-cpu.img` |
 | `INSTALL.md` | This file |
 
+## Download
+
+```bash
+wget https://github.com/LOLHenry/CubeSandbox/releases/download/cube-agent-android-fd-sanitize-fix-aarch64/cube-agent-android-fd-sanitize-fix-aarch64-3c8c5a2.tar.gz
+wget https://github.com/LOLHenry/CubeSandbox/releases/download/cube-agent-android-fd-sanitize-fix-aarch64/cube-agent-android-fd-sanitize-fix-aarch64-3c8c5a2.tar.gz.sha256
+sha256sum -c cube-agent-android-fd-sanitize-fix-aarch64-3c8c5a2.tar.gz.sha256
+```
+
+SHA256: `b54d47bd20b5b4b61aefc2899c2b464a499ab53e0ba0487b9ab0db4ca8688bb5`
+
 ## Install (euler-arm / Kunpeng)
 
 **Prerequisite:** install the matching shim hotfix first (see
