@@ -15,7 +15,7 @@
 | M0 | CubeSandbox x86 one-click 安装 + smoke | **完成** |
 | M1 | ReDroid docker + adb（guest 内） | **受阻**（嵌套 TCG+QEMU 下 ReDroid init 失败；裸金属/KVM 可试） |
 | M2 | amd64 ReDroid+envd 镜像 | **完成**（`sandbox-android-redroid-envd:16.0.0-amd64`） |
-| M3 | CubeVM 模板 E2E（tpl → READY → adb） | 进行中 |
+| M3 | CubeVM 模板 E2E（tpl → READY → adb） | **受阻**（嵌套 TCG 下 ctr-image import 超时；裸金属/KVM 可试） |
 
 ## 推荐路径：dev-env KVM 虚机
 
@@ -44,6 +44,8 @@ USE_TCG=1 VM_MEMORY_MB=8192 bash deploy/x86-redroid-integration/scripts/03-dev-e
 | `06-guest-verify-redroid.sh` | M1：guest 内 ReDroid + adb 验证 |
 | `07-build-amd64-redroid-envd.sh` | M2：构建 amd64 envd 镜像（需 NDK+CGO） |
 | `08-guest-e2e-template.sh` | M3：导入镜像 + template from-image E2E |
+| `09-export-amd64-offline-bundle.sh` | 导出 amd64 离线 docker 包（上传 GitHub Release） |
+| `run-dev-vm-ovmf.sh` | 启动 OVMF VM（KVM 优先，TCG 回退） |
 
 ## M1 ReDroid 前置
 
@@ -55,3 +57,26 @@ bash deploy/x86-redroid-integration/scripts/05-guest-install-binder-modules.sh
 ```
 
 或在裸金属 Ubuntu 上：`apt install linux-modules-extra-$(uname -r)` + `modprobe binder_linux`。
+
+## M2 离线包（GitHub Release）
+
+amd64 `sandbox-android-redroid-envd` 镜像已导出为离线 docker 包，避免云端环境重置后需重新构建（约 702MB）：
+
+- **Release tag**: [`x86-redroid-amd64-envd-m2-preview`](https://github.com/LOLHenry/CubeSandbox/releases/tag/x86-redroid-amd64-envd-m2-preview)
+- **文件**: `cube-sandbox-android-x86-amd64-envd-docker-m2-preview.tar.gz` + `.sha256`
+
+```bash
+# 下载并加载（裸金属 x86_64 + Docker）
+gh release download x86-redroid-amd64-envd-m2-preview \
+  -p 'cube-sandbox-android-x86-amd64-envd-docker-m2-preview.tar.gz*'
+sha256sum -c cube-sandbox-android-x86-amd64-envd-docker-m2-preview.tar.gz.sha256
+gunzip -c cube-sandbox-android-x86-amd64-envd-docker-m2-preview.tar.gz | docker load
+# → Loaded image: sandbox-android-redroid-envd:16.0.0-amd64
+```
+
+本地重新导出：
+
+```bash
+bash deploy/x86-redroid-integration/scripts/09-export-amd64-offline-bundle.sh
+# BUILD_IMAGE=1 会先执行 07-build-amd64-redroid-envd.sh
+```
