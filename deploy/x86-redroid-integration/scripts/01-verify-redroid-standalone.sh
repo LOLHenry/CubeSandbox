@@ -5,7 +5,7 @@ set -euo pipefail
 REDROID_IMAGE="${REDROID_IMAGE:-redroid/redroid:16.0.0_64only-latest}"
 CONTAINER="${CONTAINER:-redroid-x86-verify}"
 ADB_PORT="${ADB_PORT:-5555}"
-TIMEOUT="${TIMEOUT:-180}"
+TIMEOUT="${TIMEOUT:-900}"
 log() { printf '[m1-redroid] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
 command -v docker >/dev/null || die "missing docker"

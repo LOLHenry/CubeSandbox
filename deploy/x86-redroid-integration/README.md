@@ -13,9 +13,32 @@
 | 阶段 | 目标 | 状态 |
 |------|------|------|
 | M0 | CubeSandbox x86 one-click 安装 + smoke | **完成** |
-| M1 | ReDroid docker + adb（guest 内） | **受阻**（嵌套 TCG+QEMU 下 ReDroid init 失败；裸金属/KVM 可试） |
+| M1 | ReDroid docker + adb（guest 内） | **受阻**（TCG 下 Android init 崩溃；非超时问题） |
 | M2 | amd64 ReDroid+envd 镜像 | **完成**（`sandbox-android-redroid-envd:16.0.0-amd64`） |
-| M3 | CubeVM 模板 E2E（tpl → READY → adb） | **受阻**（嵌套 TCG 下 ctr-image import 超时；裸金属/KVM 可试） |
+| M3 | CubeVM 模板 E2E（tpl → READY → adb） | **部分完成**（TCG 下模板 artifact 可 READY；CubeVM 启动失败 `VmShutdown`） |
+
+## Cloud Agent 最大化指南（无裸金属）
+
+### 名词
+
+- **M1**：在 Linux 上用 Docker 直接跑 ReDroid，adb 验证 Android 能 boot（脚本 `01` / `06`）。
+- **TCG**（QEMU Tiny Code Generator）：**纯软件 CPU 模拟**。Cloud Agent 宿主机无嵌套 KVM，dev-env 虚机只能用 `USE_TCG=1`，比真机慢 10–100 倍，但**能跑**，只是要更长超时。
+
+### 已验证的 Cloud Agent 修复
+
+| 问题 | 原因 | 修复 |
+|------|------|------|
+| `ctr-image import` ~60s 失败 | `cubecli` 全局默认 `--timeout 60s` | `CUBECLI_TIMEOUT=30m`（实测 import ~4.5min，docker load ~1.8min） |
+| 模板 PULLING 去 docker.io | CubeMaster 默认 **native export** 走公网 registry | `CUBEMASTER_NATIVE_ROOTFS_EXPORT_ENABLED=false` + guest 内 `docker load` + tag |
+| M3 CREATING_TEMPLATE 失败 | CubeVM 在 TCG 下启动后立即 shutdown | 与 M1 同类：Android 微虚机 boot 问题，待进一步排查 |
+
+```bash
+# 复用 guest 里已有的 /tmp/m3-image.tar，跳过重新 scp
+SKIP_SCP=1 CUBECLI_TIMEOUT=30m JOB_TIMEOUT_SEC=3600 \
+  bash deploy/x86-redroid-integration/scripts/08-guest-e2e-template.sh
+```
+
+M3 在 Cloud Agent 上已实测走过：`PULLING → UNPACKING → BUILDING → DISTRIBUTING → CREATING_TEMPLATE`，在 **CREATING_TEMPLATE** 因 `VmShutdown` 失败（CubeVM 起不来 ReDroid 沙箱）。
 
 ## 推荐路径：dev-env KVM 虚机
 

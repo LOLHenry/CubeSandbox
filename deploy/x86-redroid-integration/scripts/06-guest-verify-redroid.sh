@@ -7,7 +7,8 @@ VM_USER="${VM_USER:-opencloudos}"
 VM_PASSWORD="${VM_PASSWORD:-opencloudos}"
 ADB_PORT="${ADB_PORT:-5555}"
 REDROID_IMAGE="${REDROID_IMAGE:-redroid/redroid:16.0.0_64only-latest}"
-TIMEOUT="${TIMEOUT:-300}"
+# TCG guests are slow; ReDroid init may need many minutes if it boots at all.
+TIMEOUT="${TIMEOUT:-900}"
 
 log() { printf '[m1-guest] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
@@ -21,7 +22,8 @@ set -euo pipefail
 REDROID_IMAGE="${REDROID_IMAGE:-redroid/redroid:16.0.0_64only-latest}"
 CONTAINER="${CONTAINER:-redroid-x86-verify}"
 ADB_PORT="${ADB_PORT:-5555}"
-TIMEOUT="${TIMEOUT:-300}"
+# TCG guests are slow; ReDroid init may need many minutes if it boots at all.
+TIMEOUT="${TIMEOUT:-900}"
 log() { printf '[m1-redroid] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
 
