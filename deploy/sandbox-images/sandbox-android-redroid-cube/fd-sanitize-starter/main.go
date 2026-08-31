@@ -53,8 +53,8 @@ func sanitizeInheritedFDs(log *starterLog) error {
 
 	// log_forwarding attaches FIFO pipes to stdio; redirect before exec /init.
 	for fd := 0; fd <= 2; fd++ {
-		if err := syscall.Dup2(int(null.Fd()), fd); err != nil {
-			return fmt.Errorf("dup2 stdio fd %d: %w", fd, err)
+		if err := dupToFd(int(null.Fd()), fd); err != nil {
+			return fmt.Errorf("dup stdio fd %d: %w", fd, err)
 		}
 	}
 	log.info("stdio redirected to /dev/null")
@@ -77,6 +77,11 @@ func sanitizeInheritedFDs(log *starterLog) error {
 	}
 	log.info("closed %d inherited fd(s) >= 3", closed)
 	return nil
+}
+
+func dupToFd(oldfd, newfd int) error {
+	// Dup3 is available when cross-compiling linux/arm64; Dup2 is not.
+	return syscall.Dup3(oldfd, newfd, 0)
 }
 
 func resolveInitPath(log *starterLog) string {

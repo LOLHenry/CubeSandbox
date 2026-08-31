@@ -1,0 +1,16 @@
+# Offline inject: copy prebuilt fd-sanitize-starter into ReDroid base.
+# No network, no golang builder image.
+# Prerequisites: redroid:16.0.0_64only-latest or sandbox-android-redroid:16.0.0-arm64 loaded
+
+ARG REDROID_BASE_IMAGE=redroid:16.0.0_64only-latest
+FROM ${REDROID_BASE_IMAGE}
+
+COPY bin/fd-sanitize-starter /usr/bin/fd-sanitize-starter
+
+LABEL org.cubesandbox.runtime_model="cubevm-redroid-fd-sanitize"
+LABEL org.cubesandbox.envd.enabled="false"
+
+EXPOSE 5555
+
+CMD ["androidboot.redroid_width=1080", "androidboot.redroid_height=1920", "androidboot.redroid_dpi=480", "androidboot.redroid_gpu_mode=guest"]
+ENTRYPOINT ["/usr/bin/fd-sanitize-starter"]
