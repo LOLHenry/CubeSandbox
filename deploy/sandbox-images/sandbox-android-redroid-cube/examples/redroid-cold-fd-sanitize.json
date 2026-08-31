@@ -1,0 +1,51 @@
+{
+  "instance_type": "cubebox",
+  "network_type": "tap",
+  "timeout": 900,
+  "volumes": [
+    {
+      "name": "rootfs-writable",
+      "volume_source": {
+        "empty_dir": {
+          "size_limit": "10Gi"
+        }
+      }
+    }
+  ],
+  "containers": [
+    {
+      "name": "cubebox-name-0",
+      "image": {
+        "image": "sandbox-android-redroid-cube:16.0.0-arm64",
+        "storage_media": "ext4",
+        "writable_layer_size": "10Gi"
+      },
+      "args": [
+        "androidboot.redroid_width=1080",
+        "androidboot.redroid_height=1920",
+        "androidboot.redroid_dpi=480",
+        "androidboot.redroid_gpu_mode=guest"
+      ],
+      "resources": {
+        "cpu": "4000m",
+        "mem": "6144Mi"
+      },
+      "security_context": {
+        "privileged": true,
+        "readonly_rootfs": false
+      },
+      "volume_mounts": [
+        {
+          "name": "rootfs-writable",
+          "container_path": "/"
+        }
+      ]
+    }
+  ],
+  "annotations": {
+    "com.exposed_ports": "5555"
+  },
+  "cube_network_config": {
+    "allowInternetAccess": true
+  }
+}
