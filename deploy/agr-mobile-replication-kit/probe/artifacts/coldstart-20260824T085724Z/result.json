@@ -1,0 +1,78 @@
+{
+  "run_id": "20260824T085724Z",
+  "timestamp_utc": "2026-08-24T08:57:24.663151+00:00",
+  "environment": {
+    "region": "ap-shanghai",
+    "domain": "tencentags.com",
+    "agr_bin": "agr",
+    "agr_version": "agr version 0.6.1\n  commit: c470fbb7e5b8a9a066920857dae29100086d4ffd\n  built:  2026-06-05T03:43:43Z",
+    "adb_path": "/tmp/platform-tools/adb",
+    "running_timeout_s": 600,
+    "probe_timeout_s": 300,
+    "hostname": ""
+  },
+  "tool_id": "sdt-g9nj2vc4",
+  "tool_created": false,
+  "instance_id": "wfkzusyga5saqhfvrkkdcprgoa5ojut7rzvgosts",
+  "success": false,
+  "failure_stage": "data_plane_timeout",
+  "final_status": "RUNNING",
+  "timestamps_ms": {
+    "t_api_create": 1905.8,
+    "t_status_running": 1905.8,
+    "t_token": 2405.1,
+    "t_health_ready": 14078.5,
+    "t_appium_ready": 6166.7,
+    "t_scrcpy_ready": 5259.1,
+    "t_adb_ready": null,
+    "t_android_boot": null,
+    "t_e2e_usable": null
+  },
+  "status_poll_log": [],
+  "probe_details": {
+    "token_expires_at": "2026-09-08T08:57:26Z",
+    "token_prefix": "sit_VS7l2R0L...",
+    "hosts": {
+      "appium": "4723-wfkzusyga5saqhfvrkkdcprgoa5ojut7rzvgosts.ap-shanghai.tencentags.com",
+      "health": "8080-wfkzusyga5saqhfvrkkdcprgoa5ojut7rzvgosts.ap-shanghai.tencentags.com",
+      "scrcpy": "8000-wfkzusyga5saqhfvrkkdcprgoa5ojut7rzvgosts.ap-shanghai.tencentags.com"
+    },
+    "t_scrcpy_ready": {
+      "url": "https://8000-wfkzusyga5saqhfvrkkdcprgoa5ojut7rzvgosts.ap-shanghai.tencentags.com/",
+      "status_code": 200,
+      "body_preview": "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta content=\"width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no\" name=\"viewport\"/><title>WS scrcpy</title><script defer=\"defer\" src=\"bundle.js\"></script><link href=\"main.css\" rel=\"stylesheet\"></head><body><"
+    },
+    "t_appium_ready": {
+      "url": "https://4723-wfkzusyga5saqhfvrkkdcprgoa5ojut7rzvgosts.ap-shanghai.tencentags.com/status",
+      "status_code": 200,
+      "body_preview": "{\"value\":{\"ready\":true,\"message\":\"The server is ready to accept new connections\",\"build\":{\"version\":\"3.1.1\"}}}"
+    },
+    "t_health_ready": {
+      "url": "https://8080-wfkzusyga5saqhfvrkkdcprgoa5ojut7rzvgosts.ap-shanghai.tencentags.com/healthz",
+      "status_code": 200,
+      "body_preview": "{\n  \"status\": \"healthy\",\n  \"timestamp\": \"2026-08-24T08:57:38.634Z\",\n  \"checks\": {\n    \"appium\": {\n      \"ok\": true,\n      \"data\": {\n        \"value\": {\n          \"ready\": true,\n          \"message\": \"The server is ready to accept new connections\",\n          \"build\": {\n            \"version\": \"3.1.1\"\n  ",
+      "path": "/healthz"
+    },
+    "t_adb_ready": {
+      "adb_path": "/tmp/platform-tools/adb",
+      "connect": "ok",
+      "adb_devices_stdout": "List of devices attached\n127.0.0.1:33529\tdevice\n127.0.0.1:34779\tdevice\n127.0.0.1:35203\tdevice\n127.0.0.1:37651\tdevice\n127.0.0.1:39107\tdevice\n127.0.0.1:42871\toffline",
+      "device_lines": [
+        "127.0.0.1:33529\tdevice",
+        "127.0.0.1:34779\tdevice",
+        "127.0.0.1:35203\tdevice",
+        "127.0.0.1:37651\tdevice",
+        "127.0.0.1:39107\tdevice"
+      ],
+      "serial": "127.0.0.1:33529",
+      "error": "TimeoutExpired(['/tmp/platform-tools/adb', '-s', '127.0.0.1:33529', 'shell', 'getprop', 'sys.boot_completed'], 30)"
+    }
+  },
+  "gaps_ms": {
+    "api_to_running": 0.0,
+    "running_to_token": 499.3,
+    "token_to_e2e": null,
+    "running_to_e2e": null,
+    "total_create_to_e2e": null
+  }
+}

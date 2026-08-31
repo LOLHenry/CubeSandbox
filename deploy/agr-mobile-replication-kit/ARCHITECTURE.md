@@ -42,7 +42,8 @@
 
 **不是** Cuttlefish、**不是** 经典 AVD goldfish；是 **Cube MicroVM + Linux Sidecar + ReDroid/SmartRun**。
 
-> 完整文本架构图与逐项证据见 [`docs/probes/02-20260824-mobile-architecture.md`](docs/probes/02-20260824-mobile-architecture.md)（含 **PID 视角结构示意** 与命名空间说明）。
+> 完整文本架构图与逐项证据见 [`docs/probes/02-20260824-mobile-architecture.md`](docs/probes/02-20260824-mobile-architecture.md)（含 **PID 视角结构示意** 与命名空间说明）。  
+> **结论总索引：** [`docs/FINDINGS.md`](docs/FINDINGS.md) · Sidecar OCI / PID 层级：[`docs/probes/05-20260824-sidecar-oci-and-pid-hierarchy.md`](docs/probes/05-20260824-sidecar-oci-and-pid-hierarchy.md)
 
 ### 1.2 实例内端口（2026-08-24 实测）
 

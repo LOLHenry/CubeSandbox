@@ -1,0 +1,36 @@
+{
+  "run_id": "20260824T084248Z",
+  "timestamp_utc": "2026-08-24T08:42:48.888977+00:00",
+  "environment": {
+    "region": "ap-shanghai",
+    "domain": "tencentags.com",
+    "agr_bin": "agr",
+    "agr_version": "agr version 0.6.1\n  commit: c470fbb7e5b8a9a066920857dae29100086d4ffd\n  built:  2026-06-05T03:43:43Z",
+    "adb_path": "/tmp/platform-tools/adb",
+    "running_timeout_s": 600,
+    "probe_timeout_s": 300,
+    "hostname": ""
+  },
+  "tool_id": "sdt-g9nj2vc4",
+  "tool_created": false,
+  "instance_id": "emcvyavvgzx2evwjvmttnhfbdloze64z4awkiisq",
+  "success": false,
+  "failure_stage": "RuntimeError",
+  "final_status": "RUNNING",
+  "timestamps_ms": {
+    "t_api_create": 3280.6,
+    "t_status_running": 3280.6,
+    "t_token": null,
+    "t_health_ready": null,
+    "t_appium_ready": null,
+    "t_scrcpy_ready": null,
+    "t_adb_ready": null,
+    "t_android_boot": null,
+    "t_e2e_usable": null
+  },
+  "status_poll_log": [],
+  "probe_details": {
+    "fatal_error": "RuntimeError: AcquireSandboxInstanceToken returned no Token (parser bug; token present in response — fixed in later script revision)"
+  },
+  "gaps_ms": {}
+}

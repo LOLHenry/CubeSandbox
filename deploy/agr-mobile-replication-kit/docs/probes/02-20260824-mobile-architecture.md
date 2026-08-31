@@ -1,8 +1,7 @@
 # 探测 02 — AGR Mobile 架构分层与数据面（2026-08-24）
 
-> **序号 02 / 共 02** · 本仓库正文报告。  
-> 前序报告：[`01-20260723-mobile-hardware-mock.md`](01-20260723-mobile-hardware-mock.md)（外部仓库，底座与硬件面）  
-> 索引：[`README.md`](README.md)  
+> **序号 02 / 共 05** · 本仓库正文报告。  
+> 后续：探测 03–05 见 [`README.md`](README.md)；结论索引 [`../FINDINGS.md`](../FINDINGS.md)  
 > 原始探测输出：[`../../probe/artifacts/02-20260824-ap-shanghai/`](../../probe/artifacts/02-20260824-ap-shanghai/README.md)
 
 ## 探测概要

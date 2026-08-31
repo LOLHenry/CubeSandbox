@@ -1,0 +1,187 @@
+{
+  "probe": "e2b-sdk-envd-process",
+  "timestamp": "2026-08-24T07:26:02.600131+00:00",
+  "domain": "ap-shanghai.tencentags.com",
+  "template": "mobile-arch-probe-1787551777",
+  "sandbox_id": "6mbmas3zkvg7pzdosoqpcneckwmaw37aqlh4wp4e",
+  "tests": [
+    {
+      "name": "sandbox.create",
+      "ok": true,
+      "detail": {
+        "sandbox_id": "6mbmas3zkvg7pzdosoqpcneckwmaw37aqlh4wp4e",
+        "template": "mobile-arch-probe-1787551777",
+        "envd_version_attr": "0.2.10",
+        "envd_access_token_present": true,
+        "envd_api_url": "https://49983-6mbmas3zkvg7pzdosoqpcneckwmaw37aqlh4wp4e.ap-shanghai.tencentags.com",
+        "envd_direct_url": "https://49983-6mbmas3zkvg7pzdosoqpcneckwmaw37aqlh4wp4e.ap-shanghai.tencentags.com",
+        "host_49983": "49983-6mbmas3zkvg7pzdosoqpcneckwmaw37aqlh4wp4e.ap-shanghai.tencentags.com",
+        "host_4723": "4723-6mbmas3zkvg7pzdosoqpcneckwmaw37aqlh4wp4e.ap-shanghai.tencentags.com"
+      }
+    },
+    {
+      "name": "sandbox.get_info.envd_version",
+      "ok": true,
+      "detail": {
+        "value": {
+          "envd_version": "0.2.10",
+          "state": "running",
+          "cpu_count": 4,
+          "memory_mb": 8768
+        }
+      }
+    },
+    {
+      "name": "sandbox.is_running",
+      "ok": false,
+      "detail": {
+        "error": "SandboxException('500: The requested sandbox endpoint is not configured. Check that the sandbox port is exposed')",
+        "traceback": "Traceback (most recent call last):\n  File \"/workspace/deploy/agr-mobile-replication-kit/probe/e2b-envd-process-probe.py\", line 49, in safe_call\n    value = fn()\n            ^^^^\n  File \"/workspace/deploy/agr-mobile-replication-kit/probe/e2b-envd-process-probe.py\", line 137, in <lambda>\n    lambda: sandbox.is_running(),\n            ^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/e2b/sandbox_sync/main.py\", line 157, in is_running\n    raise err\ne2b.exceptions.SandboxException: 500: The requested sandbox endpoint is not configured. Check that the sandbox port is exposed\n"
+      }
+    },
+    {
+      "name": "https.get_host_49983.health",
+      "ok": true,
+      "detail": {
+        "value": {
+          "url": "https://49983-6mbmas3zkvg7pzdosoqpcneckwmaw37aqlh4wp4e.ap-shanghai.tencentags.com/health",
+          "status_code": 500,
+          "headers": {
+            "date": "Mon, 24 Aug 2026 07:26:10 GMT",
+            "content-type": "application/json",
+            "content-length": "116",
+            "connection": "keep-alive",
+            "server": "openresty",
+            "x-ags-request-id": "efb2c241-e8f2-429e-9250-357d763cd8da",
+            "x-cube-request-id": "efb2c241-e8f2-429e-9250-357d763cd8da",
+            "x-cube-retcode": "310508"
+          },
+          "body_preview": "{\"code\":310508,\"message\":\"The requested sandbox endpoint is not configured. Check that the sandbox port is exposed\"}"
+        }
+      }
+    },
+    {
+      "name": "https.get_host_49983.root",
+      "ok": true,
+      "detail": {
+        "value": {
+          "url": "https://49983-6mbmas3zkvg7pzdosoqpcneckwmaw37aqlh4wp4e.ap-shanghai.tencentags.com/",
+          "status_code": 500,
+          "headers": {
+            "date": "Mon, 24 Aug 2026 07:26:11 GMT",
+            "content-type": "application/json",
+            "content-length": "116",
+            "connection": "keep-alive",
+            "server": "openresty",
+            "x-ags-request-id": "e3a724b6-13df-408b-9f19-fda79772df80",
+            "x-cube-request-id": "e3a724b6-13df-408b-9f19-fda79772df80",
+            "x-cube-retcode": "310508"
+          },
+          "body_preview": "{\"code\":310508,\"message\":\"The requested sandbox endpoint is not configured. Check that the sandbox port is exposed\"}"
+        }
+      }
+    },
+    {
+      "name": "https.envd_api_url.health",
+      "ok": true,
+      "detail": {
+        "value": {
+          "url": "https://49983-6mbmas3zkvg7pzdosoqpcneckwmaw37aqlh4wp4e.ap-shanghai.tencentags.com/health",
+          "status_code": 500,
+          "headers": {
+            "date": "Mon, 24 Aug 2026 07:26:12 GMT",
+            "content-type": "application/json",
+            "content-length": "116",
+            "connection": "keep-alive",
+            "server": "openresty",
+            "x-ags-request-id": "8fd6fee9-4d09-469c-bcc7-201b6afe67d2",
+            "x-cube-request-id": "8fd6fee9-4d09-469c-bcc7-201b6afe67d2",
+            "x-cube-retcode": "310508"
+          },
+          "body_preview": "{\"code\":310508,\"message\":\"The requested sandbox endpoint is not configured. Check that the sandbox port is exposed\"}"
+        }
+      }
+    },
+    {
+      "name": "commands.run.ps_envd",
+      "ok": false,
+      "detail": {
+        "error": "SandboxException('Code.UNKNOWN: The requested sandbox endpoint is not configured. Check that the sandbox port is exposed')",
+        "traceback": "Traceback (most recent call last):\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/e2b/sandbox_sync/commands/command.py\", line 319, in _start\n    start_event = events.__next__()\n                  ^^^^^^^^^^^^^^^^^\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/connectrpc/_client_sync.py\", line 385, in _send_request_bidi_stream\n    with self._http_client.stream(\n         ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/e2b/envd/client_sync/__init__.py\", line 53, in execute_sync\n    raise error\nconnectrpc.errors.ConnectError: The requested sandbox endpoint is not configured. Check that the sandbox port is exposed\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/workspace/deploy/agr-mobile-replication-kit/probe/e2b-envd-process-probe.py\", line 49, in safe_call\n    value = fn()\n            ^^^^\n  File \"/workspace/deploy/agr-mobile-replication-kit/probe/e2b-envd-process-probe.py\", line 169, in <lambda>\n    \"stdout\": sandbox.commands.run(\n              ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/e2b/sandbox_sync/commands/command.py\", line 267, in run\n    proc = self._start(\n           ^^^^^^^^^^^^\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/e2b/sandbox_sync/commands/command.py\", line 339, in _start\n    raise handle_rpc_exception_with_health(e, self._check_health)\ne2b.exceptions.SandboxException: Code.UNKNOWN: The requested sandbox endpoint is not configured. Check that the sandbox port is exposed\n"
+      }
+    },
+    {
+      "name": "commands.run.pid1",
+      "ok": false,
+      "detail": {
+        "error": "SandboxException('Code.UNKNOWN: The requested sandbox endpoint is not configured. Check that the sandbox port is exposed')",
+        "traceback": "Traceback (most recent call last):\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/e2b/sandbox_sync/commands/command.py\", line 319, in _start\n    start_event = events.__next__()\n                  ^^^^^^^^^^^^^^^^^\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/connectrpc/_client_sync.py\", line 385, in _send_request_bidi_stream\n    with self._http_client.stream(\n         ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/e2b/envd/client_sync/__init__.py\", line 53, in execute_sync\n    raise error\nconnectrpc.errors.ConnectError: The requested sandbox endpoint is not configured. Check that the sandbox port is exposed\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/workspace/deploy/agr-mobile-replication-kit/probe/e2b-envd-process-probe.py\", line 49, in safe_call\n    value = fn()\n            ^^^^\n  File \"/workspace/deploy/agr-mobile-replication-kit/probe/e2b-envd-process-probe.py\", line 188, in <lambda>\n    \"stdout\": sandbox.commands.run(\n              ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/e2b/sandbox_sync/commands/command.py\", line 267, in run\n    proc = self._start(\n           ^^^^^^^^^^^^\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/e2b/sandbox_sync/commands/command.py\", line 339, in _start\n    raise handle_rpc_exception_with_health(e, self._check_health)\ne2b.exceptions.SandboxException: Code.UNKNOWN: The requested sandbox endpoint is not configured. Check that the sandbox port is exposed\n"
+      }
+    },
+    {
+      "name": "files.read.proc_1_cmdline",
+      "ok": false,
+      "detail": {
+        "error": "SandboxException('500: The requested sandbox endpoint is not configured. Check that the sandbox port is exposed')",
+        "traceback": "Traceback (most recent call last):\n  File \"/workspace/deploy/agr-mobile-replication-kit/probe/e2b-envd-process-probe.py\", line 49, in safe_call\n    value = fn()\n            ^^^^\n  File \"/workspace/deploy/agr-mobile-replication-kit/probe/e2b-envd-process-probe.py\", line 202, in <lambda>\n    lambda: sandbox.files.read(\"/proc/1/cmdline\"),\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ubuntu/.local/lib/python3.12/site-packages/e2b/sandbox_sync/filesystem/filesystem.py\", line 249, in read\n    raise err\ne2b.exceptions.SandboxException: 500: The requested sandbox endpoint is not configured. Check that the sandbox port is exposed\n"
+      }
+    },
+    {
+      "name": "pty.create",
+      "ok": false,
+      "detail": {
+        "error": "ModuleNotFoundError(\"No module named 'e2b.sandbox.commands.pty'\")",
+        "traceback": "Traceback (most recent call last):\n  File \"/workspace/deploy/agr-mobile-replication-kit/probe/e2b-envd-process-probe.py\", line 49, in safe_call\n    value = fn()\n            ^^^^\n  File \"/workspace/deploy/agr-mobile-replication-kit/probe/e2b-envd-process-probe.py\", line 208, in <lambda>\n    lambda: _probe_pty(sandbox),\n            ^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/deploy/agr-mobile-replication-kit/probe/e2b-envd-process-probe.py\", line 79, in _probe_pty\n    from e2b.sandbox.commands.pty import PtySize\nModuleNotFoundError: No module named 'e2b.sandbox.commands.pty'\n"
+      }
+    },
+    {
+      "name": "https.get_host_4723.status",
+      "ok": true,
+      "detail": {
+        "value": {
+          "url": "https://4723-6mbmas3zkvg7pzdosoqpcneckwmaw37aqlh4wp4e.ap-shanghai.tencentags.com/status",
+          "status_code": 200,
+          "headers": {
+            "date": "Mon, 24 Aug 2026 07:26:15 GMT",
+            "content-type": "application/json; charset=utf-8",
+            "content-length": "110",
+            "connection": "keep-alive",
+            "etag": "W/\"6e-1ERTtAIXBRKeljn6ru0N+13pWq4\"",
+            "server": "openresty",
+            "vary": "Accept-Encoding",
+            "x-ags-request-id": "4bed54df-ef89-4a9b-b0b4-3d3492f480c8",
+            "x-cube-request-id": "4bed54df-ef89-4a9b-b0b4-3d3492f480c8",
+            "x-cube-retcode": "310200",
+            "x-powered-by": "Express"
+          },
+          "body_preview": "{\"value\":{\"ready\":true,\"message\":\"The server is ready to accept new connections\",\"build\":{\"version\":\"3.1.1\"}}}"
+        }
+      }
+    },
+    {
+      "name": "conclusion",
+      "ok": null,
+      "detail": {
+        "control_plane_reports_envd_version": true,
+        "envd_version": "0.2.10",
+        "envd_data_plane_reachable": false,
+        "envd_process_observable_via_commands": false,
+        "interpretation": "If control_plane_reports_envd_version is True but envd_data_plane_reachable and envd_process_observable_via_commands are False, the platform advertises envd metadata/token but mobile does not expose a working envd endpoint or process shell access."
+      }
+    },
+    {
+      "name": "sandbox.kill",
+      "ok": true,
+      "detail": {
+        "sandbox_id": "6mbmas3zkvg7pzdosoqpcneckwmaw37aqlh4wp4e"
+      }
+    }
+  ],
+  "conclusion": {
+    "control_plane_reports_envd_version": true,
+    "envd_version": "0.2.10",
+    "envd_data_plane_reachable": false,
+    "envd_process_observable_via_commands": false,
+    "interpretation": "If control_plane_reports_envd_version is True but envd_data_plane_reachable and envd_process_observable_via_commands are False, the platform advertises envd metadata/token but mobile does not expose a working envd endpoint or process shell access."
+  }
+}
