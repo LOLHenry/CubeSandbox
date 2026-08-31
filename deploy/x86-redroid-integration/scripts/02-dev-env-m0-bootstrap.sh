@@ -31,15 +31,7 @@ ensure_kvm_access() {
 }
 
 ssh_guest() {
-  local askpass="${WORK_DIR}/.ssh-askpass.sh"
-  mkdir -p "${WORK_DIR}"
-  cat >"${askpass}" <<EOF
-#!/usr/bin/env bash
-printf '%s\n' '${VM_PASSWORD}'
-EOF
-  chmod 700 "${askpass}"
-  DISPLAY="${DISPLAY:-m0-dev-env}" SSH_ASKPASS="${askpass}" SSH_ASKPASS_REQUIRE=force \
-    setsid -w ssh \
+  sshpass -p "${VM_PASSWORD}" ssh \
     -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
     -o PreferredAuthentications=password -o PubkeyAuthentication=no \
     -p "${SSH_PORT}" "${VM_USER}@127.0.0.1" "$@"
@@ -56,11 +48,19 @@ wait_ssh() {
   die "guest SSH not ready on port ${SSH_PORT}"
 }
 
+WRAP_DIR="${REPO_ROOT}/deploy/x86-redroid-integration/scripts/.path-wrap"
+mkdir -p "${WRAP_DIR}"
+ln -sf "${REPO_ROOT}/deploy/x86-redroid-integration/scripts/ssh-sshpass-wrap.sh" "${WRAP_DIR}/ssh"
+ln -sf "${REPO_ROOT}/deploy/x86-redroid-integration/scripts/scp-sshpass-wrap.sh" "${WRAP_DIR}/scp"
+export PATH="${WRAP_DIR}:${PATH}"
+export DEV_ENV_VM_PASSWORD="${VM_PASSWORD}"
+
 ensure_kvm_access
 
 if [[ "${SKIP_PREPARE}" != "1" ]]; then
   log "prepare_image (download + guest init, ~10 min first time)"
-  VM_MEMORY_MB="${VM_MEMORY_MB}" "${DEV_ENV}/prepare_image.sh" 2>&1 | tee /opt/cursor/artifacts/m0-prepare-image.log
+  VM_MEMORY_MB="${VM_MEMORY_MB}" PATH="${WRAP_DIR}:${PATH}" DEV_ENV_VM_PASSWORD="${VM_PASSWORD}" \
+    "${DEV_ENV}/prepare_image.sh" 2>&1 | tee /opt/cursor/artifacts/m0-prepare-image.log
 fi
 
 if [[ -f "${WORK_DIR}/qemu.pid" ]] && kill -0 "$(cat "${WORK_DIR}/qemu.pid")" 2>/dev/null; then
