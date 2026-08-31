@@ -41,13 +41,13 @@ rm -f "${QEMU_PIDFILE}"
 
 QEMU_EXTRA=()
 if [[ "${ACCEL}" == kvm ]]; then
-  QEMU_EXTRA=(-enable-kvm -cpu host)
+  QEMU_EXTRA=(-machine q35,accel=kvm -enable-kvm -cpu host)
 else
-  QEMU_EXTRA=(-accel tcg -cpu max)
+  QEMU_EXTRA=(-machine q35,accel=tcg -cpu max)
 fi
 
 qemu-system-x86_64 \
-  -machine q35,accel="${ACCEL}" "${QEMU_EXTRA[@]}" \
+  "${QEMU_EXTRA[@]}" \
   -m "${VM_MEMORY_MB}" -smp "${VM_CPUS}" \
   -name opencloudos9-cubesandbox \
   -drive if=pflash,format=raw,readonly=on,file="${OVMF}" \
