@@ -91,6 +91,6 @@ Mobile GUI 训练不是「开一台模拟器给人看」，而是用很多台 An
 - MobileRL, 2025（清华 + Z.AI 实习，**不是腾讯**）：Limitation 原文：“the system can only stably sustain up to 256 parallel rollouts, with each step taking more than 10 minutes … training 100 steps already takes more than 25 hours … large-scale image inference and network transmission introduce significant overhead.” 这里的 step 是 **RL 训练步**（batch 256、每条最多 50 个 GUI turn），不是一次点击。前文又写过可 concurrent interaction with over 1,000 environments，与 limitation 的稳定 256 并列，不能只取 1000。  
 - UI-Venus-1.5, 2026：DaaS 接数千异构设备；RL 写过数百～数千并发，**未拆 Android**。  
 - UI-TARS-2, 2025：数千 VM（Win / Ubuntu / Android 混部），**未拆 Android 路数**。  
-- PhoneBuddy / PhoneWorld, 2026（**腾讯混元**）：不是「只用真机、没有虚拟设备」。PhoneBuddy 的 real-app 环境是 **真机 + 真 App**；PhoneWorld 是用真机轨迹生成 **mock APK**，装在 **Android 13 Pixel 6 模拟器** 上 rollout/评测（论文：six emulators / three vLLM；开源仓库建 `PhoneWorldAvd`）。AndroidWorld 评测也是模拟器上的真 App。未公布大规模 Android 沙箱并发路数。AppAgent（腾讯 GY Lab, 2023）是 GPT-4V 探索式操作，不是大规模在线 RL。  
+- PhoneBuddy / PhoneWorld, 2026（**腾讯混元**）：不是「只用真机」。PhoneBuddy real-app = **真机 + 真 App**（未公布真机台数）。PhoneWorld mock APK 跑在模拟器上：论文写死的 **Android 13 Pixel 6 × 6 台 + 3 路 vLLM 只是在线评测**，不是训练农场。PhoneWorld 主实验的「训练」是把已采轨迹拿去 LlamaFactory 做 SFT（Qwen3.5-9B，截图 1080×2400）；采轨迹写的是 Seed 2.0 Pro 在 emulator 上 rollout，**未写训练开了几台、几核、哪张 GPU**。开源 AVD 与 AndroidWorld 相同：Pixel 6 / API 33。AppAgent（腾讯 GY Lab, 2023）是 GPT-4V 探索式操作，不是大规模在线 RL。  
 - ARPO, 2025：桌面 GUI，不要当 Android 口径。  
 - 本沙箱：目录 4 核 / 6GiB，`gpu_mode=guest`；内部画像 CPU 热点 &gt;50%、部分场景 &lt;10fps。
