@@ -88,9 +88,9 @@ Mobile GUI 训练不是「开一台模拟器给人看」，而是用很多台 An
 - DigiRL, NeurIPS 2024：最多 **64** 路 Android 模拟器 / 128 CPU（约 2 核一台）；单机硬堆 64 CPU 只有 0.74 traj/min，分布式 1.74；&gt;32 路需多机。  
 - DistRL, 2024：2 台 96 vCPU worker，最多 **32** 路 Android 模拟器/真机。  
 - MobileGUI-RL, 2025：AVD **2 核** / 3GiB；实例数随 batch；7B global batch 128，每任务 8 条 rollout，≤25 步。未写死并发路数。  
-- MobileRL, 2025：Docker AVD，**稳定 256 路并行 rollout**；文中写可并发交互 1000，limitation 又写内存/磁盘限制只能稳定 256。每台 &gt;5GiB 内存、&gt;30GB 盘；4 台 1TB 内存 CPU 机；每步 &gt;10 分钟，100 step 训练 &gt;25 小时。  
+- MobileRL, 2025（清华 + Z.AI 实习，**不是腾讯**）：Limitation 原文：“the system can only stably sustain up to 256 parallel rollouts, with each step taking more than 10 minutes … training 100 steps already takes more than 25 hours … large-scale image inference and network transmission introduce significant overhead.” 这里的 step 是 **RL 训练步**（batch 256、每条最多 50 个 GUI turn），不是一次点击。前文又写过可 concurrent interaction with over 1,000 environments，与 limitation 的稳定 256 并列，不能只取 1000。  
 - UI-Venus-1.5, 2026：DaaS 接数千异构设备；RL 写过数百～数千并发，**未拆 Android**。  
 - UI-TARS-2, 2025：数千 VM（Win / Ubuntu / Android 混部），**未拆 Android 路数**。  
-- InfiGUI-R1 / GUI-R1 等：大量是 AndroidControl **离线轨迹** RL，不是沙箱并行路数。  
+- PhoneBuddy / PhoneWorld, 2026（**腾讯混元**）：真机 RL + mock app；PhoneWorld 评测写 6 台模拟器 / 3 路 vLLM。未公布 Android 沙箱训练并发路数。AppAgent（腾讯 GY Lab, 2023）是 GPT-4V 探索式操作，不是大规模在线 RL。  
 - ARPO, 2025：桌面 GUI，不要当 Android 口径。  
 - 本沙箱：目录 4 核 / 6GiB，`gpu_mode=guest`；内部画像 CPU 热点 &gt;50%、部分场景 &lt;10fps。
