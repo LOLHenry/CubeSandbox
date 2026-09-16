@@ -103,5 +103,6 @@ Mobile GUI 训练不是「开一台模拟器给人看」，而是用很多台 An
 - UI-Venus-1.5, 2026：DaaS 接数千异构设备；RL 写过数百～数千并发，**未拆 Android**。  
 - UI-TARS-2, 2025：数千 VM（Win / Ubuntu / Android 混部），**未拆 Android 路数**。  
 - PhoneBuddy / PhoneWorld, 2026（**腾讯混元**）：不是「只用真机」。PhoneBuddy real-app = **真机 + 真 App**（未公布真机台数）。PhoneWorld mock APK 跑在模拟器上：论文写死的 **Android 13 Pixel 6 × 6 台 + 3 路 vLLM 只是在线评测**，不是训练农场。PhoneWorld 主实验的「训练」是把已采轨迹拿去 LlamaFactory 做 SFT（Qwen3.5-9B，截图 1080×2400）；采轨迹写的是 Seed 2.0 Pro 在 emulator 上 rollout，**未写训练开了几台、几核、哪张 GPU**。开源 AVD 与 AndroidWorld 相同：Pixel 6 / API 33。AppAgent（腾讯 GY Lab, 2023）是 GPT-4V 探索式操作，不是大规模在线 RL。  
-- ARPO, 2025：桌面 GUI，不要当 Android 口径。  
+- MAI-UI, 2025（阿里通义 Tongyi-MAI，https://arxiv.org/abs/2512.22047）：online RL 是 **Docker 里的 rooted AVD**（不是真机、也不是 ReDroid）。原文只写 Environment Manager 协调 **10 台标准阿里云 ECS（ecs.ebmg5s.24xlarge）**，最多 **512** 路并行 rollout；摘要实验是并行环境 32→512（+5.2 分）。**没有写 960 vCPU / 3840GB。** 该机型属弹性裸金属族 ebmg5s，规格表 **96 vCPU / 384 GiB**。10×96=960、10×384=3840 是后人用规格表乘出来的。原文语气是 “just 10 … supports up to 512”，不是 “要 10 台才开得动”。未公布单台 AVD 核数/内存，512/10≈51 路/机不能当 2 核装箱证据。  
+- MobileGym, 2026（https://arxiv.org/abs/2605.26114，https://mobilegym.dev/）：**浏览器模拟**，不是 AVD。单机容量 256 路（约 400MB/实例，&lt;10% CPU，约 100GB RAM）。实际 GRPO 训练：**96 路**浏览器实例，单机 3×RTX Pro 6000，10 个训练 step。§5.3 把 MAI-UI 转述成 “10 bare-metal cloud servers (960 vCPUs, 3,840 GB RAM total) to reach 512 parallel Android-emulator instances”。**「裸金属 + 960/3840」是 MobileGym 的转述和换算**，不是 MAI-UI 原句。  
 - 本沙箱：目录 4 核 / 6GiB，`gpu_mode=guest`；内部画像 CPU 热点 &gt;50%、部分场景 &lt;10fps。
