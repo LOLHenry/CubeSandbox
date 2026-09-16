@@ -12,11 +12,11 @@ Android 沙箱：AI Agent 基础设施之一，诉求按需高帧率渲染
 
 Mobile GUI 训练不是「开一台模拟器给人看」，而是用很多台 Android 环境给模型采轨迹：每台循环 **截图 → 决策 → 点击/滑动**，采完一批就更新策略。沙箱要同时满足三件事：
 
-1. **能并开：** 一次训练要同时挂一批 **Android** 环境。公开、真正在模拟器/沙箱里在线采轨迹的工作，2024 年常见 **几十路**（DistRL 32、DigiRL 最多 64，超过约 32 路就要多机）；2025 年 MobileRL 把 Docker AVD **稳定开到 256 路**（文中写过可交互 1000，自己又说内存/磁盘顶住、稳定上限 256）。MobileGym 的 **96 / 256 路**是浏览器里的 JSON 模拟，不是 AVD/ReDroid，不能用来对标我们的 CPU 装箱。「数千台」出现在 UI-TARS-2 / UI-Venus 的 **Win/Ubuntu/Android 混部** 集群，**没有拆出 Android 占多少**。对标装箱是 **2 核/台**（DigiRL、MobileGUI-RL）。桌面 ARPO 的 256 路不要拿来当 Android 的数。
+1. **能并开：** 一次训练要同时挂一批 **Android** 环境。公开、真正在模拟器/沙箱里在线采轨迹的工作，2024 年常见 **几十路**（DistRL 32、DigiRL 最多 64，超过约 32 路就要多机）；2025 年 MobileRL 把 Docker AVD **稳定开到 256 路**（文中写过可交互 1000，自己又说内存/磁盘顶住、稳定上限 256）。MAI-UI 把 Docker AVD online RL **集群开到 512 路**（10 台 ECS），消融显示 32→512 才把 8B 从 65.5 拉到 70.7；这是多机调度容量，**不是单机装箱规格**。MobileGym 的 **96 / 256 路**是浏览器里的 JSON 模拟，不是 AVD/ReDroid，不能用来对标我们的 CPU 装箱。「数千台」出现在 UI-TARS-2 / UI-Venus 的 **Win/Ubuntu/Android 混部** 集群，**没有拆出 Android 占多少**。对标装箱是 **2 核/台**（DigiRL、MobileGUI-RL）。桌面 ARPO 的 256 路不要拿来当 Android 的数。
 2. **能截图、能操作：** 观测就是屏幕图，动作就是坐标手势。人不需要 60fps 视频流；模型一步看一张图。
 3. **采得起、供得上：** 环境路数乘采样吞吐。路数开不满，同样预算少做实验。
 
-单条轨迹并不长：DigiRL 每条最多 **10～20 步**，MobileGUI-RL 最多 **25 步**，评测任务几十到一百条量级。主流范式是 **「中短轨迹 × 多路并行 × 多轮迭代」**，不是「一轮 100 万步、100 路一起跑」。下面不用这个假算例。
+单条轨迹并不长：DigiRL 每条最多 **10～20 步**，MobileGUI-RL 最多 **25 步**，MAI-UI online RL 把单条环境步上限从 **15 拉到 50**（8B 上 +4.3 分），仍是几十步。评测任务几十到两百条量级。主流范式是 **「中短轨迹 × 多路并行 × 多轮迭代」**，不是「一轮 100 万步、100 路一起跑」。下面不用这个假算例。
 
 ### 现在存在的问题（实在讲）
 
@@ -103,6 +103,6 @@ Mobile GUI 训练不是「开一台模拟器给人看」，而是用很多台 An
 - UI-Venus-1.5, 2026：DaaS 接数千异构设备；RL 写过数百～数千并发，**未拆 Android**。  
 - UI-TARS-2, 2025：数千 VM（Win / Ubuntu / Android 混部），**未拆 Android 路数**。  
 - PhoneBuddy / PhoneWorld, 2026（**腾讯混元**）：不是「只用真机」。PhoneBuddy real-app = **真机 + 真 App**（未公布真机台数）。PhoneWorld mock APK 跑在模拟器上：论文写死的 **Android 13 Pixel 6 × 6 台 + 3 路 vLLM 只是在线评测**，不是训练农场。PhoneWorld 主实验的「训练」是把已采轨迹拿去 LlamaFactory 做 SFT（Qwen3.5-9B，截图 1080×2400）；采轨迹写的是 Seed 2.0 Pro 在 emulator 上 rollout，**未写训练开了几台、几核、哪张 GPU**。开源 AVD 与 AndroidWorld 相同：Pixel 6 / API 33。AppAgent（腾讯 GY Lab, 2023）是 GPT-4V 探索式操作，不是大规模在线 RL。  
-- MAI-UI, 2025（阿里通义 Tongyi-MAI，https://arxiv.org/abs/2512.22047）：online RL 是 **Docker 里的 rooted AVD**（不是真机、也不是 ReDroid）。原文只写 Environment Manager 协调 **10 台标准阿里云 ECS（ecs.ebmg5s.24xlarge）**，最多 **512** 路并行 rollout；摘要实验是并行环境 32→512（+5.2 分）。**没有写 960 vCPU / 3840GB。** 该机型属弹性裸金属族 ebmg5s，规格表 **96 vCPU / 384 GiB**。10×96=960、10×384=3840 是后人用规格表乘出来的。原文语气是 “just 10 … supports up to 512”，不是 “要 10 台才开得动”。未公布单台 AVD 核数/内存，512/10≈51 路/机不能当 2 核装箱证据。  
+- MAI-UI, 2025（阿里通义 Tongyi-MAI，https://arxiv.org/abs/2512.22047）：backbone **Qwen3-VL**，四档 **2B / 8B / 32B / 235B-A22B**。四阶段：(i) 感知+grounding SFT → (ii) 导航 SFT（掺少量 grounding）→ (iii) grounding GRPO → (iv) 导航 **online RL**。SFT 语料规模、RL 训练步数/epoch、GPU 型号与卡时 **全文未写**。online RL 环境是 **Docker 封装的 rooted AVD**（不是真机、也不是 ReDroid），接入 **35+ App**；任务按当前策略 pass@K 分成四档课程（0–25 / 25–50 / 50–75 / 75–100），**未公布训练任务条数**。算法：verl 上严格 on-policy，异步 rollout；GRPO **group size 16**，DAPO 式 clip `ε_low=0.2 / ε_high=0.3`、无 KL、token-level loss；奖励 = 轨迹成功（规则或 MLLM judge，与人一致率 83%）+ 重复动作惩罚；失败组从 replay 补成功轨迹（每任务保留最近 8 条）。单条上限 `max_env_steps` 消融 **15 / 30 / 50**，主实验 **50 步**（8B：SFT 64.7 → 15 步 66.4 / 30 步 68.5 / 50 步 70.7）。并行环境消融 **32 → 512**（8B 65.5 → 70.7，摘要 +5.2）。环境侧原文：Environment Manager 协调 **10 台标准阿里云 ECS（ecs.ebmg5s.24xlarge）**，最多 **512** 路并行 rollout。**没有写 960 vCPU / 3840GB。** 该机型属弹性裸金属族 ebmg5s，规格表 **96 vCPU / 384 GiB**。10×96=960、10×384=3840 是 MobileGym 用规格表乘出来的。原文语气是 “just 10 … supports up to 512”，不是 “要 10 台才开得动”。未公布单台 AVD 核数/内存，512/10≈51 路/机不能当 2 核装箱证据。训练时截图缩到一半分辨率（720p 相对 1080p 每步约快 50.1%）。评测不要当成训练任务池：AndroidWorld **116 任务 / 20 App**；MobileWorld **201 任务**（GUI 116 + 用户交互 45 + MCP 40）。GitHub README 后来写的 100+ 真机、~10000 路、>100 步 **不在这篇 arXiv 里**，不要混用。  
 - MobileGym, 2026（https://arxiv.org/abs/2605.26114，https://mobilegym.dev/）：**浏览器模拟**，不是 AVD。单机容量 256 路（约 400MB/实例，&lt;10% CPU，约 100GB RAM）。实际 GRPO 训练：**96 路**浏览器实例，单机 3×RTX Pro 6000，10 个训练 step。§5.3 把 MAI-UI 转述成 “10 bare-metal cloud servers (960 vCPUs, 3,840 GB RAM total) to reach 512 parallel Android-emulator instances”。**「裸金属 + 960/3840」是 MobileGym 的转述和换算**，不是 MAI-UI 原句。  
 - 本沙箱：目录 4 核 / 6GiB，`gpu_mode=guest`；内部画像 CPU 热点 &gt;50%、部分场景 &lt;10fps。
