@@ -116,6 +116,17 @@ def add_arrow(slide, x1, y1, x2, y2, color, pt=1.75):
     return conn
 
 
+def dash_line(shape):
+    ln = shape._element.spPr.find(qn("a:ln"))
+    if ln is None:
+        return
+    old = ln.find(qn("a:prstDash"))
+    if old is not None:
+        ln.remove(old)
+    dash = etree.SubElement(ln, qn("a:prstDash"))
+    dash.set("val", "dash")
+
+
 def add_elbow(slide, points, color, pt=1.75):
     """points: list of (x,y) inch tuples, draw polyline with arrow on last segment."""
     for i in range(len(points) - 1):
@@ -181,7 +192,8 @@ def layout():
     libgui = B(8.00, 2.55, 1.45, 0.48)
     codec = B(12.35, 2.42, 2.05, 0.62)
     skia = B(1.85, 3.22, 1.25, 0.48)
-    gles = B(3.55, 3.85, 2.15, 0.62)
+    gles = B(3.55, 3.72, 2.15, 0.50)
+    ss = B(3.40, 4.48, 2.50, 0.58)
     sf = B(8.15, 3.18, 2.35, 0.52)
     alloc = B(7.55, 4.05, 1.95, 0.55)
     hwcs = B(9.85, 4.05, 2.15, 0.55)
@@ -200,9 +212,13 @@ def layout():
     return locals()
 
 
-def draw_stack(slide, boxes, highlight_ss=False):
+def draw_stack(slide, boxes, mode="phone"):
+    """mode: phone | mark | guest."""
     L = boxes
-    add_layer(slide, L["app"].x, L["app"].y, L["app"].w, L["app"].h, "APP")
+    guest = mode == "guest"
+    mark = mode in ("mark", "guest")
+    app_title = "APP（MicroVM 内 ReDroid）" if guest else "APP"
+    add_layer(slide, L["app"].x, L["app"].y, L["app"].w, L["app"].h, app_title)
     add_layer(slide, L["fw"].x, L["fw"].y, L["fw"].w, L["fw"].h, "Framework")
     add_layer(slide, L["nat"].x, L["nat"].y, L["nat"].w, L["nat"].h, "Native")
     add_layer(slide, L["hal"].x, L["hal"].y, L["hal"].w, L["hal"].h, "HAL")
@@ -223,28 +239,47 @@ def draw_stack(slide, boxes, highlight_ss=False):
     box(L["codec"], "MediaCodec", 12, True)
     box(L["skia"], "Skia", 12, True)
 
-    gles_fill = ORANGE_BG if highlight_ss else BOX_FILL
-    gles_line = ORANGE if highlight_ss else BLACK
-    gles_lw = 2.25 if highlight_ss else 1.0
-    box(L["gles"], "Open GL ES", 13, True, gles_fill, gles_line, ORANGE if highlight_ss else BLACK, gles_lw)
+    gles_fill = ORANGE_BG if mark else BOX_FILL
+    gles_line = ORANGE if mark else BLACK
+    gles_lw = 2.25 if mark else 1.0
+    gles_label = "Open GL ES\nAPI" if guest else "Open GL ES"
+    box(L["gles"], gles_label, 12, True, gles_fill, gles_line, ORANGE if mark else BLACK, gles_lw)
+
+    if guest:
+        box(
+            L["ss"],
+            "SwiftShader\nCPU 实现 GLES",
+            12,
+            True,
+            ORANGE_BG,
+            ORANGE,
+            ORANGE,
+            2.25,
+        )
 
     box(L["sf"], "SurfaceFlinger", 12, True)
     box(L["alloc"], "allocator\nservice", 10)
     box(L["hwcs"], "HWComposer\nservice", 10)
 
     box(L["gralloc"], "Gralloc", 12, True)
-    box(L["hwc"], "HWC", 12, True)
-    box(L["overlay"], "overlay", 12, True)
+    hwc_fill = RGBColor(0xEE, 0xEE, 0xEE) if guest else BOX_FILL
+    hwc_line = GRAY if guest else BLACK
+    box(L["hwc"], "HWC\nguest 弱" if guest else "HWC", 11 if guest else 12, True, hwc_fill, hwc_line, GRAY if guest else BLACK)
+    box(L["overlay"], "overlay", 12, True, hwc_fill, hwc_line, GRAY if guest else BLACK)
 
-    box(L["jpeg"], "JPEG\n硬解加速\n（可选）", 10)
-    box(L["png"], "PNG\n硬解加速\n（可选）", 10)
-    gpu_fill = RGBColor(0xEE, 0xEE, 0xEE) if highlight_ss else BOX_FILL
-    gpu_line = GRAY if highlight_ss else BLACK
-    box(L["gpu"], "GPU\n图形通用绘制", 10, True, gpu_fill, gpu_line, GRAY if highlight_ss else BLACK)
+    dead = RGBColor(0xEE, 0xEE, 0xEE)
+    box(L["jpeg"], "JPEG\n硬解加速\n（可选）", 10, False, dead if guest else BOX_FILL, GRAY if guest else BLACK, GRAY if guest else BLACK)
+    box(L["png"], "PNG\n硬解加速\n（可选）", 10, False, dead if guest else BOX_FILL, GRAY if guest else BLACK, GRAY if guest else BLACK)
+    gpu_fill = dead if mark else BOX_FILL
+    gpu_line = GRAY if mark else BLACK
+    gpu_txt = "GPU\n本沙箱不走" if guest else ("GPU\n图形通用绘制" if not mark else "GPU\n图形通用绘制")
+    if guest:
+        gpu_txt = "GPU\n本沙箱不走"
+    box(L["gpu"], gpu_txt, 10, True, gpu_fill, gpu_line, GRAY if mark else BLACK)
     box(L["ion"], "ION\n内存提供", 10)
-    box(L["overlay_acc"], "叠加加速器\n（可选）", 10)
+    box(L["overlay_acc"], "叠加加速器\n（可选）", 10, False, dead if guest else BOX_FILL, GRAY if guest else BLACK, GRAY if guest else BLACK)
     box(L["fb"], "FB\n图形图层", 10)
-    box(L["video"], "视频通路\n（可选）", 10)
+    box(L["video"], "视频通路\n（可选）", 10, False, dead if guest else BOX_FILL, GRAY if guest else BLACK, GRAY if guest else BLACK)
 
     add_text_box(slide, L["jpeg"].x, L["ker"].b - 0.32, 3.2, 0.28, "图形加速解码器类", 9, False, GRAY, PP_ALIGN.CENTER)
     add_text_box(slide, L["gpu"].x, L["ker"].b - 0.32, 1.45, 0.28, "图形通用绘制", 9, False, GRAY, PP_ALIGN.CENTER)
@@ -252,7 +287,7 @@ def draw_stack(slide, boxes, highlight_ss=False):
     add_text_box(slide, L["overlay_acc"].x, L["ker"].b - 0.32, 1.55, 0.28, "叠加加速", 9, False, GRAY, PP_ALIGN.CENTER)
     add_text_box(slide, L["fb"].x, L["ker"].b - 0.32, 3.2, 0.28, "显示层", 9, False, GRAY, PP_ALIGN.CENTER)
 
-    # 绘制通路 red
+    # 绘制通路
     add_arrow(slide, L["gfx"].cx, L["gfx"].b, L["gfx"].cx, L["runtime"].t, RED)
     add_arrow(slide, L["ogl"].cx, L["ogl"].b, L["ogl"].cx, L["runtime"].t, RED)
     add_arrow(slide, L["runtime"].cx - 2.4, L["runtime"].b, L["hwui"].cx, L["hwui"].t, RED)
@@ -261,10 +296,45 @@ def draw_stack(slide, boxes, highlight_ss=False):
     add_arrow(slide, L["hwui"].l, L["hwui"].cy, L["skia"].r, L["skia"].cy, RED)
     add_arrow(slide, L["hwui"].cx, L["hwui"].b, L["gles"].cx, L["gles"].t, RED)
     add_arrow(slide, L["librs"].cx, L["librs"].b, L["gles"].cx + 0.35, L["gles"].t, RED)
-    add_arrow(slide, L["skia"].cx, L["skia"].b, L["jpeg"].cx, L["jpeg"].t, RED)
-    add_arrow(slide, L["skia"].r + 0.15, L["skia"].b, L["png"].cx, L["png"].t, RED)
-    add_elbow(slide, [(L["vulkan"].cx, L["vulkan"].b), (L["vulkan"].cx, L["gles"].cy), (L["gpu"].cx, L["gles"].cy), (L["gpu"].cx, L["gpu"].t)], RED)
-    add_arrow(slide, L["gles"].cx, L["gles"].b, L["gpu"].cx, L["gpu"].t, RED)
+    if guest:
+        add_arrow(slide, L["gles"].cx, L["gles"].b, L["ss"].cx, L["ss"].t, ORANGE, 2.25)
+        add_elbow(
+            slide,
+            [
+                (L["vulkan"].cx, L["vulkan"].b),
+                (L["vulkan"].cx, L["ss"].cy),
+                (L["ss"].r, L["ss"].cy),
+            ],
+            ORANGE,
+            2.0,
+        )
+        add_elbow(
+            slide,
+            [
+                (L["ss"].cx, L["ss"].b),
+                (L["ss"].cx, L["gralloc"].t - 0.12),
+                (L["gralloc"].l, L["gralloc"].t - 0.12),
+                (L["gralloc"].l, L["gralloc"].t),
+            ],
+            ORANGE,
+            2.0,
+        )
+        ghost = add_arrow(slide, L["gles"].l + 0.2, L["gles"].b, L["gpu"].cx, L["gpu"].t, GRAY, 1.25)
+        dash_line(ghost)
+    else:
+        add_arrow(slide, L["skia"].cx, L["skia"].b, L["jpeg"].cx, L["jpeg"].t, RED)
+        add_arrow(slide, L["skia"].r + 0.15, L["skia"].b, L["png"].cx, L["png"].t, RED)
+        add_elbow(
+            slide,
+            [
+                (L["vulkan"].cx, L["vulkan"].b),
+                (L["vulkan"].cx, L["gles"].cy),
+                (L["gpu"].cx, L["gles"].cy),
+                (L["gpu"].cx, L["gpu"].t),
+            ],
+            RED,
+        )
+        add_arrow(slide, L["gles"].cx, L["gles"].b, L["gpu"].cx, L["gpu"].t, RED)
 
     # window / gui / codec / sf  黑
     add_arrow(slide, L["wm"].cx, L["wm"].b, L["wm"].cx, L["runtime"].t, BLACK, 1.4)
@@ -276,7 +346,17 @@ def draw_stack(slide, boxes, highlight_ss=False):
     add_arrow(slide, L["alloc"].cx, L["alloc"].b, L["gralloc"].cx, L["gralloc"].t, BLACK, 1.4)
     add_arrow(slide, L["gralloc"].cx, L["gralloc"].b, L["ion"].cx, L["ion"].t, BLACK, 1.4)
     add_arrow(slide, L["gles"].r, L["gles"].cy, L["alloc"].l, L["gles"].cy, BLACK, 1.4)
-    add_text_box(slide, L["gles"].r + 0.05, L["gles"].t - 0.28, 1.1, 0.26, "GPU叠加", 9, False, GRAY)
+    add_text_box(
+        slide,
+        L["gles"].r + 0.05,
+        L["gles"].t - 0.28,
+        1.35,
+        0.26,
+        "GLES叠加" if guest else "GPU叠加",
+        9,
+        False,
+        ORANGE if guest else GRAY,
+    )
 
     # 叠加蓝
     add_arrow(slide, L["sf"].r, L["sf"].cy, L["hwcs"].cx, L["sf"].cy, BLUE)
@@ -299,8 +379,21 @@ def draw_stack(slide, boxes, highlight_ss=False):
     add_text_box(slide, 0.12, 1.06, 1.35, 0.28, "叠加通路", 10, False, BLUE)
     add_arrow(slide, 0.18, 1.46, 0.95, 1.46, YELLOW)
     add_text_box(slide, 0.12, 1.50, 1.35, 0.28, "送显通路", 10, False, YELLOW)
+    if guest:
+        add_arrow(slide, 0.18, 1.90, 0.95, 1.90, ORANGE)
+        add_text_box(slide, 0.12, 1.94, 1.35, 0.40, "软渲染\nSwiftShader", 10, True, ORANGE)
 
     add_text_box(
+        slide,
+        0.10,
+        5.25,
+        1.40,
+        0.85,
+        "HAL：guest 下 HWC 弱，合成常退回 GLES。",
+        9,
+        False,
+        GRAY,
+    ) if guest else add_text_box(
         slide,
         0.10,
         5.25,
@@ -312,6 +405,16 @@ def draw_stack(slide, boxes, highlight_ss=False):
         GRAY,
     )
     add_text_box(
+        slide,
+        0.10,
+        6.35,
+        1.40,
+        1.6,
+        "Kernel GPU / 硬解 / 叠加加速器：本沙箱旁路。像素由 CPU 上的 SwiftShader 填。",
+        9,
+        False,
+        ORANGE,
+    ) if guest else add_text_box(
         slide,
         0.10,
         6.35,
@@ -343,44 +446,23 @@ def main():
 
     # slide 2 wireframe
     s1 = prs.slides.add_slide(blank)
-    draw_stack(s1, L, highlight_ss=False)
-    add_legend_note(s1, "线框复刻。红=绘制，蓝=叠加，黄=送显。模块名按原图（含 windowManger 拼写）。")
+    draw_stack(s1, L, mode="phone")
+    add_legend_note(s1, "真机线框。红=绘制，蓝=叠加，黄=送显。模块名按原图（含 windowManger 拼写）。")
 
-    # slide 3 swiftshader
+    # slide 3 swiftshader mark
     s2 = prs.slides.add_slide(blank)
-    draw_stack(s2, L, highlight_ss=True)
-
-    add_rect(
-        s2,
-        0.10,
-        1.95,
-        1.40,
-        3.05,
-        ORANGE_BG,
-        ORANGE,
-        "SwiftShader\n落点\n\nNative 层\nOpen GL ES\n的实现\n\n截断到 GPU\n的绘制红线\n\nHWUI / SF\n只是下单方",
-        11,
-        True,
-        ORANGE,
-        2.0,
-    )
-    add_rect(
-        s2,
-        L["gpu"].x - 0.04,
-        L["gpu"].y - 0.04,
-        L["gpu"].w + 0.08,
-        L["gpu"].h + 0.08,
-        RGBColor(0xF0, 0xF0, 0xF0),
-        GRAY,
-        "GPU\n真机才走\n本沙箱旁路",
-        10,
-        True,
-        GRAY,
-        1.5,
-    )
+    draw_stack(s2, L, mode="mark")
     add_legend_note(
         s2,
-        "SwiftShader = Native 层 OpenGL ES 的用户态实现，不是 Kernel GPU，也不是 SurfaceFlinger / HWC。SF 的 GPU 叠加同样打进这个 GLES 盒。",
+        "落点：Native 层 OpenGL ES 的实现。不是 Kernel GPU，也不是 SurfaceFlinger / HWC。",
+    )
+
+    # slide 4 VM guest architecture — the requested drawing
+    s_g = prs.slides.add_slide(blank)
+    draw_stack(s_g, L, mode="guest")
+    add_legend_note(
+        s_g,
+        "本沙箱：MicroVM + ReDroid，androidboot.redroid_gpu_mode=guest。HWUI / SF 仍下单；SwiftShader 用 CPU 填像素；GPU 虚线为真机原路，本沙箱不走。",
     )
 
     # slide 4 analysis
@@ -432,7 +514,9 @@ def preview_pngs(L):
     def px(inches):
         return int(inches * dpi)
 
-    def draw_slide(highlight):
+    def draw_slide(mode):
+        guest = mode == "guest"
+        highlight = mode in ("mark", "guest")
         img = Image.new("RGB", (px(16), px(9)), (255, 255, 255))
         d = ImageDraw.Draw(img)
 
@@ -465,7 +549,8 @@ def preview_pngs(L):
         def line(x1, y1, x2, y2, color, w=3):
             d.line((px(x1), px(y1), px(x2), px(y2)), fill=color, width=w)
 
-        for key, title in (("app", "APP"), ("fw", "Framework"), ("nat", "Native"), ("hal", "HAL"), ("ker", "Kernel")):
+        app_title = "APP（MicroVM 内 ReDroid）" if guest else "APP"
+        for key, title in (("app", app_title), ("fw", "Framework"), ("nat", "Native"), ("hal", "HAL"), ("ker", "Kernel")):
             b = L[key]
             d.rectangle((px(b.x), px(b.y), px(b.r), px(b.b)), fill=(244, 245, 247), outline=(50, 50, 50), width=2)
             text(b.x + 0.08, b.y + 0.04, title, 16, (22, 42, 90))
@@ -483,48 +568,57 @@ def preview_pngs(L):
         gfill = (255, 243, 224) if highlight else (255, 255, 255)
         gout = (201, 108, 22) if highlight else (30, 30, 30)
         gt = (201, 108, 22) if highlight else (20, 20, 20)
-        box(L["gles"], ["Open GL ES"], gfill, gout, 4 if highlight else 2, gt, 18)
+        box(L["gles"], ["Open GL ES", "API"] if guest else ["Open GL ES"], gfill, gout, 4 if highlight else 2, gt, 16)
+        if guest:
+            box(L["ss"], ["SwiftShader", "CPU 实现 GLES"], (255, 243, 224), (201, 108, 22), 4, (201, 108, 22), 16)
         box(L["sf"], ["SurfaceFlinger"])
         box(L["alloc"], ["allocator", "service"])
         box(L["hwcs"], ["HWComposer", "service"])
         box(L["gralloc"], ["Gralloc"])
-        box(L["hwc"], ["HWC"])
-        box(L["overlay"], ["overlay"])
-        box(L["jpeg"], ["JPEG 硬解", "（可选）"])
-        box(L["png"], ["PNG 硬解", "（可选）"])
-        if highlight:
-            box(L["gpu"], ["GPU", "真机才走", "本沙箱旁路"], (240, 240, 240), (102, 102, 102), 2, (102, 102, 102), 13)
+        dead = (238, 238, 238)
+        box(L["hwc"], ["HWC", "guest 弱"] if guest else ["HWC"], dead if guest else (255, 255, 255), (102, 102, 102) if guest else (30, 30, 30), 2, (102, 102, 102) if guest else (20, 20, 20))
+        box(L["overlay"], ["overlay"], dead if guest else (255, 255, 255), (102, 102, 102) if guest else (30, 30, 30))
+        box(L["jpeg"], ["JPEG 硬解", "（可选）"], dead if guest else (255, 255, 255), (102, 102, 102) if guest else (30, 30, 30), 2, (102, 102, 102) if guest else (20, 20, 20))
+        box(L["png"], ["PNG 硬解", "（可选）"], dead if guest else (255, 255, 255), (102, 102, 102) if guest else (30, 30, 30), 2, (102, 102, 102) if guest else (20, 20, 20))
+        if guest:
+            box(L["gpu"], ["GPU", "本沙箱不走"], (240, 240, 240), (102, 102, 102), 2, (102, 102, 102), 13)
+        elif highlight:
+            box(L["gpu"], ["GPU", "真机才走"], (240, 240, 240), (102, 102, 102), 2, (102, 102, 102), 13)
         else:
             box(L["gpu"], ["GPU"])
         box(L["ion"], ["ION"])
-        box(L["overlay_acc"], ["叠加加速器", "（可选）"])
+        box(L["overlay_acc"], ["叠加加速器", "（可选）"], dead if guest else (255, 255, 255), (102, 102, 102) if guest else (30, 30, 30), 2, (102, 102, 102) if guest else (20, 20, 20))
         box(L["fb"], ["FB"])
-        box(L["video"], ["视频通路", "（可选）"])
+        box(L["video"], ["视频通路", "（可选）"], dead if guest else (255, 255, 255), (102, 102, 102) if guest else (30, 30, 30), 2, (102, 102, 102) if guest else (20, 20, 20))
 
-        R, BL, Y = (208, 50, 50), (47, 111, 212), (212, 160, 18)
-        K = (40, 40, 40)
+        R, BL, Y, O, K = (208, 50, 50), (47, 111, 212), (212, 160, 18), (201, 108, 22), (40, 40, 40)
         line(L["gfx"].cx, L["gfx"].b, L["gfx"].cx, L["runtime"].t, R)
         line(L["ogl"].cx, L["ogl"].b, L["ogl"].cx, L["runtime"].t, R)
         line(L["hwui"].cx, L["hwui"].b, L["gles"].cx, L["gles"].t, R)
-        line(L["gles"].cx, L["gles"].b, L["gpu"].cx, L["gpu"].t, R)
-        line(L["vulkan"].cx, L["vulkan"].b, L["vulkan"].cx, L["gles"].cy, R)
-        line(L["vulkan"].cx, L["gles"].cy, L["gpu"].cx, L["gles"].cy, R)
-        line(L["gpu"].cx, L["gles"].cy, L["gpu"].cx, L["gpu"].t, R)
         line(L["libgui"].cx, L["libgui"].b, L["sf"].cx, L["sf"].t, K)
         line(L["sf"].cx, L["sf"].b, L["alloc"].cx, L["alloc"].t, K)
         line(L["hwcs"].cx, L["hwcs"].b, L["hwc"].cx, L["hwc"].t, BL)
         line(L["hwc"].r, L["hwc"].cy, L["overlay"].l, L["overlay"].cy, Y)
-
-        text(0.12, 0.18, "绘制红 / 叠加蓝 / 送显黄", 13, (90, 90, 90))
-        if highlight:
-            d.rounded_rectangle((px(0.10), px(1.95), px(1.50), px(5.00)), 10, fill=(255, 243, 224), outline=(201, 108, 22), width=3)
-            d.multiline_text((px(0.18), px(2.10)), "SwiftShader\n落点\nNative\nOpen GL ES", font=fnt(15), fill=(201, 108, 22), spacing=4)
+        if guest:
+            line(L["gles"].cx, L["gles"].b, L["ss"].cx, L["ss"].t, O, 5)
+            line(L["vulkan"].cx, L["vulkan"].b, L["vulkan"].cx, L["ss"].cy, O, 4)
+            line(L["vulkan"].cx, L["ss"].cy, L["ss"].r, L["ss"].cy, O, 4)
+            line(L["ss"].cx, L["ss"].b, L["ss"].cx, L["gralloc"].t - 0.12, O, 4)
+            line(L["ss"].cx, L["gralloc"].t - 0.12, L["gralloc"].l, L["gralloc"].t - 0.12, O, 4)
+            line(L["gles"].l + 0.15, L["gles"].b, L["gpu"].cx, L["gpu"].t, (160, 160, 160), 2)
+            text(0.12, 0.18, "guest 软渲染  gpu_mode=guest", 13, (201, 108, 22))
+        else:
+            line(L["gles"].cx, L["gles"].b, L["gpu"].cx, L["gpu"].t, R)
+            line(L["vulkan"].cx, L["vulkan"].b, L["vulkan"].cx, L["gles"].cy, R)
+            line(L["vulkan"].cx, L["gles"].cy, L["gpu"].cx, L["gles"].cy, R)
+            line(L["gpu"].cx, L["gles"].cy, L["gpu"].cx, L["gpu"].t, R)
+            text(0.12, 0.18, "绘制红 / 叠加蓝 / 送显黄", 13, (90, 90, 90))
         return img
 
     p1 = "/opt/cursor/artifacts/android_stack_wireframe_preview.png"
-    p2 = "/opt/cursor/artifacts/android_stack_swiftshader_placement.png"
-    draw_slide(False).save(p1, "PNG", optimize=True)
-    draw_slide(True).save(p2, "PNG", optimize=True)
+    p2 = "/opt/cursor/artifacts/android_vm_soft_render_architecture.png"
+    draw_slide("phone").save(p1, "PNG", optimize=True)
+    draw_slide("guest").save(p2, "PNG", optimize=True)
     print("preview", p1, p2)
 
 

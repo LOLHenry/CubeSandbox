@@ -98,6 +98,10 @@ RenderThread 出现在 [systrace](https://source.android.com/docs/core/tests/deb
 
 ![RenderThread、SurfaceFlinger、SwiftShader 对齐官方管线](assets/android-cpu-render-stack.png)
 
+VM 软渲染（`gpu_mode=guest`）按原软件栈线框把 SwiftShader 接在 Native 的 OpenGL ES 后面，旁路 Kernel GPU。线框 PPT：[`assets/android-graphics-stack-wireframe.pptx`](assets/android-graphics-stack-wireframe.pptx) 第 4 页。
+
+![本沙箱 MicroVM + ReDroid guest：OpenGL ES → SwiftShader，不进 GPU](assets/android-vm-soft-render-architecture.png)
+
 | 名字 | 官方图上的位置 | 是什么 |
 | --- | --- | --- |
 | **RenderThread** | Figure 2 左侧某一条 producer 里的 GPU 之前 | App 进程里 HWUI 的线程，把显示列表发成 GLES。不是系统服务 |
