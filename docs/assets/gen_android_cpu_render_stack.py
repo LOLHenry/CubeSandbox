@@ -116,7 +116,7 @@ def main():
             "flow": [
                 "Choreographer\n排帧",
                 "ViewRootImpl\n重绘",
-                "HWUI\n渲染",
+                "HWUI\n发画令",
                 "SurfaceFlinger\n合成",
             ],
             "fill": BLUE_BG,
@@ -127,8 +127,8 @@ def main():
         },
         {
             "title": "3  图形驱动层",
-            "body": "真机是 GPU；本沙箱是 CPU 软渲染（SwiftShader）",
-            "note": "本该 GPU 干的活，现在全压在 CPU 上",
+            "body": "接住 HWUI 的画令。真机走 GPU，本沙箱走 SwiftShader",
+            "note": "SwiftShader 用 CPU 冒充 GPU，像素在这里填",
             "fill": ORANGE_BG,
             "bd": ORANGE_BD,
             "accent": ORANGE,
@@ -163,13 +163,13 @@ def main():
             )
             d.text(
                 (sx0 + 36, y + 152),
-                "重绘 ≠ 渲染：记下怎么画 → 画成像素 → 再叠成整屏",
+                "HWUI 只发画令，不填像素。合成是出帧最后一步。",
                 font=font(20),
                 fill=MUTED,
             )
             d.text(
                 (sx0 + 36, y + 184),
-                "合成是出帧最后一步，不另列一层。",
+                "像素：真机 GPU；本沙箱 SwiftShader 用 CPU 画。",
                 font=font(20),
                 fill=MUTED,
             )
@@ -206,7 +206,7 @@ def main():
             "问题：不该画的时候还在画。",
             "",
             "Agent 在推理，屏幕无人看，",
-            "动画、排帧、重绘、渲染、合成",
+            "动画、排帧、重绘、发画令、合成",
             "仍按给人看的方式刷。",
             "",
             "手段：非截图阶段少刷、少合成。",

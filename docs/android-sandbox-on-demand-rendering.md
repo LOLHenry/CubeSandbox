@@ -76,12 +76,12 @@ Mobile GUI 训练不是「开一台模拟器给人看」，而是用很多台 An
 **上面两层（不该画还在画）→ 按需渲染**
 
 - **应用层：** 动画、WebView 仍在动。
-- **框架层：** 出一帧四步，**重绘 ≠ 渲染**。**Choreographer** 排帧 → **ViewRootImpl** 重绘（走 View 树，记下怎么画）→ **HWUI** 渲染（画成像素）→ **SurfaceFlinger** 合成（多窗口叠成整屏）。官方图没有单独的「合成层」，合成是出帧最后一步，不另列一层。不截图时这条链路仍在转。
+- **框架层：** 出一帧四步。**Choreographer** 排帧 → **ViewRootImpl** 重绘（记下怎么画）→ **HWUI** 发画令（GLES/Vulkan，自己不填像素）→ **SurfaceFlinger** 合成。官方没有单独的「合成层」，合成是出帧最后一步。不截图时这条链路仍在转。
 
 **最底层（画一帧太贵）→ 快速渲染**
 
-- **图形驱动层：** 手机上这一层是 GPU。本沙箱没有可直出的 GPU，换成 **CPU 软渲染（SwiftShader）**，App 和框架发出的画图命令全砸在 CPU 上。
-- 快速渲染改的是这一层：把 CPU 画图加快。不改 App。
+- **图形驱动层：** 接住 HWUI 的画令并填像素。真机是 GPU。本沙箱 `gpu_mode=guest`，换成 **SwiftShader（CPU 冒充 GPU）**，热点在这里。
+- 快速渲染改的是这一层：把 CPU 填像素加快。不改 App，也不改 HWUI。
 
 由此只收两条手段（并行、分团队）：
 
@@ -94,14 +94,15 @@ Mobile GUI 训练不是「开一台模拟器给人看」，而是用很多台 An
 
 ![Android 图形栈：按需切应用和框架，快速切图形驱动层](assets/android-cpu-render-stack.png)
 
-框架层出一帧：
+出一帧里 HWUI 和 SwiftShader 不是同一个东西：
 
 | 步骤 | 模块 | 干什么 |
 | --- | --- | --- |
 | 排帧 | **Choreographer** | 接到 VSYNC 后决定这一帧现在走 |
-| 重绘 | **ViewRootImpl** | measure / layout / draw，记下怎么画，**还不是像素** |
-| 渲染 | **HWUI** | RenderThread 把命令画进窗口缓冲，**这才是渲染** |
+| 重绘 | **ViewRootImpl** | measure / layout / draw，记下怎么画，还不是像素 |
+| 发画令 | **HWUI** | 系统自带的界面渲染器（`libhwui`）。名字带 Hardware，是因为手机上走 GPU。它把显示列表编成 GLES/Vulkan 命令发出去，**不在这一层把像素填完** |
 | 合成 | **SurfaceFlinger** | 多个窗口叠成一整屏；官方不单列一层，图上并进框架 |
+| 填像素 | **SwiftShader**（本沙箱） | 驱动层。执行 HWUI 发来的 GLES，用 **CPU 冒充 GPU** 画出像素。真机这一格是 GPU 驱动 |
 
 ## 依据（脚注，不入口号正文）
 
