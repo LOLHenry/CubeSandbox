@@ -73,11 +73,10 @@ Mobile GUI 训练不是「开一台模拟器给人看」，而是用很多台 An
 
 不先拆清切哪一层，按需和快速会对不准团队。
 
-**上面三层（不该画还在画）→ 按需渲染**
+**上面两层（不该画还在画）→ 按需渲染**
 
 - **应用层：** 动画、WebView 仍在动。
-- **框架层：** VSYNC 到了，**Choreographer** 排下一帧，**ViewRootImpl / HWUI** 重绘窗口，**BufferQueue** 把缓冲交给合成层；不截图时这条链路仍在转。
-- **合成层：** **SurfaceFlinger** 把多个窗口叠成一整屏；决策期无截图也在叠。
+- **框架层：** 出一帧四步，**重绘 ≠ 渲染**。**Choreographer** 排帧 → **ViewRootImpl** 重绘（走 View 树，记下怎么画）→ **HWUI** 渲染（画成像素）→ **SurfaceFlinger** 合成（多窗口叠成整屏）。官方图没有单独的「合成层」，合成是出帧最后一步，不另列一层。不截图时这条链路仍在转。
 
 **最底层（画一帧太贵）→ 快速渲染**
 
@@ -86,23 +85,23 @@ Mobile GUI 训练不是「开一台模拟器给人看」，而是用很多台 An
 
 由此只收两条手段（并行、分团队）：
 
-1. **按需渲染：** 切应用 / 框架 / 合成，非截图阶段少刷，把热点占用抠掉；能否降核用同节点实验回答。  
+1. **按需渲染：** 切应用 / 框架，非截图阶段少刷、少合成，把热点占用抠掉；能否降核用同节点实验回答。  
 2. **快速渲染：** 切图形驱动层，把 CPU 软渲染画快，缩短出帧。
 
 ## 4. 软件栈图
 
-上到下是 Android 图形栈。蓝 = 按需（上面三层），橙 = 快速（最底层驱动）。
+上到下是 Android 图形栈。蓝 = 按需（应用 / 框架），橙 = 快速（驱动）。
 
-![Android 图形栈：按需切上面三层，快速切图形驱动层](assets/android-cpu-render-stack.png)
+![Android 图形栈：按需切应用和框架，快速切图形驱动层](assets/android-cpu-render-stack.png)
 
-框架层流程图四个名字，对应刚才口语里的三步：
+框架层出一帧：
 
-| 口语 | 模块 | 干什么 |
+| 步骤 | 模块 | 干什么 |
 | --- | --- | --- |
-| （心跳） | **VSYNC** | 显示/合成侧发出的帧同步信号，不是框架自己造的时钟 |
-| 调度下一帧 | **Choreographer** | 接到 VSYNC 后按序跑 input → animation → traversal |
-| 窗口重绘 | **ViewRootImpl + HWUI** | `performTraversals`：measure / layout / draw；HWUI 的 RenderThread 真正画 |
-| 送去合成 | **BufferQueue** | 窗口把画好的缓冲交出去；**叠屏是下一层 SurfaceFlinger**，不在框架层里做 |
+| 排帧 | **Choreographer** | 接到 VSYNC 后决定这一帧现在走 |
+| 重绘 | **ViewRootImpl** | measure / layout / draw，记下怎么画，**还不是像素** |
+| 渲染 | **HWUI** | RenderThread 把命令画进窗口缓冲，**这才是渲染** |
+| 合成 | **SurfaceFlinger** | 多个窗口叠成一整屏；官方不单列一层，图上并进框架 |
 
 ## 依据（脚注，不入口号正文）
 

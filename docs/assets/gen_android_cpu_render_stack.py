@@ -30,9 +30,18 @@ def round_rect(draw, xy, r, fill, outline=None, width=2):
 
 def center_text(draw, xy, text, f, fill):
     x0, y0, x1, y1 = xy
-    bbox = draw.textbbox((0, 0), text, font=f)
-    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    draw.text(((x0 + x1 - tw) / 2, (y0 + y1 - th) / 2 - bbox[1]), text, font=f, fill=fill)
+    lines = text.split("\n")
+    sizes = []
+    for line in lines:
+        bbox = draw.textbbox((0, 0), line, font=f)
+        sizes.append((bbox[2] - bbox[0], bbox[3] - bbox[1], bbox[1]))
+    gap = 2
+    total_h = sum(h for _, h, _ in sizes) + gap * (len(lines) - 1)
+    y = y0 + (y1 - y0 - total_h) / 2
+    for i, line in enumerate(lines):
+        tw, th, b1 = sizes[i]
+        draw.text(((x0 + x1 - tw) / 2, y - b1), line, font=f, fill=fill)
+        y += th + gap
 
 
 def draw_lines(draw, x, y, lines, f, fill, gap=10):
@@ -48,7 +57,7 @@ def draw_lines(draw, x, y, lines, f, fill, gap=10):
 
 def draw_h_flow(draw, x0, y0, x1, steps, pill_h, f, fill, bd, accent):
     n = len(steps)
-    gap_arrow = 36
+    gap_arrow = 28
     inner = x1 - x0
     pill_w = (inner - gap_arrow * (n - 1)) / n
     y1 = y0 + pill_h
@@ -58,8 +67,8 @@ def draw_h_flow(draw, x0, y0, x1, steps, pill_h, f, fill, bd, accent):
         round_rect(draw, (px0, y0, px1, y1), 10, WHITE, bd, 2)
         center_text(draw, (px0, y0, px1, y1), label, f, accent)
         if i < n - 1:
-            ax0 = px1 + 6
-            ax1 = px0 + pill_w + gap_arrow - 6
+            ax0 = px1 + 5
+            ax1 = px0 + pill_w + gap_arrow - 5
             midy = (y0 + y1) / 2
             draw.line((ax0, midy, ax1 - 8, midy), fill=accent, width=3)
             draw.polygon(
@@ -98,69 +107,79 @@ def main():
             "bd": BLUE_BD,
             "accent": BLUE,
             "note_fill": BLUE,
+            "h": 128,
         },
         {
             "title": "2  框架层",
             "body": "",
             "note": "不截图时这条链路仍在转",
-            "flow": ["VSYNC", "Choreographer", "ViewRootImpl / HWUI", "BufferQueue"],
+            "flow": [
+                "Choreographer\n排帧",
+                "ViewRootImpl\n重绘",
+                "HWUI\n渲染",
+                "SurfaceFlinger\n合成",
+            ],
             "fill": BLUE_BG,
             "bd": BLUE_BD,
             "accent": BLUE,
             "note_fill": BLUE,
+            "h": 226,
         },
         {
-            "title": "3  合成层",
-            "body": "SurfaceFlinger：把多个窗口叠成一整屏",
-            "note": "决策期无截图也在叠",
-            "fill": BLUE_BG,
-            "bd": BLUE_BD,
-            "accent": BLUE,
-            "note_fill": BLUE,
-        },
-        {
-            "title": "4  图形驱动层",
+            "title": "3  图形驱动层",
             "body": "真机是 GPU；本沙箱是 CPU 软渲染（SwiftShader）",
             "note": "本该 GPU 干的活，现在全压在 CPU 上",
             "fill": ORANGE_BG,
             "bd": ORANGE_BD,
             "accent": ORANGE,
             "note_fill": ORANGE,
+            "h": 200,
         },
     ]
 
-    y = 140
-    gap = 14
+    y = 160
+    gap = 16
     boxes = []
     for layer in layers:
-        h = 176 if layer.get("flow") else 118
+        h = layer["h"]
         box = (sx0, y, sx1, y + h)
         boxes.append(box)
         round_rect(d, box, 16, layer["fill"], layer["bd"], 3)
         d.rounded_rectangle((sx0, y, sx0 + 12, y + h), radius=6, fill=layer["accent"])
-        d.text((sx0 + 36, y + 12), layer["title"], font=layer_title_f, fill=NAVY)
+        d.text((sx0 + 36, y + 16), layer["title"], font=layer_title_f, fill=NAVY)
         if layer.get("flow"):
-            d.text((sx0 + 220, y + 16), layer["note"], font=layer_body_f, fill=layer["note_fill"])
+            d.text((sx0 + 220, y + 20), layer["note"], font=layer_body_f, fill=layer["note_fill"])
             draw_h_flow(
                 d,
                 sx0 + 36,
-                y + 58,
+                y + 64,
                 sx1 - 24,
                 layer["flow"],
-                48,
+                72,
                 font(18),
                 WHITE,
                 layer["bd"],
                 layer["accent"],
             )
-            d.text((sx0 + 36, y + 122), "排帧 → 重绘 → 交缓冲；合成由下一层 SurfaceFlinger 做", font=font(20), fill=MUTED)
+            d.text(
+                (sx0 + 36, y + 152),
+                "重绘 ≠ 渲染：记下怎么画 → 画成像素 → 再叠成整屏",
+                font=font(20),
+                fill=MUTED,
+            )
+            d.text(
+                (sx0 + 36, y + 184),
+                "合成是出帧最后一步，不另列一层。",
+                font=font(20),
+                fill=MUTED,
+            )
         else:
-            d.text((sx0 + 36, y + 50), layer["body"], font=layer_body_f, fill=TEXT)
-            d.text((sx0 + 36, y + 82), layer["note"], font=layer_body_f, fill=layer["note_fill"])
+            d.text((sx0 + 36, y + 64), layer["body"], font=layer_body_f, fill=TEXT)
+            d.text((sx0 + 36, y + 100), layer["note"], font=layer_body_f, fill=layer["note_fill"])
         y = y + h + gap
 
     xmid = (sx0 + sx1) / 2
-    for i in range(3):
+    for i in range(len(boxes) - 1):
         d.line((xmid, boxes[i][3] + 2, xmid, boxes[i + 1][1] - 2), fill=LINE, width=3)
 
     fy0 = boxes[-1][3] + 22
@@ -175,10 +194,10 @@ def main():
 
     cx0, cx1 = 1048, 1728
     y_on0 = boxes[0][1]
-    y_on1 = boxes[2][3]
+    y_on1 = boxes[1][3]
     round_rect(d, (cx0, y_on0, cx1, y_on1), 18, BLUE_BG, BLUE, 3)
     d.text((cx0 + 32, y_on0 + 22), "按需渲染", font=call_title_f, fill=BLUE)
-    d.text((cx0 + 32, y_on0 + 64), "切上面三层：应用 / 框架 / 合成", font=call_sub_f, fill=BLUE)
+    d.text((cx0 + 32, y_on0 + 64), "切上面两层：应用 / 框架", font=call_sub_f, fill=BLUE)
     draw_lines(
         d,
         cx0 + 32,
@@ -187,7 +206,8 @@ def main():
             "问题：不该画的时候还在画。",
             "",
             "Agent 在推理，屏幕无人看，",
-            "动画、心跳、合成仍按给人看的方式刷。",
+            "动画、排帧、重绘、渲染、合成",
+            "仍按给人看的方式刷。",
             "",
             "手段：非截图阶段少刷、少合成。",
             "目的：抠掉决策期无效占用。",
@@ -197,8 +217,8 @@ def main():
         gap=8,
     )
 
-    y_f0 = boxes[3][1]
-    y_f1 = y_f0 + 236
+    y_f0 = boxes[2][1]
+    y_f1 = boxes[2][3]
     round_rect(d, (cx0, y_f0, cx1, y_f1), 18, ORANGE_BG, ORANGE, 3)
     d.text((cx0 + 32, y_f0 + 18), "快速渲染", font=call_title_f, fill=ORANGE)
     d.text((cx0 + 32, y_f0 + 58), "切最底层：图形驱动", font=call_sub_f, fill=ORANGE)
@@ -218,8 +238,8 @@ def main():
         gap=8,
     )
 
-    d.line((sx1, (boxes[0][1] + boxes[2][3]) / 2, cx0, (y_on0 + y_on1) / 2), fill=BLUE_BD, width=3)
-    d.line((sx1, (boxes[3][1] + boxes[3][3]) / 2, cx0, (y_f0 + y_f1) / 2), fill=ORANGE_BD, width=3)
+    d.line((sx1, (boxes[0][1] + boxes[1][3]) / 2, cx0, (y_on0 + y_on1) / 2), fill=BLUE_BD, width=3)
+    d.line((sx1, (boxes[2][1] + boxes[2][3]) / 2, cx0, (y_f0 + y_f1) / 2), fill=ORANGE_BD, width=3)
 
     out = "/workspace/docs/assets/android-cpu-render-stack.png"
     img.save(out, "PNG", optimize=True)
