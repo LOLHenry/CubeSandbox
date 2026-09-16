@@ -103,7 +103,7 @@ def main():
             "title": "2  框架层",
             "body": "",
             "note": "不截图时这条链路仍在转",
-            "flow": ["vsync 心跳", "调度下一帧", "窗口重绘", "送去合成"],
+            "flow": ["VSYNC", "Choreographer", "ViewRootImpl / HWUI", "BufferQueue"],
             "fill": BLUE_BG,
             "bd": BLUE_BD,
             "accent": BLUE,
@@ -148,12 +148,12 @@ def main():
                 sx1 - 24,
                 layer["flow"],
                 48,
-                font(20),
+                font(18),
                 WHITE,
                 layer["bd"],
                 layer["accent"],
             )
-            d.text((sx0 + 36, y + 122), "决定何时再画一帧（Choreographer / vsync）", font=font(20), fill=MUTED)
+            d.text((sx0 + 36, y + 122), "排帧 → 重绘 → 交缓冲；合成由下一层 SurfaceFlinger 做", font=font(20), fill=MUTED)
         else:
             d.text((sx0 + 36, y + 50), layer["body"], font=layer_body_f, fill=TEXT)
             d.text((sx0 + 36, y + 82), layer["note"], font=layer_body_f, fill=layer["note_fill"])
