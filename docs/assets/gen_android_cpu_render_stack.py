@@ -101,18 +101,18 @@ def main():
     layers = [
         {
             "title": "1  应用层",
-            "body": "各 App 的界面、动画、WebView",
-            "note": "决策期没人看，动画还在动",
+            "body": "View 走下面排帧；游戏 / 视频 / WebView 可自己送帧",
+            "note": "只停 Choreographer，停不掉自行送帧",
             "fill": BLUE_BG,
             "bd": BLUE_BD,
             "accent": BLUE,
             "note_fill": BLUE,
-            "h": 128,
+            "h": 148,
         },
         {
             "title": "2  框架层",
             "body": "",
-            "note": "不截图时这条链路仍在转",
+            "note": "View 主路径，不截图时仍在转",
             "flow": [
                 "Choreographer\n排帧",
                 "ViewRootImpl\n重绘",
@@ -127,7 +127,7 @@ def main():
         },
         {
             "title": "3  图形驱动层",
-            "body": "接住 HWUI 的画令。真机走 GPU，本沙箱走 SwiftShader",
+            "body": "接 GLES：HWUI 或应用自己发。真机 GPU，本沙箱 SwiftShader",
             "note": "SwiftShader 用 CPU 冒充 GPU，像素在这里填",
             "fill": ORANGE_BG,
             "bd": ORANGE_BD,
@@ -163,7 +163,7 @@ def main():
             )
             d.text(
                 (sx0 + 36, y + 152),
-                "HWUI 只发画令，不填像素。合成是出帧最后一步。",
+                "这是 View 主路径，不是全部渲染。HWUI 只发画令，不填像素。",
                 font=font(20),
                 fill=MUTED,
             )
@@ -205,11 +205,10 @@ def main():
         [
             "问题：不该画的时候还在画。",
             "",
-            "Agent 在推理，屏幕无人看，",
-            "动画、排帧、重绘、发画令、合成",
-            "仍按给人看的方式刷。",
+            "View 在排帧；游戏 / 视频 / WebView",
+            "还可自己往 Surface 送帧。",
             "",
-            "手段：非截图阶段少刷、少合成。",
+            "手段：应用少送帧，框架少排、少合成。",
             "目的：抠掉决策期无效占用。",
         ],
         call_body_f,

@@ -75,17 +75,17 @@ Mobile GUI 训练不是「开一台模拟器给人看」，而是用很多台 An
 
 **上面两层（不该画还在画）→ 按需渲染**
 
-- **应用层：** 动画、WebView 仍在动。
-- **框架层：** 出一帧四步。**Choreographer** 排帧 → **ViewRootImpl** 重绘（记下怎么画）→ **HWUI** 发画令（GLES/Vulkan，自己不填像素）→ **SurfaceFlinger** 合成。官方没有单独的「合成层」，合成是出帧最后一步。不截图时这条链路仍在转。
+- **应用层：** 动画、WebView 仍在动。**不是所有渲染都走 Choreographer。** View / Compose 才走下面那条排帧；游戏、视频、相机、WebView 可自己往 Surface 送帧。只停排帧，停不掉这一路。
+- **框架层：** View 主路径四步。**Choreographer** 排帧 → **ViewRootImpl** 重绘 → **HWUI** 发画令 → **SurfaceFlinger** 合成。不截图时这条链路仍在转。合成是出帧最后一步，不另列一层。
 
 **最底层（画一帧太贵）→ 快速渲染**
 
-- **图形驱动层：** 接住 HWUI 的画令并填像素。真机是 GPU。本沙箱 `gpu_mode=guest`，换成 **SwiftShader（CPU 冒充 GPU）**，热点在这里。
+- **图形驱动层：** 接 GLES 并填像素，来源可以是 HWUI，也可以是应用自己的 GL/Vulkan 线程。真机是 GPU。本沙箱 `gpu_mode=guest`，换成 **SwiftShader（CPU 冒充 GPU）**，热点在这里。
 - 快速渲染改的是这一层：把 CPU 填像素加快。不改 App，也不改 HWUI。
 
 由此只收两条手段（并行、分团队）：
 
-1. **按需渲染：** 切应用 / 框架，非截图阶段少刷、少合成，把热点占用抠掉；能否降核用同节点实验回答。  
+1. **按需渲染：** 切应用 / 框架。应用少送帧（含自行送帧的 WebView / SurfaceView），框架少排、少合成。只钩 Choreographer 不够。能否降核用同节点实验回答。  
 2. **快速渲染：** 切图形驱动层，把 CPU 软渲染画快，缩短出帧。
 
 ## 4. 软件栈图
@@ -94,15 +94,17 @@ Mobile GUI 训练不是「开一台模拟器给人看」，而是用很多台 An
 
 ![Android 图形栈：按需切应用和框架，快速切图形驱动层](assets/android-cpu-render-stack.png)
 
-出一帧里 HWUI 和 SwiftShader 不是同一个东西：
+出一帧有两条路。下表是 **View / Compose 主路径**（Choreographer 驱动）：
 
 | 步骤 | 模块 | 干什么 |
 | --- | --- | --- |
-| 排帧 | **Choreographer** | 接到 VSYNC 后决定这一帧现在走 |
+| 排帧 | **Choreographer** | 接到 VSYNC 后决定这一帧现在走。**只驱动 View 界面，不是全部渲染** |
 | 重绘 | **ViewRootImpl** | measure / layout / draw，记下怎么画，还不是像素 |
-| 发画令 | **HWUI** | 系统自带的界面渲染器（`libhwui`）。名字带 Hardware，是因为手机上走 GPU。它把显示列表编成 GLES/Vulkan 命令发出去，**不在这一层把像素填完** |
-| 合成 | **SurfaceFlinger** | 多个窗口叠成一整屏；官方不单列一层，图上并进框架 |
-| 填像素 | **SwiftShader**（本沙箱） | 驱动层。执行 HWUI 发来的 GLES，用 **CPU 冒充 GPU** 画出像素。真机这一格是 GPU 驱动 |
+| 发画令 | **HWUI** | 系统自带的界面渲染器（`libhwui`）。把显示列表编成 GLES/Vulkan 发出去，不填像素 |
+| 合成 | **SurfaceFlinger** | 多个窗口叠成一整屏；谁送来的缓冲都叠，不看是不是 Choreographer 送的 |
+| 填像素 | **SwiftShader**（本沙箱） | 驱动层。执行 GLES（HWUI 或应用自己发），CPU 冒充 GPU。真机这一格是 GPU 驱动 |
+
+另一条路：**应用自行送帧**。SurfaceView 游戏、视频解码、相机、WebView 内部合成器可以不经 Choreographer，自己往 Surface 送缓冲。Native 也可用 AChoreographer 跟同一路 VSYNC，或不等 VSYNC 狂 swap。按需如果只钩 Choreographer，这几路还在画。
 
 ## 依据（脚注，不入口号正文）
 
