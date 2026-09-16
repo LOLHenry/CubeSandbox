@@ -73,38 +73,36 @@ Mobile GUI 训练不是「开一台模拟器给人看」，而是用很多台 An
 
 不先拆清切哪一层，按需和快速会对不准团队。
 
-**上面两层（不该画还在画）→ 按需渲染**
+**按需：少下单、少叠。** RenderThread / 自行送帧少发 GLES，SurfaceFlinger 少叠。只停 Choreographer 停不掉游戏、视频、WebView。
 
-- **应用层：** 动画、WebView 仍在动。**不是所有渲染都走 Choreographer。** View / Compose 才走下面那条排帧；游戏、视频、相机、WebView 可自己往 Surface 送帧。只停排帧，停不掉这一路。
-- **框架层：** View 主路径四步。**Choreographer** 排帧 → **ViewRootImpl** 重绘 → **HWUI** 发画令 → **SurfaceFlinger** 合成。不截图时这条链路仍在转。合成是出帧最后一步，不另列一层。
-
-**最底层（画一帧太贵）→ 快速渲染**
-
-- **图形驱动层：** 接 GLES 并填像素，来源可以是 HWUI，也可以是应用自己的 GL/Vulkan 线程。真机是 GPU。本沙箱 `gpu_mode=guest`，换成 **SwiftShader（CPU 冒充 GPU）**，热点在这里。
-- 快速渲染改的是这一层：把 CPU 填像素加快。不改 App，也不改 HWUI。
+**快速：把 GLES 实现画快。** 真机是 GPU。本沙箱 `gpu_mode=guest`，换成 **SwiftShader（CPU 冒充 GPU）**。RenderThread 和 SurfaceFlinger 发的 GLES 都打到它。不改 App，不改 RenderThread，不改 SurfaceFlinger。
 
 由此只收两条手段（并行、分团队）：
 
-1. **按需渲染：** 切应用 / 框架。应用少送帧（含自行送帧的 WebView / SurfaceView），框架少排、少合成。只钩 Choreographer 不够。能否降核用同节点实验回答。  
-2. **快速渲染：** 切图形驱动层，把 CPU 软渲染画快，缩短出帧。
+1. **按需渲染：** 切生产者 + 合成。能否降核用同节点实验回答。  
+2. **快速渲染：** 切 SwiftShader，把 CPU 填像素加快，缩短出帧。
 
 ## 4. 软件栈图
 
-上到下是 Android 图形栈。蓝 = 按需（应用 / 框架），橙 = 快速（驱动）。
+不要把 RenderThread、SurfaceFlinger、SwiftShader 画成三层上下叠。官方也不是这么画的。
 
-![Android 图形栈：按需切应用和框架，快速切图形驱动层](assets/android-cpu-render-stack.png)
+官方三张图在 [AOSP Graphics](https://source.android.com/docs/core/graphics)：
 
-出一帧有两条路。下表是 **View / Compose 主路径**（Choreographer 驱动）：
+- Figure 1：谁生产缓冲、谁消费、HAL（WindowManager / SurfaceFlinger / HWC / Gralloc）。**没有 RenderThread，没有 SwiftShader。**
+- Figure 2：管线。左侧各 producer 旁边写 **GPU** → BufferQueue → **SurfaceFlinger**（里面也有 GPU）→ HWComposer → 显示。本沙箱把图里两处 GPU 都换成 SwiftShader。
+- Figure 3：BufferQueue 四步 dequeue / queue / acquire / release。
 
-| 步骤 | 模块 | 干什么 |
+RenderThread 出现在 [systrace](https://source.android.com/docs/core/tests/debug/systrace) 的时间轴：UI thread → RenderThread → queueBuffer → SurfaceFlinger。那是一帧的先后，不是分层。
+
+本沙箱落图：
+
+![RenderThread、SurfaceFlinger、SwiftShader 对齐官方管线](assets/android-cpu-render-stack.png)
+
+| 名字 | 官方图上的位置 | 是什么 |
 | --- | --- | --- |
-| 排帧 | **Choreographer** | 接到 VSYNC 后决定这一帧现在走。**只驱动 View 界面，不是全部渲染** |
-| 重绘 | **ViewRootImpl** | measure / layout / draw，记下怎么画，还不是像素 |
-| 发画令 | **HWUI** | 系统自带的界面渲染器（`libhwui`）。把显示列表编成 GLES/Vulkan 发出去，不填像素 |
-| 合成 | **SurfaceFlinger** | 多个窗口叠成一整屏；谁送来的缓冲都叠，不看是不是 Choreographer 送的 |
-| 填像素 | **SwiftShader**（本沙箱） | 驱动层。执行 GLES（HWUI 或应用自己发），CPU 冒充 GPU。真机这一格是 GPU 驱动 |
-
-另一条路：**应用自行送帧**。SurfaceView 游戏、视频解码、相机、WebView 内部合成器可以不经 Choreographer，自己往 Surface 送缓冲。Native 也可用 AChoreographer 跟同一路 VSYNC，或不等 VSYNC 狂 swap。按需如果只钩 Choreographer，这几路还在画。
+| **RenderThread** | Figure 2 左侧某一条 producer 里的 GPU 之前 | App 进程里 HWUI 的线程，把显示列表发成 GLES。不是系统服务 |
+| **SurfaceFlinger** | Figure 2 中间红块 | 独立进程，叠各路缓冲。GLES 合成时自己也是 GLES 客户端 |
+| **SwiftShader** | Figure 2 里所有写着 GPU 的格子 | 本沙箱的 GLES 实现，CPU 冒充 GPU。谁发 GLES 谁调它 |
 
 ## 依据（脚注，不入口号正文）
 

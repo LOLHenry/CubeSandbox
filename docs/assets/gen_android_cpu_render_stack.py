@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Leadership slide: Android graphics stack, two workstreams by layer."""
+"""Leadership slide: map RenderThread / SurfaceFlinger / SwiftShader onto AOSP pipeline."""
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -18,6 +18,8 @@ WHITE = (255, 255, 255)
 LINE = (210, 216, 228)
 TEXT = (28, 34, 48)
 MUTED = (72, 82, 98)
+BQ = (47, 150, 176)
+BQ_BG = (232, 247, 250)
 
 
 def font(size):
@@ -44,201 +46,102 @@ def center_text(draw, xy, text, f, fill):
         y += th + gap
 
 
-def draw_lines(draw, x, y, lines, f, fill, gap=10):
-    for line in lines:
-        if line == "":
-            y += gap
-            continue
-        draw.text((x, y), line, font=f, fill=fill)
-        bbox = draw.textbbox((0, 0), line if line else " ", font=f)
-        y += (bbox[3] - bbox[1]) + gap
-    return y
+def arrow(draw, x0, y, x1, fill):
+    draw.line((x0, y, x1 - 10, y), fill=fill, width=4)
+    draw.polygon([(x1, y), (x1 - 14, y - 8), (x1 - 14, y + 8)], fill=fill)
 
 
-def draw_h_flow(draw, x0, y0, x1, steps, pill_h, f, fill, bd, accent):
-    n = len(steps)
-    gap_arrow = 28
-    inner = x1 - x0
-    pill_w = (inner - gap_arrow * (n - 1)) / n
-    y1 = y0 + pill_h
-    for i, label in enumerate(steps):
-        px0 = x0 + i * (pill_w + gap_arrow)
-        px1 = px0 + pill_w
-        round_rect(draw, (px0, y0, px1, y1), 10, WHITE, bd, 2)
-        center_text(draw, (px0, y0, px1, y1), label, f, accent)
-        if i < n - 1:
-            ax0 = px1 + 5
-            ax1 = px0 + pill_w + gap_arrow - 5
-            midy = (y0 + y1) / 2
-            draw.line((ax0, midy, ax1 - 8, midy), fill=accent, width=3)
-            draw.polygon(
-                [(ax1, midy), (ax1 - 10, midy - 6), (ax1 - 10, midy + 6)],
-                fill=accent,
-            )
+def chip(draw, x, y, w, h, text, f):
+    round_rect(draw, (x, y, x + w, y + h), 8, ORANGE_BG, ORANGE, 2)
+    center_text(draw, (x, y, x + w, y + h), text, f, ORANGE)
 
 
 def main():
     img = Image.new("RGB", (W, H), WHITE)
     d = ImageDraw.Draw(img)
 
-    title_f = font(42)
-    sub_f = font(22)
-    layer_title_f = font(28)
-    layer_body_f = font(22)
-    call_title_f = font(30)
-    call_sub_f = font(22)
-    call_body_f = font(22)
+    title = "官方管线怎么落这三块：RenderThread / SurfaceFlinger / SwiftShader"
+    bbox = d.textbbox((0, 0), title, font=font(36))
+    d.text(((W - (bbox[2] - bbox[0])) / 2, 24), title, font=font(36), fill=NAVY)
 
-    title = "Android 图形栈：两条手段切在不同层"
-    bbox = d.textbbox((0, 0), title, font=title_f)
-    d.text(((W - (bbox[2] - bbox[0])) / 2, 28), title, font=title_f, fill=NAVY)
+    sub = "对齐 AOSP Graphics Figure 2。三者不是三层上下叠：前两个是进程里的模块，SwiftShader 是它们共同调用的 GLES。"
+    bbox = d.textbbox((0, 0), sub, font=font(20))
+    d.text(((W - (bbox[2] - bbox[0])) / 2, 78), sub, font=font(20), fill=GRAY)
 
-    sub = "上到下是系统分层。蓝 = 按需（少画），橙 = 快速（画快）。分团队，各切各的层。"
-    bbox = d.textbbox((0, 0), sub, font=sub_f)
-    d.text(((W - (bbox[2] - bbox[0])) / 2, 86), sub, font=sub_f, fill=GRAY)
+    # --- producers ---
+    px0, px1 = 56, 500
+    round_rect(d, (px0, 130, px1, 620), 18, BLUE_BG, BLUE, 3)
+    d.text((px0 + 24, 146), "生产者（官方图左侧）", font=font(24), fill=BLUE)
 
-    sx0, sx1 = 72, 980
-    layers = [
-        {
-            "title": "1  应用层",
-            "body": "View 走下面排帧；游戏 / 视频 / WebView 可自己送帧",
-            "note": "只停 Choreographer，停不掉自行送帧",
-            "fill": BLUE_BG,
-            "bd": BLUE_BD,
-            "accent": BLUE,
-            "note_fill": BLUE,
-            "h": 148,
-        },
-        {
-            "title": "2  框架层",
-            "body": "",
-            "note": "View 主路径，不截图时仍在转",
-            "flow": [
-                "Choreographer\n排帧",
-                "ViewRootImpl\n重绘",
-                "HWUI\n发画令",
-                "SurfaceFlinger\n合成",
-            ],
-            "fill": BLUE_BG,
-            "bd": BLUE_BD,
-            "accent": BLUE,
-            "note_fill": BLUE,
-            "h": 226,
-        },
-        {
-            "title": "3  图形驱动层",
-            "body": "接 GLES：HWUI 或应用自己发。真机 GPU，本沙箱 SwiftShader",
-            "note": "SwiftShader 用 CPU 冒充 GPU，像素在这里填",
-            "fill": ORANGE_BG,
-            "bd": ORANGE_BD,
-            "accent": ORANGE,
-            "note_fill": ORANGE,
-            "h": 200,
-        },
-    ]
+    round_rect(d, (px0 + 20, 190, px1 - 20, 390), 14, WHITE, BLUE_BD, 2)
+    d.text((px0 + 40, 206), "App 进程 · View 主路径", font=font(22), fill=NAVY)
+    d.text((px0 + 40, 244), "UI thread：记下怎么画", font=font(20), fill=TEXT)
+    d.text((px0 + 40, 278), "RenderThread：HWUI 发 GLES", font=font(22), fill=BLUE)
+    chip(d, px0 + 40, 324, 380, 46, "调 SwiftShader 填像素", font(20))
 
-    y = 160
-    gap = 16
-    boxes = []
-    for layer in layers:
-        h = layer["h"]
-        box = (sx0, y, sx1, y + h)
-        boxes.append(box)
-        round_rect(d, box, 16, layer["fill"], layer["bd"], 3)
-        d.rounded_rectangle((sx0, y, sx0 + 12, y + h), radius=6, fill=layer["accent"])
-        d.text((sx0 + 36, y + 16), layer["title"], font=layer_title_f, fill=NAVY)
-        if layer.get("flow"):
-            d.text((sx0 + 220, y + 20), layer["note"], font=layer_body_f, fill=layer["note_fill"])
-            draw_h_flow(
-                d,
-                sx0 + 36,
-                y + 64,
-                sx1 - 24,
-                layer["flow"],
-                72,
-                font(18),
-                WHITE,
-                layer["bd"],
-                layer["accent"],
-            )
-            d.text(
-                (sx0 + 36, y + 152),
-                "这是 View 主路径，不是全部渲染。HWUI 只发画令，不填像素。",
-                font=font(20),
-                fill=MUTED,
-            )
-            d.text(
-                (sx0 + 36, y + 184),
-                "像素：真机 GPU；本沙箱 SwiftShader 用 CPU 画。",
-                font=font(20),
-                fill=MUTED,
-            )
-        else:
-            d.text((sx0 + 36, y + 64), layer["body"], font=layer_body_f, fill=TEXT)
-            d.text((sx0 + 36, y + 100), layer["note"], font=layer_body_f, fill=layer["note_fill"])
-        y = y + h + gap
+    round_rect(d, (px0 + 20, 414, px1 - 20, 590), 14, WHITE, BLUE_BD, 2)
+    d.text((px0 + 40, 430), "自行送帧（不经 Choreographer）", font=font(22), fill=NAVY)
+    d.text((px0 + 40, 470), "游戏 / 视频 / WebView 自己 swap", font=font(20), fill=TEXT)
+    chip(d, px0 + 40, 518, 380, 46, "同样调 SwiftShader 填像素", font(20))
 
-    xmid = (sx0 + sx1) / 2
-    for i in range(len(boxes) - 1):
-        d.line((xmid, boxes[i][3] + 2, xmid, boxes[i + 1][1] - 2), fill=LINE, width=3)
+    # --- bufferqueue ---
+    bx0, bx1 = 540, 760
+    round_rect(d, (bx0, 250, bx1, 500), 16, BQ_BG, BQ, 3)
+    center_text(d, (bx0, 270, bx1, 360), "BufferQueue", font(26), BQ)
+    center_text(d, (bx0, 360, bx1, 470), "交缓冲\n官方 Figure 3", font(20), MUTED)
+    arrow(d, px1 + 6, 290, bx0 - 4, BLUE)
+    arrow(d, px1 + 6, 500, bx0 - 4, BLUE)
 
-    fy0 = boxes[-1][3] + 22
-    round_rect(d, (sx0 + 160, fy0, sx1 - 160, fy0 + 52), 12, (246, 248, 252), LINE, 2)
-    center_text(
-        d,
-        (sx0 + 160, fy0, sx1 - 160, fy0 + 52),
-        "截图  →  交给 Agent 决策",
-        font(24),
-        NAVY,
-    )
+    # --- surfaceflinger ---
+    sx0, sx1 = 800, 1220
+    round_rect(d, (sx0, 160, sx1, 590), 18, BLUE_BG, BLUE, 3)
+    d.text((sx0 + 24, 176), "SurfaceFlinger", font=font(28), fill=BLUE)
+    d.text((sx0 + 24, 220), "独立进程 · 官方图中间", font=font(20), fill=MUTED)
+    d.text((sx0 + 24, 268), "收各路缓冲，叠成一整屏", font=font(22), fill=TEXT)
+    d.text((sx0 + 24, 308), "真机优先交给 HWC；搞不定", font=font(20), fill=TEXT)
+    d.text((sx0 + 24, 344), "就自己发 GLES 做合成。", font=font(20), fill=TEXT)
+    chip(d, sx0 + 24, 400, 372, 52, "GLES 合成也走 SwiftShader", font(20))
+    d.text((sx0 + 24, 470), "本沙箱 HWC 弱，合成常打满 CPU", font=font(20), fill=ORANGE)
+    arrow(d, bx1 + 6, 375, sx0 - 4, BQ)
 
-    cx0, cx1 = 1048, 1728
-    y_on0 = boxes[0][1]
-    y_on1 = boxes[1][3]
-    round_rect(d, (cx0, y_on0, cx1, y_on1), 18, BLUE_BG, BLUE, 3)
-    d.text((cx0 + 32, y_on0 + 22), "按需渲染", font=call_title_f, fill=BLUE)
-    d.text((cx0 + 32, y_on0 + 64), "切上面两层：应用 / 框架", font=call_sub_f, fill=BLUE)
-    draw_lines(
-        d,
-        cx0 + 32,
-        y_on0 + 110,
-        [
-            "问题：不该画的时候还在画。",
-            "",
-            "View 在排帧；游戏 / 视频 / WebView",
-            "还可自己往 Surface 送帧。",
-            "",
-            "手段：应用少送帧，框架少排、少合成。",
-            "目的：抠掉决策期无效占用。",
-        ],
-        call_body_f,
-        TEXT,
-        gap=8,
-    )
+    # --- display ---
+    dx0, dx1 = 1260, 1488
+    round_rect(d, (dx0, 280, dx1, 470), 16, (246, 248, 252), LINE, 2)
+    center_text(d, (dx0, 280, dx1, 470), "显示 /\n截图给 Agent", font(24), NAVY)
+    arrow(d, sx1 + 6, 375, dx0 - 4, BLUE)
 
-    y_f0 = boxes[2][1]
-    y_f1 = boxes[2][3]
-    round_rect(d, (cx0, y_f0, cx1, y_f1), 18, ORANGE_BG, ORANGE, 3)
-    d.text((cx0 + 32, y_f0 + 18), "快速渲染", font=call_title_f, fill=ORANGE)
-    d.text((cx0 + 32, y_f0 + 58), "切最底层：图形驱动", font=call_sub_f, fill=ORANGE)
-    draw_lines(
-        d,
-        cx0 + 32,
-        y_f0 + 98,
-        [
-            "问题：画一帧太贵。",
-            "手机上这一层是 GPU；沙箱换成 CPU 软渲染。",
-            "",
-            "手段：把这一层的 CPU 画图加快。",
-            "目的：缩短等稳定截图的时间。",
-        ],
-        call_body_f,
-        TEXT,
-        gap=8,
-    )
+    # --- swiftshader bar ---
+    round_rect(d, (56, 648, 1488, 760), 16, ORANGE_BG, ORANGE, 3)
+    d.text((80, 666), "SwiftShader（本沙箱的 GLES 实现）", font=font(28), fill=ORANGE)
+    d.text((80, 710), "官方 Figure 2 里每条 producer 旁边的 GPU，以及 SurfaceFlinger 里的 GPU。真机是 GPU 驱动；这里用 CPU 冒充。", font=font(20), fill=TEXT)
 
-    d.line((sx1, (boxes[0][1] + boxes[1][3]) / 2, cx0, (y_on0 + y_on1) / 2), fill=BLUE_BD, width=3)
-    d.line((sx1, (boxes[2][1] + boxes[2][3]) / 2, cx0, (y_f0 + y_f1) / 2), fill=ORANGE_BD, width=3)
+    # --- two tracks ---
+    round_rect(d, (1520, 130, 1744, 430), 16, BLUE_BG, BLUE, 3)
+    d.text((1540, 148), "按需", font=font(28), fill=BLUE)
+    d.text((1540, 196), "少让 RenderThread", font=font(20), fill=TEXT)
+    d.text((1540, 228), "和自行送帧下单", font=font(20), fill=TEXT)
+    d.text((1540, 268), "少让 SF 叠", font=font(20), fill=TEXT)
+    d.text((1540, 316), "切生产者 + 合成", font=font(20), fill=BLUE)
+
+    round_rect(d, (1520, 454, 1744, 760), 16, ORANGE_BG, ORANGE, 3)
+    d.text((1540, 472), "快速", font=font(28), fill=ORANGE)
+    d.text((1540, 520), "不改 RenderThread", font=font(20), fill=TEXT)
+    d.text((1540, 552), "不改 SurfaceFlinger", font=font(20), fill=TEXT)
+    d.text((1540, 600), "把 SwiftShader", font=font(20), fill=TEXT)
+    d.text((1540, 632), "填像素加快", font=font(20), fill=TEXT)
+    d.text((1540, 680), "切 GLES 实现", font=font(20), fill=ORANGE)
+
+    foot = "官方图：source.android.com/docs/core/graphics  Figure 1 / 2 / 3。没有 RenderThread、也没有 SwiftShader 这两个名字。"
+    bbox = d.textbbox((0, 0), foot, font=font(18))
+    d.text(((W - (bbox[2] - bbox[0])) / 2, 800), foot, font=font(18), fill=GRAY)
+
+    note1 = "RenderThread = App 里 HWUI 的线程，不是系统服务。SurfaceFlinger = 合成进程。SwiftShader = 库，谁发 GLES 谁调它。"
+    bbox = d.textbbox((0, 0), note1, font=font(18))
+    d.text(((W - (bbox[2] - bbox[0])) / 2, 840), note1, font=font(18), fill=MUTED)
+
+    note2 = "systrace 文档只把 RenderThread 画成时间轴上的一段（UI thread → RenderThread → queueBuffer → SurfaceFlinger），不是软件分层图。"
+    bbox = d.textbbox((0, 0), note2, font=font(18))
+    d.text(((W - (bbox[2] - bbox[0])) / 2, 876), note2, font=font(18), fill=MUTED)
 
     out = "/workspace/docs/assets/android-cpu-render-stack.png"
     img.save(out, "PNG", optimize=True)
