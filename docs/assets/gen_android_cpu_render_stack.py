@@ -46,6 +46,28 @@ def draw_lines(draw, x, y, lines, f, fill, gap=10):
     return y
 
 
+def draw_h_flow(draw, x0, y0, x1, steps, pill_h, f, fill, bd, accent):
+    n = len(steps)
+    gap_arrow = 36
+    inner = x1 - x0
+    pill_w = (inner - gap_arrow * (n - 1)) / n
+    y1 = y0 + pill_h
+    for i, label in enumerate(steps):
+        px0 = x0 + i * (pill_w + gap_arrow)
+        px1 = px0 + pill_w
+        round_rect(draw, (px0, y0, px1, y1), 10, WHITE, bd, 2)
+        center_text(draw, (px0, y0, px1, y1), label, f, accent)
+        if i < n - 1:
+            ax0 = px1 + 6
+            ax1 = px0 + pill_w + gap_arrow - 6
+            midy = (y0 + y1) / 2
+            draw.line((ax0, midy, ax1 - 8, midy), fill=accent, width=3)
+            draw.polygon(
+                [(ax1, midy), (ax1 - 10, midy - 6), (ax1 - 10, midy + 6)],
+                fill=accent,
+            )
+
+
 def main():
     img = Image.new("RGB", (W, H), WHITE)
     d = ImageDraw.Draw(img)
@@ -79,8 +101,9 @@ def main():
         },
         {
             "title": "2  框架层",
-            "body": "系统刷新心跳（vsync），决定何时再画一帧",
-            "note": "不截图时心跳仍在叫刷新",
+            "body": "",
+            "note": "不截图时这条链路仍在转",
+            "flow": ["vsync 心跳", "调度下一帧", "窗口重绘", "送去合成"],
             "fill": BLUE_BG,
             "bd": BLUE_BD,
             "accent": BLUE,
@@ -106,19 +129,35 @@ def main():
         },
     ]
 
-    y = 148
-    gap = 16
-    h_layer = 124
+    y = 140
+    gap = 14
     boxes = []
     for layer in layers:
-        box = (sx0, y, sx1, y + h_layer)
+        h = 176 if layer.get("flow") else 118
+        box = (sx0, y, sx1, y + h)
         boxes.append(box)
         round_rect(d, box, 16, layer["fill"], layer["bd"], 3)
-        d.rounded_rectangle((sx0, y, sx0 + 12, y + h_layer), radius=6, fill=layer["accent"])
-        d.text((sx0 + 36, y + 16), layer["title"], font=layer_title_f, fill=NAVY)
-        d.text((sx0 + 36, y + 54), layer["body"], font=layer_body_f, fill=TEXT)
-        d.text((sx0 + 36, y + 88), layer["note"], font=layer_body_f, fill=layer["note_fill"])
-        y = y + h_layer + gap
+        d.rounded_rectangle((sx0, y, sx0 + 12, y + h), radius=6, fill=layer["accent"])
+        d.text((sx0 + 36, y + 12), layer["title"], font=layer_title_f, fill=NAVY)
+        if layer.get("flow"):
+            d.text((sx0 + 220, y + 16), layer["note"], font=layer_body_f, fill=layer["note_fill"])
+            draw_h_flow(
+                d,
+                sx0 + 36,
+                y + 58,
+                sx1 - 24,
+                layer["flow"],
+                48,
+                font(20),
+                WHITE,
+                layer["bd"],
+                layer["accent"],
+            )
+            d.text((sx0 + 36, y + 122), "决定何时再画一帧（Choreographer / vsync）", font=font(20), fill=MUTED)
+        else:
+            d.text((sx0 + 36, y + 50), layer["body"], font=layer_body_f, fill=TEXT)
+            d.text((sx0 + 36, y + 82), layer["note"], font=layer_body_f, fill=layer["note_fill"])
+        y = y + h + gap
 
     xmid = (sx0 + sx1) / 2
     for i in range(3):
