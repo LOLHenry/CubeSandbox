@@ -133,6 +133,27 @@ VM 软渲染（`gpu_mode=guest`）按原软件栈线框把 SwiftShader 接在 Na
 | **SurfaceFlinger** | Figure 2 中间红块 | 独立进程，叠各路缓冲。GLES 合成时自己也是 GLES 客户端 |
 | **SwiftShader** | Figure 2 里所有写着 GPU 的格子 | 本沙箱的 GLES 实现，CPU 冒充 GPU。谁发 GLES 谁调它 |
 
+## 2.4 胶片：右边填表口径怎么贴到 MAI-UI Figure 5
+
+原文图：[arxiv 2512.22047v1 Fig.5](https://arxiv.org/html/2512.22047v1#S2.F5)（`rl_train_schema2.png`）。它画的是 **online RL 架构**，不是帧率曲线。右边两段话 **原图对不上**，必须加 ①②，否则领导和文字错位。
+
+不要做的：原图硬贴；把 50%、&lt;10fps 画成饼图扣在 GRPOTrainer 上；把 512 路 / 10 台 ECS 当成我们的 20%+。Fig.5 只借 **结构**：GPU 上跑 Agent Loop，CPU 上堆沙箱，中间是 Screenshots / Actions。
+
+| 右边文字 | 落在 Fig.5 哪一块 | 怎么画 |
+| --- | --- | --- |
+| 依据稳定截图决策；出帧慢；一轮 Rollout +5%～15% | 右上 **Screenshots** 虚线，传导到左侧 **Multi-turn Online Rollout** | 橙圈 **①**。截图边变慢，拉长的是采轨迹墙钟，不是右边 Policy Update |
+| 非截图仍占 CPU；密度；可优化空间 20%+ | 右侧 **Online Mobile Env1…N** 堆叠，底栏 **CPU Worker × P** | 蓝圈 **②**。决策在 GPU（Agent Loop / Generate），沙箱还在出帧。原图 **没有**「停刷」，要靠圈出这叠 Env |
+| 热点 &gt;50%、&lt;10fps | Fig.5 **没有** 这一层 | 只写在右边，不要画进架构图 |
+
+胶片画法（左图右文）：
+
+1. **左图用 Fig.5 原图**，只加两个圈：① 框住 Screenshots；② 框住 CPU 上路沙箱。不要改他们的块名。
+2. **右边两段各冠 ①②**，颜色和圈一致。标题就用「依据渲染稳定后的截图进行决策」。
+3. Fig.5 **没有** 一步里的截图/决策/动作。若怕 ② 看不懂，在图下加一条细时间轴：`截图①高帧 | 决策（GPU 在算，沙箱仍刷②） | 动作`。这是 Fig.6 的压缩，不要整页换成 Fig.6。
+4. 脚注：\* 中小模型、单步约 2–3s；† 20%+ 是全程 60→20fps 实验上限，不是按需已兑现。
+
+自绘结构草图：[`assets/maiui-fig5-schematic.png`](assets/maiui-fig5-schematic.png)。生成脚本：`assets/gen_maiui_fig5_slide.py`。
+
 ## 依据（脚注，不入口号正文）
 
 - DigiRL, NeurIPS 2024：最多 **64** 路 Android 模拟器 / 128 CPU（约 2 核一台）；单机硬堆 64 CPU 只有 0.74 traj/min，分布式 1.74；&gt;32 路需多机。  
