@@ -79,8 +79,8 @@ def annotate_fig5(src):
     cap = Image.new("RGB", (w, h + 88), WHITE)
     cap.paste(img, (0, 0))
     c = ImageDraw.Draw(cap)
-    c.text((24, h + 12), "① 截图边：Screenshots → Agent 等稳定帧。出帧慢，拉长 Multi-turn Online Rollout。", font=font(28), fill=ORANGE)
-    c.text((24, h + 50), "② 装箱边：CPU Worker 上多路 Env。决策期 GPU 在算，沙箱仍在出帧，占满才开不满。", font=font(28), fill=BLUE)
+    c.text((24, h + 12), "① 截图边：Screenshots → Agent 等稳定帧。出帧慢，拉长采轨迹墙钟。", font=font(26), fill=ORANGE)
+    c.text((24, h + 48), "② 装箱边：鲲鹏沙箱节点上路数。决策在昇腾上算，沙箱仍出帧，占满才开不满。论文 GPU Worker = 我侧昇腾节点。", font=font(26), fill=BLUE)
     return cap
 
 
@@ -92,7 +92,7 @@ def slide(annotated):
 
     d.rectangle((0, 0, W, 88), fill=NAVY)
     d.text((36, 22), "GUI Agent 依据渲染稳定后的截图决策 —— 渲染打在训练环的两处", font=font(32), fill=WHITE)
-    d.text((36, 58), "左图结构对齐 MAI-UI Fig.5（GPU 采轨迹 / CPU 沙箱），①② 与右边两段一一对应", font=font(18), fill=(190, 205, 230))
+    d.text((36, 58), "左图结构对齐 MAI-UI Fig.5。论文写 GPU Worker，我侧改称昇腾节点 / 鲲鹏沙箱节点。①② 与右边两段对应。", font=font(18), fill=(190, 205, 230))
 
     # left: fit annotated fig
     aw, ah = annotated.size
@@ -117,7 +117,7 @@ def slide(annotated):
 
     round_rect(d, (rx, 584, 1888, 980), 16, BLUE_BG, BLUE, 4)
     badge(d, (rx + 24, 602, 44), 2, BLUE)
-    d.text((rx + 80, 606), "非截图阶段 · 打在 CPU Worker 路数", font=font(26), fill=BLUE)
+    d.text((rx + 80, 606), "非截图阶段 · 打在鲲鹏沙箱路数", font=font(26), fill=BLUE)
     t2 = (
         "决策期不需要新帧，软渲染仍在出帧，\n"
         "较多占用 CPU，单机并发沙箱密度减少。\n"
@@ -153,7 +153,7 @@ def schematic():
     badge(d, (250, 150, 40), 1, ORANGE)
 
     round_rect(d, (340, 80, 980, 700), 16, WHITE, BLUE, 3)
-    d.text((360, 100), "GPU Worker  ·  Agent 循环", font=font(22), fill=BLUE)
+    d.text((360, 100), "昇腾节点  ·  模型侧 Agent 循环", font=font(22), fill=BLUE)
     for i, name in enumerate(("任务 1", "任务 2", "任务 N")):
         y = 180 + i * 150
         round_rect(d, (370, y, 520, y + 70), 8, (255, 236, 214), ORANGE, 2)
@@ -164,7 +164,7 @@ def schematic():
         d.text((838, y + 20), "轨迹", font=font(20), fill=(46, 125, 50))
 
     round_rect(d, (1020, 80, 1564, 700), 16, WHITE, (46, 125, 50), 3)
-    d.text((1040, 96), "CPU Worker  ·  Android 沙箱", font=font(22), fill=(46, 125, 50))
+    d.text((1040, 96), "鲲鹏节点  ·  Android 沙箱", font=font(22), fill=(46, 125, 50))
     d.text((1040, 132), "Actions ↓          Screenshots ↑", font=font(16), fill=ORANGE)
     round_rect(d, (1288, 124, 1548, 168), 8, ORANGE_BG, ORANGE, 3)
     d.text((1300, 132), "① 截图边", font=font(18), fill=ORANGE)
@@ -236,7 +236,7 @@ def write_pptx(schematic_path):
     tf.word_wrap = True
     p = tf.paragraphs[0]
     r = p.add_run()
-    r.text = "② 非截图阶段 · CPU Worker 路数\n决策期不需要新帧，软渲染仍在出帧，较多占用 CPU，单机并发沙箱密度减少。可优化空间 20%+†"
+    r.text = "② 非截图阶段 · 鲲鹏沙箱路数\n决策期不需要新帧，软渲染仍在出帧，较多占用 CPU，单机并发沙箱密度减少。可优化空间 20%+†"
     r.font.size = Pt(14)
     r.font.color.rgb = RGBColor(*TEXT)
     r.font.name = "微软雅黑"
@@ -246,7 +246,7 @@ def write_pptx(schematic_path):
         6.95,
         12.7,
         0.4,
-        "* 中小模型、单步约 2–3s。† 全程 60→20fps 实验上限，不是按需已兑现。左图为结构草图，胶片可换成 MAI-UI Fig.5 原图并保留 ①②。",
+        "* 中小模型、单步约 2–3s。† 全程 60→20fps 实验上限，不是按需已兑现。左图为结构草图：昇腾节点跑模型，鲲鹏节点跑沙箱。论文 Fig.5 写 GPU Worker，口播改称昇腾节点。",
         11,
         MUTED,
     )
