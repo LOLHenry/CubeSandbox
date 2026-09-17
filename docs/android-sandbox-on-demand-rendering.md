@@ -137,19 +137,19 @@ VM 软渲染（`gpu_mode=guest`）按原软件栈线框把 SwiftShader 接在 Na
 
 原文图：[arxiv 2512.22047v1 Fig.5](https://arxiv.org/html/2512.22047v1#S2.F5)（`rl_train_schema2.png`）。它画的是 **online RL 架构**，不是帧率曲线。右边两段话 **原图对不上**，必须加 ①②，否则领导和文字错位。
 
-不要做的：原图硬贴；把 50%、&lt;10fps 画成饼图扣在 GRPOTrainer 上；把 512 路 / 10 台 ECS 当成我们的 20%+。Fig.5 只借 **结构**：昇腾节点跑 Agent Loop，鲲鹏节点堆沙箱，中间是 Screenshots / Actions。论文原图写成 GPU Worker / CPU Worker，是英伟达习惯；**我侧口播和自绘图改成昇腾节点 / 鲲鹏沙箱节点**，不要对着领导念 GPU Worker。
+不要做的：原图硬贴；把 50%、&lt;10fps 画成饼图扣在 GRPOTrainer 上；把 512 路 / 10 台 ECS 当成我们的 20%+。Fig.5 只借 **结构**：**模型节点**跑 Agent Loop，**沙箱节点**堆环境，中间是 Screenshots / Actions。论文原图写成 GPU Worker / CPU Worker；我侧不写死芯片。**模型节点 = GPU 或昇腾等 NPU**；**沙箱节点 = CPU（鲲鹏等）**。口播用这两个名字。
 
 | 右边文字 | 落在 Fig.5 哪一块 | 怎么画 |
 | --- | --- | --- |
 | 依据稳定截图决策；出帧慢；一轮 Rollout +5%～15% | 右上 **Screenshots** 虚线，传导到左侧 **Multi-turn Online Rollout** | 橙圈 **①**。截图边变慢，拉长的是采轨迹墙钟，不是右边 Policy Update |
-| 非截图仍占 CPU；密度；可优化空间 20%+ | 右侧 **Online Mobile Env1…N** 堆叠，底栏论文写 **CPU Worker × P**（我侧：**鲲鹏沙箱节点**） | 蓝圈 **②**。决策在昇腾（Agent Loop / Generate），沙箱还在出帧。原图 **没有**「停刷」，要靠圈出这叠 Env |
+| 非截图仍占 CPU；密度；可优化空间 20%+ | 右侧 **Online Mobile Env1…N** 堆叠，底栏论文写 **CPU Worker × P**（我侧：**沙箱节点**） | 蓝圈 **②**。决策在模型节点（Agent Loop / Generate），沙箱还在出帧。原图 **没有**「停刷」，要靠圈出这叠 Env |
 | 热点 &gt;50%、&lt;10fps | Fig.5 **没有** 这一层 | 只写在右边，不要画进架构图 |
 
 胶片画法（左图右文）：
 
-1. **左图优先用自绘结构**（昇腾节点 / 鲲鹏节点）。若必须贴 Fig.5 原图，只加 ①②，并在图下加一行：论文 GPU Worker = 我侧昇腾节点。
+1. **左图优先用自绘结构**（模型节点 / 沙箱节点）。若必须贴 Fig.5 原图，只加 ①②，并在图下加一行：论文 GPU Worker = 模型节点（GPU 或昇腾）。
 2. **右边两段各冠 ①②**，颜色和圈一致。标题就用「依据渲染稳定后的截图进行决策」。
-3. Fig.5 **没有** 一步里的截图/决策/动作。若怕 ② 看不懂，在图下加一条细时间轴：`截图①高帧 | 决策（昇腾在算，沙箱仍刷②） | 动作`。这是 Fig.6 的压缩，不要整页换成 Fig.6。
+3. Fig.5 **没有** 一步里的截图/决策/动作。若怕 ② 看不懂，在图下加一条细时间轴：`截图①高帧 | 决策（模型节点在算，沙箱仍刷②） | 动作`。这是 Fig.6 的压缩，不要整页换成 Fig.6。
 4. 脚注：\* 中小模型、单步约 2–3s；† 20%+ 是全程 60→20fps 实验上限，不是按需已兑现。
 
 自绘结构草图：[`assets/maiui-fig5-schematic.png`](assets/maiui-fig5-schematic.png)。生成脚本：`assets/gen_maiui_fig5_slide.py`。
