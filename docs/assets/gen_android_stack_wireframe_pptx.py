@@ -220,7 +220,7 @@ def draw_stack(slide, boxes, mode="phone"):
     app_title = "APP（MicroVM 内 ReDroid）" if guest else "APP"
     add_layer(slide, L["app"].x, L["app"].y, L["app"].w, L["app"].h, app_title)
     add_layer(slide, L["fw"].x, L["fw"].y, L["fw"].w, L["fw"].h, "Framework")
-    add_layer(slide, L["nat"].x, L["nat"].y, L["nat"].w, L["nat"].h, "Native")
+    add_layer(slide, L["nat"].x, L["nat"].y, L["nat"].w, L["nat"].h, "系统库")
     add_layer(slide, L["hal"].x, L["hal"].y, L["hal"].w, L["hal"].h, "HAL")
     add_layer(slide, L["ker"].x, L["ker"].y, L["ker"].w, L["ker"].h, "Kernel")
 
@@ -442,7 +442,12 @@ def main():
     s0 = prs.slides.add_slide(blank)
     add_text_box(s0, 0.4, 0.15, 15.2, 0.4, "原图（线框所依）", 20, True, NAVY)
     photo = "/home/ubuntu/.cursor/projects/workspace/assets/6601cb88-8692-4f53-9abf-f3f1b7745a68.png"
-    s0.shapes.add_picture(photo, inch(1.6), inch(0.6), inch(12.8), inch(8.1))
+    from pathlib import Path
+
+    if Path(photo).exists():
+        s0.shapes.add_picture(photo, inch(1.6), inch(0.6), inch(12.8), inch(8.1))
+    else:
+        add_text_box(s0, 1.6, 4.0, 12.8, 0.5, "原图文件不在本环境，线框见后续页。", 16, False, GRAY)
 
     # slide 2 wireframe
     s1 = prs.slides.add_slide(blank)
@@ -454,7 +459,7 @@ def main():
     draw_stack(s2, L, mode="mark")
     add_legend_note(
         s2,
-        "落点：Native 层 OpenGL ES 的实现。不是 Kernel GPU，也不是 SurfaceFlinger / HWC。",
+        "落点：系统库这一层的 OpenGL ES 实现。不是内核 GPU，也不是 SurfaceFlinger / HWC。",
     )
 
     # slide 4 VM guest architecture — the requested drawing
@@ -470,7 +475,7 @@ def main():
     add_text_box(s3, 0.5, 0.25, 15, 0.45, "从这张栈图看，SwiftShader 应该在哪", 22, True, NAVY)
 
     rows = [
-        ("在哪", "Native 层，Open GL ES 这一格的实现。对应原图红线：HWUI / Skia / libRS → Open GL ES → GPU。本沙箱在 Open GL ES 处截住，不再进 Kernel 的 GPU。"),
+        ("在哪", "系统库这一层，Open GL ES 这一格的实现。对应原图红线：HWUI / Skia / libRS → Open GL ES → GPU。本沙箱在 Open GL ES 处截住，不再进内核 GPU。"),
         ("为什么不在 Framework", "上面的 Open GL、Graphics 控件只是 API / 控件。它们下单，不填像素。"),
         ("为什么不在 HWUI / Skia", "HWUI、Skia 把显示列表变成 GLES 调用。SwiftShader 是被调用的后端，不是它们自己。"),
         ("为什么不在 SurfaceFlinger", "SF 是叠加通路的中枢。它做 GPU 叠加时自己也是 GLES 客户端，同样打进 Open GL ES → SwiftShader。"),
@@ -490,7 +495,7 @@ def main():
         8.45,
         15,
         0.4,
-        "一句话：画在 Native 的 Open GL ES 上，替掉到 GPU 的绘制红线；不要画成一层新 HAL，也不要画进 Kernel。",
+        "一句话：画在系统库的 Open GL ES 上，替掉到 GPU 的绘制红线；不要画成一层新硬件接口，也不要画进内核。",
         16,
         True,
         ORANGE,
@@ -550,7 +555,7 @@ def preview_pngs(L):
             d.line((px(x1), px(y1), px(x2), px(y2)), fill=color, width=w)
 
         app_title = "APP（MicroVM 内 ReDroid）" if guest else "APP"
-        for key, title in (("app", app_title), ("fw", "Framework"), ("nat", "Native"), ("hal", "HAL"), ("ker", "Kernel")):
+        for key, title in (("app", app_title), ("fw", "Framework"), ("nat", "系统库"), ("hal", "HAL"), ("ker", "Kernel")):
             b = L[key]
             d.rectangle((px(b.x), px(b.y), px(b.r), px(b.b)), fill=(244, 245, 247), outline=(50, 50, 50), width=2)
             text(b.x + 0.08, b.y + 0.04, title, 16, (22, 42, 90))
